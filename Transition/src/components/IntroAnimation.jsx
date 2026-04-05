@@ -48,7 +48,7 @@ export default function IntroAnimation({ onDone }) {
           width: "100%",
           height: "100%",
           objectFit: "cover",
-          transform: "translateZ(0)",
+          transform: "scale(1.02) translateZ(0)",
           backfaceVisibility: "hidden",
         }}
       />
