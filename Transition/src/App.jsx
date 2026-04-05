@@ -112,12 +112,13 @@ export default function App() {
   if (!hasAccess) {
     return (
       <div className="no-access-container">
-        <div className="header-box" style={{ marginBottom: 30, display: "flex", alignItems: "center", gap: "20px" }}>
-          <img src="/logo.png" alt="Workforce Hermes Logo" style={{ height: "60px", borderRadius: "8px", objectFit: "contain" }} />
+        <div className="header-box" style={{ marginBottom: 30 }}>
+          <img src="https://i.imgur.com/BRd5lrB.png" alt="ECE Logo" className="header-logo" />
           <div className="header-text-content">
-            <p style={{ margin: 0, fontSize: "16px", fontWeight: "500", color: "#64748b" }}>Programming Project Database</p>
+            <h1>WORKFORCE HERMES</h1>
+            <p>Workforce Programming Project Database</p>
           </div>
-          <img src="https://i.imgur.com/ycmU6oP.png" alt="WFM Logo" className="header-logo" style={{ height: "40px" }} />
+          <img src="https://i.imgur.com/ycmU6oP.png" alt="WFM Logo" className="header-logo" />
         </div>
         <div style={{ background: "white", padding: 40, borderRadius: 24, boxShadow: "0 10px 25px rgba(0,0,0,0.1)", maxWidth: 400 }}>
           <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" style={{ marginBottom: 20 }}>
@@ -141,12 +142,13 @@ export default function App() {
       <header>
         <div className="header-container">
           <div style={{ minWidth: 180 }}></div>
-          <div className="header-box" style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-            <img src="/logo.png" alt="Workforce Hermes Logo" style={{ height: "60px", borderRadius: "8px", objectFit: "contain" }} />
+          <div className="header-box">
+            <img src="https://i.imgur.com/BRd5lrB.png" alt="ECE Logo" className="header-logo" />
             <div className="header-text-content">
-              <p style={{ margin: 0, fontSize: "14px", fontWeight: "500", color: "#64748b" }}>Programming Project Database</p>
+              <h1>WORKFORCE HERMES</h1>
+              <p>Workforce Programming Project Database</p>
             </div>
-            <img src="https://i.imgur.com/ycmU6oP.png" alt="WFM Logo" className="header-logo" style={{ height: "40px" }} />
+            <img src="https://i.imgur.com/ycmU6oP.png" alt="WFM Logo" className="header-logo" />
           </div>
           <div className="user-profile">
             <div className="role-badge">{userRole}</div>
