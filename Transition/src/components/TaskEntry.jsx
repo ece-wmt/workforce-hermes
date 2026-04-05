@@ -28,7 +28,7 @@ export default function TaskEntry({ userRole, userName, onCreated, showModal }) 
         notes: [],
         lastUpdated: Date.now(),
       };
-      localStore.setQuery(api.tasks.getTasks, undefined, [...prevTasks, newTask]);
+      localStore.setQuery(api.tasks.getTasks, undefined, [...(prevTasks || []), newTask]);
     }
   });
 
@@ -87,32 +87,39 @@ export default function TaskEntry({ userRole, userName, onCreated, showModal }) 
       completed: false,
     }));
 
-    try {
-      await addTask({
-        title: document.getElementById("task-title").value,
-        assignee: Array.from(selectedAssignees).join(", "),
-        startDate: document.getElementById("task-date").value,
-        description: document.getElementById("task-desc").value,
-        milestones: milestonesData,
+    // We don't await here to make it feel INSTANT because we have an optimistic update
+    addTask({
+      title: document.getElementById("task-title").value,
+      assignee: Array.from(selectedAssignees).join(", "),
+      startDate: document.getElementById("task-date").value,
+      description: document.getElementById("task-desc").value,
+      milestones: milestonesData,
+    })
+      .then(() => {
+        // Success handled by showing modal early
+      })
+      .catch((err) => {
+        console.error("Task submission error:", err);
+        showModal({
+          title: "Deployment Failed",
+          message: "There was an error deploying your task. Please try again.",
+          type: "error",
+        });
+      })
+      .finally(() => {
+        setSubmitting(false);
       });
-      showModal({
-        title: "Project Deployed",
-        message: "Your project has been successfully deployed to the database.",
-        type: "success",
-        onConfirm: () => {
-          resetForm();
-          onCreated();
-        }
-      });
-    } catch (err) {
-      console.error("Task submission error:", err);
-      showModal({
-        title: "Deployment Failed",
-        message: "There was an error deploying your task. Please try again.",
-        type: "error"
-      });
-    }
-    setSubmitting(false);
+
+    // Show success modal INSTANTLY
+    showModal({
+      title: "Project Deployed",
+      message: "Your project has been successfully added and is currently syncing.",
+      type: "success",
+      onConfirm: () => {
+        resetForm();
+        onCreated();
+      },
+    });
   }
 
   const totalDays = milestones.reduce((sum, m) => sum + m.days, 0);

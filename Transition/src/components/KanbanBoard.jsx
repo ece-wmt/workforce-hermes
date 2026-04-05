@@ -6,10 +6,12 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
   const tasks = useQuery(api.tasks.getTasks);
   const updateTaskStatus = useMutation(api.tasks.updateTaskStatus).withOptimisticUpdate(
     (localStore, { taskId, newStatus }) => {
-      const task = localStore.getQuery(api.tasks.getTasks)?.find((t) => t._id === taskId);
+      const allTasks = localStore.getQuery(api.tasks.getTasks);
+      if (!Array.isArray(allTasks)) return;
+      const task = allTasks.find((t) => t._id === taskId);
       if (task) {
         localStore.setQuery(api.tasks.getTasks, undefined, (prevTasks) => {
-          if (!prevTasks) return prevTasks;
+          if (!Array.isArray(prevTasks)) return prevTasks;
           return prevTasks.map((t) => (t._id === taskId ? { ...t, status: newStatus, lastUpdated: Date.now() } : t));
         });
       }
@@ -49,7 +51,7 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
   };
 
   // Sort and filter
-  const sorted = [...tasks].sort((a, b) => b.lastUpdated - a.lastUpdated);
+  const sorted = [...(tasks || [])].sort((a, b) => b.lastUpdated - a.lastUpdated);
   let filtered = sorted;
   if (userRole === "Programmer") {
     filtered = sorted.filter(
