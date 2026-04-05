@@ -34,10 +34,20 @@ export default function App() {
 
   // Resolve user context once staff loads
   useEffect(() => {
-    if (!staff || !isAuthenticated) return;
+    // If not authenticated, skip loading screen entirely
+    if (!isAuthenticated) {
+      setLoading(false);
+      return;
+    }
 
     const email = localStorage.getItem("wf_email") || "";
-    if (!email) return;
+    if (!email) {
+      setLoading(false);
+      return;
+    }
+
+    // Wait for staff to finish loading from Convex
+    if (staff === undefined) return;
 
     const user = staff.find(
       (s) => (s.email || "").toLowerCase() === email.toLowerCase()
