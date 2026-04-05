@@ -12,11 +12,11 @@ export default function IntroAnimation({ onDone }) {
   const [fading, setFading] = useState(false);
 
   useEffect(() => {
-    // Start fading at 4 seconds
-    const fadeTimer = setTimeout(() => setFading(true), 4000);
+    // Start fading at 6 seconds
+    const fadeTimer = setTimeout(() => setFading(true), 6000);
 
-    // Fully remove the overlay at 5 seconds
-    const doneTimer = setTimeout(() => onDone(), 5000);
+    // Fully remove the overlay at 7.5 seconds
+    const doneTimer = setTimeout(() => onDone(), 7500);
 
     return () => {
       clearTimeout(fadeTimer);
@@ -30,12 +30,12 @@ export default function IntroAnimation({ onDone }) {
         position: "fixed",
         inset: 0,
         zIndex: 9999,
-        background: "#0f172a",
+        background: "#000", // Black background prevents edge lines
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         opacity: fading ? 0 : 1,
-        transition: "opacity 1s ease-in-out",
+        transition: "opacity 1.5s ease-in-out",
         pointerEvents: fading ? "none" : "all",
       }}
     >
@@ -48,6 +48,8 @@ export default function IntroAnimation({ onDone }) {
           width: "100%",
           height: "100%",
           objectFit: "cover",
+          transform: "translateZ(0)",
+          backfaceVisibility: "hidden",
         }}
       />
     </div>
