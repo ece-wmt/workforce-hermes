@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <?!= include('CSS'); ?>
+  </head>
+  <body>
+    <div id="no-access-screen" class="no-access-container hidden">
+      <div class="header-box" style="margin-bottom: 30px;">
+        <img src="https://i.imgur.com/BRd5lrB.png" alt="ECE Logo" class="header-logo">
+        <div class="header-text-content">
+          <h1>WORKFORCE HERMES</h1>
+          <p>Workforce Programming Project Database</p>
+        </div>
+        <img src="https://i.imgur.com/ycmU6oP.png" alt="WFM Logo" class="header-logo">
+      </div>
+      <div style="background: white; padding: 40px; border-radius: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-width: 400px;">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" style="margin-bottom: 20px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <h2 style="color: #1e293b; margin-bottom: 10px;">Access Denied</h2>
+        <p style="color: #64748b; line-height: 1.6;">You do not have access to this site. Please contact the administrator if you believe this is an error.</p>
+        <p style="margin-top: 20px; font-weight: 700; color: #1e293b;" id="denied-email"></p>
+      </div>
+    </div>
+
+    <div id="main-app" class="hidden">
+      <header>
+      <div class="header-container">
+        <div style="min-width: 180px;"></div> <!-- Spacer for centering -->
+        <div class="header-box">
+          <img src="https://i.imgur.com/BRd5lrB.png" alt="ECE Logo" class="header-logo">
+          <div class="header-text-content">
+            <h1>WORKFORCE HERMES</h1>
+            <p>Workforce Programming Project Database</p>
+          </div>
+          <img src="https://i.imgur.com/ycmU6oP.png" alt="WFM Logo" class="header-logo">
+        </div>
+        <div class="user-profile">
+          <div id="user-role-badge" class="role-badge">Admin</div>
+          <select id="role-switcher" class="role-switcher" onchange="changeRole(this.value)">
+            <option value="Admin">Admin View</option>
+            <option value="Programmer">Programmer View</option>
+          </select>
+        </div>
+      </div>
+      <div class="nav-bar">
+        <div class="nav-label">NAVIGATION & QUICK ACTIONS</div>
+        <div class="nav-links">
+          <div class="nav-btn active admin-only" onclick="switchView('dashboard')">OVERVIEW</div>
+          <div class="nav-btn" onclick="switchView('kanban')">DASHBOARD</div>
+          <div id="nav-new-task" class="nav-btn highlight" onclick="switchView('entry')">NEW TASK</div>
+          <div class="nav-btn" onclick="switchView('notebook')">NOTEBOOK</div>
+          <div id="nav-admin" class="nav-btn admin-only" onclick="switchView('admin')">ADMIN</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Task Details Modal -->
+    <div id="task-modal" class="modal-overlay hidden" onclick="closeTaskModal(event)">
+      <div class="modal-content" onclick="event.stopPropagation()">
+        <button class="modal-close" onclick="closeTaskModal(event)">×</button>
+        <div id="modal-body">
+          <!-- Content injected via JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Content Views -->
+    <div id="dashboard-view" class="view-section">
+      <div class="container">
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-value" id="stat-todo" style="color:var(--color-blue)">-</div><div class="stat-label">Queue</div></div>
+          <div class="stat-card"><div class="stat-value" id="stat-active" style="color:var(--color-amber)">-</div><div class="stat-label">Active</div></div>
+          <div class="stat-card"><div class="stat-value" id="stat-done" style="color:#10b981">-</div><div class="stat-label">Deployed</div></div>
+          <div class="stat-card"><div class="stat-value" id="stat-efficiency" style="color:#6366f1">-</div><div class="stat-label">Efficiency</div></div>
+        </div>
+        <div class="section-card">
+          <h2 style="font-weight:900; margin-top:0; text-transform:uppercase; font-size:1.2rem; letter-spacing:-0.5px">System Overview</h2>
+          <p style="color:#64748b">Welcome to Workforce Hermes. Use the navigation above to manage tasks, staff, and project concepts.</p>
+        </div>
+        <div class="section-card" style="margin-top:20px;">
+          <h2 style="font-weight:900; margin-top:0; text-transform:uppercase; font-size:1rem; color:#1e293b; margin-bottom:20px;">👥 Programmer Workload — Active & Pending</h2>
+          <div id="staff-workload-container">
+            <p style="color:#94a3b8; font-style:italic; text-align:center;">Loading...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="kanban-view" class="view-section hidden">
+      <div class="kanban-totals-bar">
+        <div class="total-card"><div class="total-value" id="total-todo" style="color:var(--col-todo)">0</div><div class="total-label">To Do</div></div>
+        <div class="total-card"><div class="total-value" id="total-pending" style="color:var(--col-pending)">0</div><div class="total-label">Pending</div></div>
+        <div class="total-card"><div class="total-value" id="total-development" style="color:var(--col-dev)">0</div><div class="total-label">Development</div></div>
+        <div class="total-card"><div class="total-value" id="total-testing" style="color:var(--col-test)">0</div><div class="total-label">In Testing</div></div>
+        <div class="total-card"><div class="total-value" id="total-done" style="color:var(--col-done)">0</div><div class="total-label">Completed</div></div>
+        <div class="total-card"><div class="total-value" id="total-scrapyard" style="color:var(--col-scrap)">0</div><div class="total-label">Scrapyard</div></div>
+      </div>
+      <div class="kanban-container">
+        <div class="kanban-col col-todo" id="col-todo" ondragover="allowDrop(event)" ondrop="drop(event, 'todo')">
+          <div class="col-header">To Do</div>
+          <div class="col-content" id="content-todo"></div>
+        </div>
+        <div class="kanban-col col-pending" id="col-pending" ondragover="allowDrop(event)" ondrop="drop(event, 'pending')">
+          <div class="col-header">Pending</div>
+          <div class="col-content" id="content-pending"></div>
+        </div>
+        <div class="kanban-col col-dev" id="col-development" ondragover="allowDrop(event)" ondrop="drop(event, 'development')">
+          <div class="col-header">In Development</div>
+          <div class="col-content" id="content-development"></div>
+        </div>
+        <div class="kanban-col col-test" id="col-testing" ondragover="allowDrop(event)" ondrop="drop(event, 'testing')">
+          <div class="col-header">In Testing</div>
+          <div class="col-content" id="content-testing"></div>
+        </div>
+        <div class="kanban-col col-done" id="col-done" ondragover="allowDrop(event)" ondrop="drop(event, 'done')">
+          <div class="col-header">Done</div>
+          <div class="col-content" id="content-done"></div>
+        </div>
+        <div class="kanban-col col-scrap" id="col-scrapyard" ondragover="allowDrop(event)" ondrop="drop(event, 'scrapyard')">
+          <div class="col-header">Scrapyard</div>
+          <div class="col-content" id="content-scrapyard"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="entry-view" class="view-section hidden">
+      <div class="container">
+        <div class="entry-grid">
+          <!-- Left Column: Form -->
+          <div class="section-card">
+            <div style="text-align:center; margin-bottom:30px">
+              <h1 style="font-weight:900; margin:0; font-size:2rem; color:#1e293b">Create New Task</h1>
+              <p style="color:#64748b; font-size:0.9rem; margin-top:5px">Enter project details and milestones</p>
+            </div>
+
+            <form onsubmit="submitTask(event)">
+              <div style="margin-bottom:30px">
+                <h3 style="font-weight:800; text-transform:uppercase; font-size:0.85rem; color:#475569; border-bottom:1px solid #f1f5f9; padding-bottom:10px; margin-bottom:20px">Task Information</h3>
+                <div class="form-group">
+                  <label class="form-label">Task Title *</label>
+                  <input type="text" id="task-title" class="form-input" placeholder="Project Name" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Assignees *</label>
+                  <div class="custom-multiselect" id="assignee-multiselect">
+                    <div class="multiselect-trigger" onclick="toggleMultiselect()">Select Assignees...</div>
+                    <div class="multiselect-options" id="assignee-options"></div>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Start Date *</label>
+                  <input type="date" id="task-date" class="form-input" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Description</label>
+                  <textarea id="task-desc" class="form-input" style="height:80px" placeholder="Details..."></textarea>
+                </div>
+              </div>
+
+              <div>
+                <h3 style="font-weight:800; text-transform:uppercase; font-size:0.85rem; color:#475569; border-bottom:1px solid #f1f5f9; padding-bottom:10px; margin-bottom:20px">Project Milestones</h3>
+                <div id="milestone-rows-container" class="milestone-rows-box">
+                  <!-- Milestone rows will be injected here -->
+                </div>
+                <button type="button" class="btn-add-milestone" onclick="addMilestoneRow()">+ Add Milestone</button>
+              </div>
+
+              <div style="display:flex; justify-content:center; gap:15px; margin-top:40px">
+                <button type="button" class="btn-secondary" onclick="resetTaskForm()">Clear</button>
+                <button type="submit" class="btn-primary" style="width:auto; padding:12px 40px">Create Task</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Right Column: Guide -->
+          <div class="section-card">
+            <h2 style="font-weight:900; margin-top:0; text-transform:uppercase; font-size:1.2rem; margin-bottom:10px">Standard Milestone Guide</h2>
+            <div style="height:2px; background:linear-gradient(to right, #6366f1, transparent); margin-bottom:25px"></div>
+            
+            <div id="milestone-guide-list" class="guide-list">
+              <!-- Guide items will be injected here -->
+            </div>
+
+            <div id="timeline-summary" class="timeline-summary-box">
+              <div id="total-days-label" style="font-weight:800; color:#6366f1; font-size:0.9rem">Total Guided Timeline: 0 Days</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="notebook-view" class="view-section hidden">
+      <div class="container">
+        <div style="text-align:center; margin-bottom:40px">
+          <h1 style="font-weight:900; margin:0; font-size:2rem; color:#1e293b">Project Ideas & Concepts</h1>
+          <div style="height:3px; width:100%; background:#6366f1; margin-top:10px"></div>
+        </div>
+        <div class="notebook-grid">
+          <div class="section-card">
+            <h2 style="font-weight:900; margin-top:0; text-transform:uppercase; margin-bottom:30px">Ideas Feed</h2>
+            <div id="ideas-feed"></div>
+          </div>
+          <div class="section-card" id="idea-form-container">
+            <h2 style="font-weight:900; margin-top:0; text-transform:uppercase; margin-bottom:30px; text-align:center">Add New Idea</h2>
+            <div style="height:2px; background:#6366f1; margin-bottom:25px"></div>
+            <form id="idea-form" onsubmit="submitIdea(event)">
+              <div class="form-group"><label class="form-label">Project Name *</label><input type="text" id="idea-title" class="form-input" placeholder="Enter a temporary project name..." required></div>
+              <div class="form-group"><label class="form-label">What does it do? *</label><textarea id="idea-desc" class="form-input" style="height:100px" placeholder="Briefly describe what this project would accomplish..." required></textarea></div>
+              <div class="form-group"><label class="form-label">Pros</label><textarea id="idea-pros" class="form-input" style="height:100px" placeholder="List potential benefits..."></textarea></div>
+              <div class="form-group"><label class="form-label">Cons</label><textarea id="idea-cons" class="form-input" style="height:100px" placeholder="List potential drawbacks..."></textarea></div>
+              <div class="form-group"><label class="form-label">Further Details</label><textarea id="idea-details" class="form-input" style="height:100px" placeholder="Additional thoughts..."></textarea></div>
+              <div style="display:flex; gap:10px">
+                <button type="button" class="btn-secondary" style="flex:1" onclick="document.getElementById('idea-form').reset()">Clear</button>
+                <button type="submit" class="btn-primary" style="flex:2; background:#6366f1">Save Idea</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="admin-view" class="view-section hidden">
+      <div class="container">
+        <div style="display:grid; grid-template-columns: 1fr 1.5fr; gap:30px">
+          <div class="section-card">
+            <h2 style="font-weight:900; margin-top:0; text-transform:uppercase">Add New Staff</h2>
+            <form onsubmit="submitStaff(event)">
+              <div class="form-group"><label class="form-label">Full Name</label><input type="text" id="staff-name" class="form-input" required></div>
+              <div class="form-group"><label class="form-label">Email Address</label><input type="email" id="staff-email" class="form-input" required></div>
+              <div class="form-group"><label class="form-label">Role</label><input type="text" id="staff-role" class="form-input" value="Programmer" required></div>
+              <button type="submit" class="btn-primary">Register Staff Member</button>
+            </form>
+          </div>
+          <div class="section-card">
+            <h2 style="font-weight:900; margin-top:0; text-transform:uppercase; margin-bottom:20px">Staff Management</h2>
+            <table class="table">
+              <thead><tr><th>Name</th><th>Role</th><th>Email</th></tr></thead>
+              <tbody id="staff-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="loading-overlay" class="loading-overlay hidden">
+      <div class="loader"></div>
+      <div class="loading-text">PROCESSING...</div>
+    </div>
+
+    <!-- Context Menu -->
+    <div id="task-context-menu" class="context-menu hidden">
+      <div class="context-menu-item" onclick="handleContextMenuEdit()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Edit Task
+      </div>
+      <div class="context-menu-item delete-option" onclick="handleContextMenuDelete()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+        Delete Task
+      </div>
+    </div>
+
+    </div> <!-- End main-app -->
+    <?!= include('Javascript'); ?>
+  </body>
+</html>
+

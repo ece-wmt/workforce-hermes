@@ -1,0 +1,19 @@
+/**
+ * WORKFORCE HERMES - MAIN ENTRY
+ * Consistently serves the Index.html shell
+ */
+
+function doGet(e) {
+  return HtmlService.createTemplateFromFile('Index')
+    .evaluate()
+    .setTitle('Workforce Hermes | Project Database')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+/**
+ * Helper to include HTML files in Index.html
+ */
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+}
