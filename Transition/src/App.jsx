@@ -150,7 +150,7 @@ export default function App() {
       // Not in staff list — must register with "admin"
       if (password === "admin") {
         const defaultName = lowerEmail.split("@")[0];
-        addStaffMutation({ name: defaultName, email: lowerEmail, role: "Programmer" });
+        addStaffMutation({ name: defaultName, email: lowerEmail, role: "Pending" });
         // Show access denied — admin must approve them
         localStorage.setItem("wf_authenticated", "true");
         localStorage.setItem("wf_email", lowerEmail);
@@ -158,6 +158,14 @@ export default function App() {
       } else {
         setLoginError("You are not registered. Use the default password to register.");
       }
+      return;
+    }
+
+    // User is marked as pending approval
+    if (user.role === "Pending") {
+      localStorage.setItem("wf_authenticated", "true");
+      localStorage.setItem("wf_email", lowerEmail);
+      setAuthStage("denied");
       return;
     }
 

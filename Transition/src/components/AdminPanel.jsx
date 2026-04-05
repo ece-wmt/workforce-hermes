@@ -5,6 +5,10 @@ export default function AdminPanel() {
   const staff = useQuery(api.staff.getStaff);
   const addStaffMut = useMutation(api.staff.addStaff);
   const updateStaffRole = useMutation(api.staff.updateStaffRole);
+  const deleteStaffMut = useMutation(api.staff.deleteStaff);
+
+  const activeStaff = (staff || []).filter(s => s.role !== "Pending");
+  const pendingRequests = (staff || []).filter(s => s.role === "Pending");
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -41,6 +45,37 @@ export default function AdminPanel() {
           </div>
           <div className="section-card">
             <h2 style={{ fontWeight: 900, marginTop: 0, textTransform: "uppercase", marginBottom: 20 }}>Staff Management</h2>
+            
+            {pendingRequests.length > 0 && (
+              <div style={{ marginBottom: 40 }}>
+                <h3 style={{ color: "#d97706", borderBottom: "2px solid #fde68a", paddingBottom: 10, marginBottom: 15, fontSize: "1rem", textTransform: "uppercase" }}>Pending Access Requests</h3>
+                <table className="table" style={{ background: "#fffbeb", border: "1px solid #fde68a" }}>
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Email</th>
+                      <th style={{ textAlign: "right" }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingRequests.map((s) => (
+                      <tr key={s.email}>
+                        <td><strong>{s.name}</strong></td>
+                        <td style={{ color: "#64748b" }}>{s.email}</td>
+                        <td>
+                          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                            <button className="btn-primary" style={{ padding: "6px 12px", fontSize: "0.75rem", width: "auto" }} onClick={() => updateStaffRole({ staffEmail: s.email, newRole: "Programmer" })}>Approve</button>
+                            <button className="btn-secondary" style={{ padding: "6px 12px", fontSize: "0.75rem", background: "#ef4444", color: "white" }} onClick={() => deleteStaffMut({ email: s.email })}>Reject</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <h3 style={{ borderBottom: "2px solid #e2e8f0", paddingBottom: 10, marginBottom: 15, fontSize: "1rem", color: "#1e293b", textTransform: "uppercase" }}>Active Staff</h3>
             <table className="table">
               <thead>
                 <tr>
@@ -50,7 +85,7 @@ export default function AdminPanel() {
                 </tr>
               </thead>
               <tbody>
-                {(staff || []).map((s) => (
+                {activeStaff.map((s) => (
                   <tr key={s.email}>
                     <td><strong>{s.name}</strong></td>
                     <td>
