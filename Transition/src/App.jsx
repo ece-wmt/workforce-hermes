@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../convex/_generated/api";
 import Dashboard from "./components/Dashboard";
 import KanbanBoard from "./components/KanbanBoard";
@@ -9,14 +9,7 @@ import AdminPanel from "./components/AdminPanel";
 import TaskModal from "./components/TaskModal";
 import Login from "./components/Login";
 
-/**
- * SIMULATED USER CONTEXT
- * Replace this with real auth (Clerk, Auth0, etc.) when ready.
- * Change the email below to match your own for testing.
- */
-const SIMULATED_USER = {
-  email: "jomari.garces@ececontactcenters.com",
-};
+// Replaced simulated context with dynamic authentication
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
@@ -37,12 +30,15 @@ export default function App() {
 
   // Fetch staff for user context resolution
   const staff = useQuery(api.staff.getStaff);
+  const addStaffMutation = useMutation(api.staff.addStaff);
 
   // Resolve user context once staff loads
   useEffect(() => {
-    if (!staff) return;
+    if (!staff || !isAuthenticated) return;
 
-    const email = SIMULATED_USER.email;
+    const email = localStorage.getItem("wf_email") || "";
+    if (!email) return;
+
     const user = staff.find(
       (s) => (s.email || "").toLowerCase() === email.toLowerCase()
     );
@@ -59,7 +55,26 @@ export default function App() {
       if (role === "Programmer") {
         setCurrentView("kanban");
       }
+    } else {
+      // Auto-register new users with "Programmer" role
+      const defaultName = email.split("@")[0];
+      setHasAccess(true);
+      setUserName(defaultName);
+      setActualRole("Programmer");
+      setUserRole("Programmer");
+      setCurrentView("kanban");
+      
+      // Ensure we only register them once in Convex
+      if (!sessionStorage.getItem(`registered_${email}`)) {
+        addStaffMutation({
+          name: defaultName,
+          email: email,
+          role: "Programmer"
+        });
+        sessionStorage.setItem(`registered_${email}`, "true");
+      }
     }
+
     setLoading(false);
   }, [staff]);
 
@@ -105,8 +120,9 @@ export default function App() {
   }
 
   if (!isAuthenticated) {
-    return <Login onLogin={() => {
+    return <Login onLogin={(email) => {
       localStorage.setItem("wf_authenticated", "true");
+      localStorage.setItem("wf_email", email);
       setIsAuthenticated(true);
     }} />;
   }
@@ -141,7 +157,7 @@ export default function App() {
           <p style={{ color: "#64748b", lineHeight: 1.6 }}>
             You do not have access to this site. Please contact the administrator.
           </p>
-          <p style={{ marginTop: 20, fontWeight: 700, color: "#1e293b" }}>{SIMULATED_USER.email}</p>
+          <p style={{ marginTop: 20, fontWeight: 700, color: "#1e293b" }}>{localStorage.getItem("wf_email")}</p>
         </div>
       </div>
     );
@@ -161,18 +177,33 @@ export default function App() {
             </div>
             <img src="https://i.imgur.com/ycmU6oP.png" alt="WFM Logo" className="header-logo" />
           </div>
-          <div className="user-profile">
-            <div className="role-badge">{userRole}</div>
-            {!isMainAdmin && actualRole === "Admin" && (
-              <select
-                className="role-switcher"
-                value={userRole}
-                onChange={(e) => changeRole(e.target.value)}
-              >
-                <option value="Admin">Admin View</option>
-                <option value="Programmer">Programmer View</option>
-              </select>
-            )}
+          <div className="user-profile" style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "15px", width: "auto" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "5px", alignItems: "flex-end" }}>
+              <div className="role-badge">{userRole}</div>
+              {!isMainAdmin && actualRole === "Admin" && (
+                <select
+                  className="role-switcher"
+                  value={userRole}
+                  onChange={(e) => changeRole(e.target.value)}
+                >
+                  <option value="Admin">Admin View</option>
+                  <option value="Programmer">Programmer View</option>
+                </select>
+              )}
+            </div>
+            <button 
+              className="btn-secondary" 
+              style={{ padding: "8px 15px", fontSize: "0.75rem", background: "#ef4444", textTransform: "uppercase" }}
+              onClick={() => {
+                localStorage.removeItem("wf_authenticated");
+                localStorage.removeItem("wf_email");
+                setIsAuthenticated(false);
+                setHasAccess(false);
+                setCurrentView("dashboard");
+              }}
+            >
+              LOGOUT
+            </button>
           </div>
         </div>
         <div className="nav-bar">

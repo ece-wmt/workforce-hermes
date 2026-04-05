@@ -1,15 +1,21 @@
 import { useState } from "react";
 
 export default function Login({ onLogin }) {
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!email.trim() || !email.includes("@")) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+    
     if (password === "admin") {
-      onLogin();
+      onLogin(email.trim());
     } else {
-      setError(true);
+      setError("Incorrect password.");
       setPassword("");
     }
   };
@@ -35,19 +41,33 @@ export default function Login({ onLogin }) {
         </p>
 
         <form onSubmit={handleSubmit} style={{ width: "100%" }}>
-          <div className="form-group">
+          <div className="form-group" style={{ marginBottom: "15px" }}>
+            <input
+              type="email"
+              className={`form-input`}
+              placeholder="Enter your email address..."
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setError(false);
+              }}
+              required
+              autoFocus
+            />
+          </div>
+          <div className="form-group" style={{ marginBottom: "20px" }}>
             <input
               type="password"
               className={`form-input ${error ? "input-error" : ""}`}
-              placeholder="Enter password..."
+              placeholder="Enter system password (admin)..."
               value={password}
               onChange={(e) => {
                 setPassword(e.target.value);
                 setError(false);
               }}
-              autoFocus
+              required
             />
-            {error && <div className="error-text">Incorrect password. Please try again.</div>}
+            {error && <div className="error-text">{error}</div>}
           </div>
           <button type="submit" className="btn-primary" style={{ width: "100%" }}>
             Secure Access
