@@ -12,11 +12,11 @@ export default function IntroAnimation({ onDone }) {
   const [fading, setFading] = useState(false);
 
   useEffect(() => {
-    // Start fading at 6 seconds
-    const fadeTimer = setTimeout(() => setFading(true), 6000);
+    // Start fading at 4 seconds
+    const fadeTimer = setTimeout(() => setFading(true), 4000);
 
-    // Fully remove the overlay at 7.5 seconds
-    const doneTimer = setTimeout(() => onDone(), 7500);
+    // Fully remove the overlay at 5 seconds
+    const doneTimer = setTimeout(() => onDone(), 5000);
 
     return () => {
       clearTimeout(fadeTimer);
@@ -35,7 +35,7 @@ export default function IntroAnimation({ onDone }) {
         alignItems: "center",
         justifyContent: "center",
         opacity: fading ? 0 : 1,
-        transition: "opacity 1.5s ease-in-out",
+        transition: "opacity 1s ease-in-out",
         pointerEvents: fading ? "none" : "all",
       }}
     >
