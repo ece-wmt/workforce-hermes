@@ -76,7 +76,7 @@ export default function App() {
     }
 
     setLoading(false);
-  }, [staff]);
+  }, [staff, isAuthenticated]);
 
   // Add/remove role class on body
   useEffect(() => {
