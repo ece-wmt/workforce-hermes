@@ -68,8 +68,12 @@ export default function AdminPanel({ showModal }) {
                               className="btn-primary"
                               style={{ padding: "6px 12px", fontSize: "0.75rem", width: "auto" }}
                               onClick={async () => {
-                                await updateStaffRole({ staffEmail: s.email, newRole: "Programmer" });
-                                alert(`Approved ${s.name} as Programmer`);
+                                try {
+                                  await updateStaffRole({ staffEmail: s.email, newRole: "Programmer" });
+                                  alert(`Approved ${s.name} as Programmer`);
+                                } catch (err) {
+                                  alert(`Approval failed: ${err.message}`);
+                                }
                               }}
                             >
                               Approve
@@ -78,8 +82,12 @@ export default function AdminPanel({ showModal }) {
                               className="btn-secondary"
                               style={{ padding: "6px 12px", fontSize: "0.75rem", background: "#ef4444", color: "white" }}
                               onClick={async () => {
-                                await deleteStaffMut({ email: s.email });
-                                alert(`Rejected access for ${s.name}`);
+                                try {
+                                  await deleteStaffMut({ email: s.email });
+                                  alert(`Rejected access for ${s.name}`);
+                                } catch (err) {
+                                  alert(`Rejection failed: ${err.message}`);
+                                }
                               }}
                             >
                               Reject
@@ -132,8 +140,12 @@ export default function AdminPanel({ showModal }) {
                             message: `Are you sure you want to completely remove access for ${s.name}? They will no longer be able to log in.`,
                             type: "confirm",
                             onConfirm: async () => {
-                              await deleteStaffMut({ email: s.email });
-                              alert(`Access revoked for ${s.name}`);
+                              try {
+                                await deleteStaffMut({ email: s.email });
+                                alert(`Access revoked for ${s.name}`);
+                              } catch (err) {
+                                alert(`Removal failed: ${err.message}`);
+                              }
                             }
                           });
                         }}

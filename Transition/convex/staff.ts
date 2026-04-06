@@ -108,22 +108,24 @@ export const updateStaffRole = mutation({
     newRole: v.string(),
   },
   handler: async (ctx, args) => {
+    const lowerEmail = args.staffEmail.toLowerCase();
     const existing = await ctx.db
       .query("staff")
-      .withIndex("by_email", (q) => q.eq("email", args.staffEmail.toLowerCase()))
+      .withIndex("by_email", (q) => q.eq("email", lowerEmail))
       .first();
 
     if (existing) {
+      console.log(`Updating role for ${lowerEmail} to ${args.newRole}`);
       await ctx.db.patch(existing._id, { role: args.newRole });
     } else {
-      // Staff member not in DB yet (initial staff) — add them
       const initial = INITIAL_STAFF.find(
-        (s) => s.email.toLowerCase() === args.staffEmail.toLowerCase()
+        (s) => s.email.toLowerCase() === lowerEmail
       );
       if (initial) {
+        console.log(`Inserting initial staff ${lowerEmail} with role ${args.newRole}`);
         await ctx.db.insert("staff", {
           name: initial.name,
-          email: initial.email,
+          email: initial.email.toLowerCase(),
           role: args.newRole,
         });
       }
@@ -134,24 +136,30 @@ export const updateStaffRole = mutation({
 export const deleteStaff = mutation({
   args: { email: v.string() },
   handler: async (ctx, args) => {
+    const lowerEmail = args.email.toLowerCase();
+    console.log(`Attempting to revoke/delete staff: ${lowerEmail}`);
+    
     const existing = await ctx.db
       .query("staff")
-      .withIndex("by_email", (q) => q.eq("email", args.email.toLowerCase()))
+      .withIndex("by_email", (q) => q.eq("email", lowerEmail))
       .first();
     
     if (existing) {
+      console.log(`Patching existing record ${existing._id} to Revoked`);
       await ctx.db.patch(existing._id, { role: "Revoked" });
     } else {
-      // Staff member in INITIAL_STAFF but not DB yet — add them as Revoked
       const initial = INITIAL_STAFF.find(
-        (s) => s.email.toLowerCase() === args.email.toLowerCase()
+        (s) => s.email.toLowerCase() === lowerEmail
       );
       if (initial) {
+        console.log(`Inserting INITIAL_STAFF record as Revoked for ${lowerEmail}`);
         await ctx.db.insert("staff", {
           name: initial.name,
-          email: initial.email,
+          email: initial.email.toLowerCase(),
           role: "Revoked",
         });
+      } else {
+        console.log(`No record found for ${lowerEmail} to revoke.`);
       }
     }
   },
