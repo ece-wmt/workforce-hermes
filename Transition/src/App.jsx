@@ -362,7 +362,7 @@ export default function App() {
             </div>
             <button
               className="btn-secondary"
-              style={{ padding: "8px 15px", fontSize: "0.75rem", background: "#ef4444", textTransform: "uppercase" }}
+              style={{ padding: "6px 12px", fontSize: "0.6rem", background: "#ef4444", textTransform: "uppercase" }}
               onClick={logout}
             >
               LOGOUT

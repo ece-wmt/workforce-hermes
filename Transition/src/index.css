@@ -732,15 +732,15 @@ header {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 8px;
-  min-width: 180px;
+  gap: 5px;
+  min-width: 140px;
 }
 .role-badge {
   background: #6366f1;
   color: white;
-  padding: 4px 12px;
+  padding: 2px 8px;
   border-radius: 20px;
-  font-size: 0.7rem;
+  font-size: 0.55rem;
   font-weight: 800;
   text-transform: uppercase;
   box-shadow: 0 2px 5px rgba(99, 102, 241, 0.3);
@@ -748,9 +748,9 @@ header {
 .role-switcher {
   background: white;
   border: 2px solid #e2e8f0;
-  padding: 8px 12px;
-  border-radius: 12px;
-  font-size: 0.85rem;
+  padding: 5px 8px;
+  border-radius: 8px;
+  font-size: 0.7rem;
   font-weight: 700;
   cursor: pointer;
   color: #1e293b;
