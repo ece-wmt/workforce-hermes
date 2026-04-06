@@ -87,6 +87,10 @@ export default function App() {
 
     const user = staff.find((s) => (s.email || "").toLowerCase() === email);
     if (user) {
+      if (user.role === "Revoked") {
+        logout();
+        return;
+      }
       setUserName(user.name);
       setActualRole(user.role);
       setUserRole(user.role);
@@ -166,6 +170,11 @@ export default function App() {
       localStorage.setItem("wf_authenticated", "true");
       localStorage.setItem("wf_email", lowerEmail);
       setAuthStage("denied");
+      return;
+    }
+
+    if (user.role === "Revoked") {
+      setLoginError("Your access has been revoked by an administrator.");
       return;
     }
 
@@ -290,9 +299,11 @@ export default function App() {
             <line x1="12" y1="8" x2="12" y2="12" />
             <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
-          <h2 style={{ color: "#1e293b", marginBottom: 10 }}>Registration Pending</h2>
+          <h2 style={{ color: "#1e293b", marginBottom: 10 }}>Access Restricted</h2>
           <p style={{ color: "#64748b", lineHeight: 1.6 }}>
-            Your email has been registered. Please wait for an administrator to approve your access.
+            {staff?.find(s => s.email.toLowerCase() === localStorage.getItem("wf_email")?.toLowerCase())?.role === "Revoked" 
+              ? "Your access has been revoked. Please contact an administrator if you believe this is an error."
+              : "Your email has been registered. Please wait for an administrator to approve your access."}
           </p>
           <p style={{ marginTop: 15, fontWeight: 700, color: "#4355f1", fontSize: "0.85rem" }}>
             {localStorage.getItem("wf_email")}

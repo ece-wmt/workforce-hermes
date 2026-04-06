@@ -62,7 +62,7 @@ export const getStaffByEmail = query({
       .query("staff")
       .withIndex("by_email", (q) => q.eq("email", args.email.toLowerCase()))
       .first();
-    if (dbUser) return dbUser;
+    if (dbUser) return dbUser; // Return even if Revoked/Pending
 
     // Fall back to INITIAL_STAFF
     const initial = INITIAL_STAFF.find(
@@ -110,7 +110,7 @@ export const updateStaffRole = mutation({
   handler: async (ctx, args) => {
     const existing = await ctx.db
       .query("staff")
-      .withIndex("by_email", (q) => q.eq("email", args.staffEmail))
+      .withIndex("by_email", (q) => q.eq("email", args.staffEmail.toLowerCase()))
       .first();
 
     if (existing) {

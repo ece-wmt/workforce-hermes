@@ -46,9 +46,9 @@ export default function AdminPanel({ showModal }) {
           <div className="section-card">
             <h2 style={{ fontWeight: 900, marginTop: 0, textTransform: "uppercase", marginBottom: 20 }}>Staff Management</h2>
             
-            {pendingRequests.length > 0 && (
-              <div style={{ marginBottom: 40 }}>
-                <h3 style={{ color: "#d97706", borderBottom: "2px solid #fde68a", paddingBottom: 10, marginBottom: 15, fontSize: "1rem", textTransform: "uppercase" }}>Pending Access Requests</h3>
+            <div style={{ marginBottom: 40 }}>
+              <h3 style={{ color: "#d97706", borderBottom: "2px solid #fde68a", paddingBottom: 10, marginBottom: 15, fontSize: "1rem", textTransform: "uppercase" }}>Pending Access Requests</h3>
+              {pendingRequests.length > 0 ? (
                 <table className="table" style={{ background: "#fffbeb", border: "1px solid #fde68a" }}>
                   <thead>
                     <tr>
@@ -64,16 +64,38 @@ export default function AdminPanel({ showModal }) {
                         <td style={{ color: "#64748b" }}>{s.email}</td>
                         <td>
                           <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-                            <button className="btn-primary" style={{ padding: "6px 12px", fontSize: "0.75rem", width: "auto" }} onClick={() => updateStaffRole({ staffEmail: s.email, newRole: "Programmer" })}>Approve</button>
-                            <button className="btn-secondary" style={{ padding: "6px 12px", fontSize: "0.75rem", background: "#ef4444", color: "white" }} onClick={() => deleteStaffMut({ email: s.email })}>Reject</button>
+                            <button
+                              className="btn-primary"
+                              style={{ padding: "6px 12px", fontSize: "0.75rem", width: "auto" }}
+                              onClick={async () => {
+                                await updateStaffRole({ staffEmail: s.email, newRole: "Programmer" });
+                                alert(`Approved ${s.name} as Programmer`);
+                              }}
+                            >
+                              Approve
+                            </button>
+                            <button
+                              className="btn-secondary"
+                              style={{ padding: "6px 12px", fontSize: "0.75rem", background: "#ef4444", color: "white" }}
+                              onClick={async () => {
+                                await deleteStaffMut({ email: s.email });
+                                alert(`Rejected access for ${s.name}`);
+                              }}
+                            >
+                              Reject
+                            </button>
                           </div>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              </div>
-            )}
+              ) : (
+                <div style={{ padding: "20px", background: "#f8fafc", borderRadius: "8px", color: "#64748b", textAlign: "center", border: "1px dashed #e2e8f0" }}>
+                  No pending access requests at the moment.
+                </div>
+              )}
+            </div>
 
             <h3 style={{ borderBottom: "2px solid #e2e8f0", paddingBottom: 10, marginBottom: 15, fontSize: "1rem", color: "#1e293b", textTransform: "uppercase" }}>Active Staff</h3>
             <table className="table">
@@ -109,7 +131,10 @@ export default function AdminPanel({ showModal }) {
                             title: "Revoke Access",
                             message: `Are you sure you want to completely remove access for ${s.name}? They will no longer be able to log in.`,
                             type: "confirm",
-                            onConfirm: () => deleteStaffMut({ email: s.email })
+                            onConfirm: async () => {
+                              await deleteStaffMut({ email: s.email });
+                              alert(`Access revoked for ${s.name}`);
+                            }
                           });
                         }}
                       >
