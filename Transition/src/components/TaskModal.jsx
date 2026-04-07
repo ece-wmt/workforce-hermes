@@ -149,25 +149,25 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
               )}
               
               {isEditMode ? (
-                <button className="btn-primary" style={{ background: "#3b82f6", color: "white", padding: "8px 16px", fontSize: "0.8rem", borderRadius: 8, width: "auto" }} onClick={handleSaveEdits}>
-                  Save Changes
+                <button className="btn-primary" style={{ background: "#3b82f6", color: "white", padding: "10px 20px", fontSize: "0.75rem", borderRadius: 12, width: "auto", fontWeight: 800 }} onClick={handleSaveEdits}>
+                  SAVE CHANGES
                 </button>
               ) : (
-                <div style={{ display: "flex", gap: 10 }}>
+                <div style={{ display: "flex", gap: 12 }}>
                   {task.projectLink && (
                     <a
                       href={task.projectLink.startsWith("http") ? task.projectLink : `https://${task.projectLink}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn-primary"
-                      style={{ background: "var(--color-accent)", color: "white", padding: "8px 16px", fontSize: "0.80rem", borderRadius: 8, textDecoration: "none", fontWeight: 800 }}
+                      style={{ background: "var(--color-accent)", color: "white", padding: "10px 20px", fontSize: "0.75rem", borderRadius: 12, textDecoration: "none", fontWeight: 800, textAlign: "center", display: "inline-flex", alignItems: "center" }}
                     >
                       VIEW PROJECT
                     </a>
                   )}
                   {userRole === "Admin" && (
-                    <button className="btn-secondary" style={{ background: "#ef4444", color: "white", padding: "8px 16px", fontSize: "0.8rem", borderRadius: 8 }} onClick={handleDelete}>
-                      Delete Task
+                    <button className="btn-secondary" style={{ background: "#ef4444", color: "white", padding: "10px 20px", fontSize: "0.75rem", borderRadius: 12, fontWeight: 800 }} onClick={handleDelete}>
+                      DELETE TASK
                     </button>
                   )}
                 </div>

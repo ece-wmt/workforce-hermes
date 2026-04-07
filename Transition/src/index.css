@@ -10,6 +10,7 @@
   --color-text-secondary: #475569; /* Balanced Gray */
   --color-nav-bg: #064e3b; /* Deep Forest Green */
   --color-accent: #10b981; /* Vibrant Emerald */
+  --color-accent-lighter: #34d399; /* For highlights */
   --color-accent-hover: #059669;
   --color-logout: #64748b; 
   
@@ -153,9 +154,12 @@ header {
   border-color: var(--color-accent);
 }
 .nav-btn.highlight {
-  background: var(--color-amber);
-  color: #1f2937;
-  border-color: transparent;
+  background: white; /* Clean highlight against dark green nav */
+  color: var(--color-nav-bg);
+  border-color: white;
+}
+.nav-btn.highlight:hover {
+  background: #f0fdf4;
 }
 
 /* Kanban Totals Bar */
