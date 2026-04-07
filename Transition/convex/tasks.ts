@@ -13,7 +13,13 @@ export const getProjectStats = query({
   handler: async (ctx) => {
     const tasks = await ctx.db.query("tasks").collect();
 
-    const stats = {
+    interface WorkloadInfo {
+      name: string;
+      active: number;
+      pending: number;
+    }
+
+    const stats: Record<string, any> = {
       todo: 0,
       pending: 0,
       development: 0,
@@ -21,13 +27,13 @@ export const getProjectStats = query({
       done: 0,
       scrapyard: 0,
       overallCompletion: 0,
-      staffWorkload: [],
+      staffWorkload: [] as WorkloadInfo[],
     };
 
     if (tasks.length === 0) return stats;
 
     let totalProg = 0;
-    const workloadMap = {};
+    const workloadMap: Record<string, WorkloadInfo> = {};
 
     tasks.forEach((t) => {
       const status = (t.status || "").toLowerCase();
@@ -59,7 +65,7 @@ export const getProjectStats = query({
     });
 
     stats.overallCompletion = Math.round((totalProg / tasks.length) * 100);
-    stats.staffWorkload = Object.values(workloadMap).sort(
+    stats.staffWorkload = (Object.values(workloadMap) as WorkloadInfo[]).sort(
       (a, b) => b.active + b.pending - (a.active + a.pending)
     );
 
@@ -191,6 +197,32 @@ export const updateTaskDetails = mutation({
       assignee: args.newAssignee,
       milestones: args.newMilestones,
       completedMilestones: completedCount,
+      lastUpdated: Date.now(),
+    });
+  },
+});
+
+export const updateProjectLink = mutation({
+  args: {
+    taskId: v.id("tasks"),
+    projectLink: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.taskId, {
+      projectLink: args.projectLink,
+      lastUpdated: Date.now(),
+    });
+  },
+});
+
+export const updateAdminCredentials = mutation({
+  args: {
+    taskId: v.id("tasks"),
+    adminCredentials: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.taskId, {
+      adminCredentials: args.adminCredentials,
       lastUpdated: Date.now(),
     });
   },

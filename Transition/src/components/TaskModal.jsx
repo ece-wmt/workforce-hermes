@@ -152,11 +152,26 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                 <button className="btn-primary" style={{ background: "#3b82f6", color: "white", padding: "8px 16px", fontSize: "0.8rem", borderRadius: 8, width: "auto" }} onClick={handleSaveEdits}>
                   Save Changes
                 </button>
-              ) : userRole === "Admin" ? (
-                <button className="btn-secondary" style={{ background: "#ef4444", color: "white", padding: "8px 16px", fontSize: "0.8rem", borderRadius: 8 }} onClick={handleDelete}>
-                  Delete Task
-                </button>
-              ) : null}
+              ) : (
+                <div style={{ display: "flex", gap: 10 }}>
+                  {task.projectLink && (
+                    <a
+                      href={task.projectLink.startsWith("http") ? task.projectLink : `https://${task.projectLink}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-primary"
+                      style={{ background: "var(--color-accent)", color: "white", padding: "8px 16px", fontSize: "0.80rem", borderRadius: 8, textDecoration: "none", fontWeight: 800 }}
+                    >
+                      VIEW PROJECT
+                    </a>
+                  )}
+                  {userRole === "Admin" && (
+                    <button className="btn-secondary" style={{ background: "#ef4444", color: "white", padding: "8px 16px", fontSize: "0.8rem", borderRadius: 8 }} onClick={handleDelete}>
+                      Delete Task
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="modal-assignee">
@@ -278,6 +293,22 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                 </button>
               )}
             </div>
+
+            {/* Admin Credentials Section - Left Column */}
+            {userRole === "Admin" && (
+              <div className="admin-creds-box" style={{ marginTop: 20 }}>
+                <div className="creds-header">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                  ADMIN CREDENTIALS (SENSITIVE)
+                </div>
+                <div className="creds-content">
+                  {task.adminCredentials || "No credentials provided."}
+                </div>
+              </div>
+            )}
           </div>
 
           <div style={{ background: "#f8fafc", padding: 30, borderRadius: 20, alignSelf: "start" }}>

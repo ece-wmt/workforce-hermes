@@ -158,7 +158,7 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
         }}
         onDragEnd={(e) => !isFullView && e.currentTarget.classList.remove("dragging")}
         onClick={() => { setFullViewColumn(null); openTaskModal(t._id); }}
-        onContextMenu={(e) => onContextMenu(e, t._id)}
+        onContextMenu={(e) => onContextMenu(e, t)}
       >
         <div className="card-header">
           <h4>{t.title}</h4>
