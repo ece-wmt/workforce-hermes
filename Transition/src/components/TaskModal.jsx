@@ -133,19 +133,19 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <button className="modal-close" onClick={onClose}>×</button>
 
-        <div className="modal-grid">
+        <div className="modal-grid" style={{ gridTemplateColumns: "1.6fr 1fr", gap: "50px" }}>
           <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 30 }}>
               {isEditMode ? (
                 <input 
                   type="text" 
                   className="form-input" 
                   value={editedTitle} 
                   onChange={(e) => setEditedTitle(e.target.value)}
-                  style={{ fontSize: "1.8rem", fontWeight: 900, padding: "5px 10px", width: "100%", marginRight: 20 }}
+                  style={{ fontSize: "2.2rem", fontWeight: 900, padding: "10px 15px", width: "100%", marginRight: 30, borderRadius: "var(--radius-md)" }}
                 />
               ) : (
-                <h1 className="modal-title" style={{ marginBottom: 0 }}>{task.title}</h1>
+                <h1 className="modal-title" style={{ marginBottom: 0, fontSize: "2.5rem", letterSpacing: "-1px" }}>{task.title}</h1>
               )}
               
               {isEditMode ? (
@@ -205,24 +205,26 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
               )}
             </div>
 
-            <div className="modal-desc">
-              <h3 style={{ fontWeight: 900, textTransform: "uppercase", fontSize: "0.9rem", color: "#1e293b", marginBottom: 10 }}>Project Description</h3>
+            <div className="modal-desc" style={{ marginBottom: 40 }}>
+              <h3 style={{ fontWeight: 900, textTransform: "uppercase", fontSize: "0.8rem", color: "var(--color-text-secondary)", marginBottom: 15, letterSpacing: "1px" }}>Project Description</h3>
               {isEditMode ? (
                 <textarea 
                   className="form-input" 
                   value={editedDesc} 
                   onChange={(e) => setEditedDesc(e.target.value)}
-                  style={{ width: "100%", height: 100, fontSize: "0.9rem", padding: 10 }}
+                  style={{ width: "100%", height: 120, fontSize: "1rem", padding: 20, borderRadius: "var(--radius-md)" }}
                   placeholder="Enter project description..."
                 />
               ) : (
-                task.description || "No description provided."
+                <div style={{ fontSize: "1.1rem", color: "var(--color-text-primary)", lineHeight: 1.8 }}>
+                  {task.description || "No description provided."}
+                </div>
               )}
             </div>
 
-            <div style={{ background: "white", border: "1px solid #dcfce7", borderRadius: 16, padding: 20 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 800, color: "#1e293b", marginBottom: 10 }}>
-                <span style={{ fontSize: "0.85rem", color: "#64748b", margin: "0 auto" }}>
+            <div style={{ background: "white", border: "1px solid #f1f5f9", borderRadius: "var(--radius-md)", padding: 30, boxShadow: "var(--shadow-sm)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 800, color: "var(--color-text-primary)", marginBottom: 20 }}>
+                <span style={{ fontSize: "0.9rem", color: "var(--color-text-secondary)", letterSpacing: "0.5px" }}>
                   Milestones: {doneM} / {milestones.length} ({progressPercent}%)
                 </span>
               </div>
@@ -295,54 +297,51 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
             </div>
 
             {/* Admin Credentials Section - Left Column */}
+            {/* Admin Credentials Section - Secure Emerald Edition */}
             {userRole === "Admin" && (
-              <div className="admin-creds-box" style={{ marginTop: 20 }}>
-                <div className="creds-header">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <div className="admin-creds-box" style={{ marginTop: 40, background: "#ecfdf5", border: "2px solid #10b981", borderRadius: "var(--radius-md)", overflow: "hidden", boxShadow: "var(--shadow-md)" }}>
+                <div className="creds-header" style={{ background: "#10b981", padding: "12px 20px", color: "white", fontSize: "0.75rem", fontWeight: 900, display: "flex", alignItems: "center", gap: "10px", letterSpacing: "1px" }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                     <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                   </svg>
                   ADMIN CREDENTIALS (SENSITIVE)
                 </div>
-                <div className="creds-content">
-                  <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: "10px 15px", alignItems: "center" }}>
-                    <span style={{ fontSize: "0.65rem", fontWeight: 800, textTransform: "uppercase", color: "#991b1b", opacity: 0.7 }}>Email/User:</span>
-                    <span style={{ fontWeight: 700 }}>{task.adminCredentials?.email || "—"}</span>
+                <div className="creds-content" style={{ padding: "25px", color: "#064e3b" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: "15px 20px", alignItems: "center" }}>
+                    <span style={{ fontSize: "0.7rem", fontWeight: 900, textTransform: "uppercase", color: "#059669", letterSpacing: "0.5px" }}>Email:</span>
+                    <span style={{ fontWeight: 700, fontSize: "1rem", fontFamily: "monospace" }}>{task.adminCredentials?.email || "—"}</span>
                     
-                    <span style={{ fontSize: "0.65rem", fontWeight: 800, textTransform: "uppercase", color: "#991b1b", opacity: 0.7 }}>Password:</span>
-                    <span style={{ fontWeight: 700, fontStyle: task.adminCredentials?.password ? "normal" : "italic" }}>
+                    <span style={{ fontSize: "0.7rem", fontWeight: 900, textTransform: "uppercase", color: "#059669", letterSpacing: "0.5px" }}>Password:</span>
+                    <span style={{ fontWeight: 700, fontSize: "1rem", fontFamily: "monospace" }}>
                       {task.adminCredentials?.password || "—"}
                     </span>
                   </div>
-                  {!task.adminCredentials && (
-                    <div style={{ fontSize: "0.75rem", color: "#991b1b", marginTop: 10, fontStyle: "italic", opacity: 0.8 }}>
-                      No credentials provided.
-                    </div>
-                  )}
                 </div>
               </div>
             )}
           </div>
 
-          <div style={{ background: "#f8fafc", padding: 30, borderRadius: 20, alignSelf: "start" }}>
-            <h3 style={{ fontWeight: 900, textTransform: "uppercase", fontSize: "0.9rem", color: "#1e293b", marginBottom: 20 }}>Notes & Updates</h3>
-            <div className="notes-list" style={{ maxHeight: 400, overflowY: "auto" }}>
+          <div style={{ background: "rgba(241, 245, 249, 0.5)", border: "1px solid #f1f5f9", padding: 40, borderRadius: "var(--radius-lg)", alignSelf: "stretch", display: "flex", flexDirection: "column" }}>
+            <h3 style={{ fontWeight: 900, textTransform: "uppercase", fontSize: "0.8rem", color: "var(--color-text-secondary)", marginBottom: 25, letterSpacing: "1px" }}>Notes & Updates</h3>
+            <div className="notes-list" style={{ flex: 1, maxHeight: "unset", overflowY: "auto", marginBottom: 30 }}>
               {(task.notes || []).map((n, i) => (
-                <div key={i} className="note-item">
-                  <div className="note-date">{n.date}</div>
-                  <div className="note-text">{n.text}</div>
+                <div key={i} className="note-item" style={{ background: "white", padding: 20, borderRadius: "var(--radius-md)", border: "1px solid #f1f5f9", marginBottom: 15, boxShadow: "var(--shadow-sm)" }}>
+                  <div className="note-date" style={{ color: "var(--color-accent)", marginBottom: 8, fontSize: "0.7rem" }}>{n.date}</div>
+                  <div className="note-text" style={{ fontSize: "0.95rem", lineHeight: 1.5 }}>{n.text}</div>
                 </div>
               ))}
               {(task.notes || []).length === 0 && (
-                <div style={{ textAlign: "center", color: "#94a3b8", fontStyle: "italic" }}>No notes yet</div>
+                <div style={{ textAlign: "center", color: "#94a3b8", fontStyle: "italic", marginTop: 40 }}>No updates yet.</div>
               )}
             </div>
-            <div className="note-input-group" style={{ marginTop: 20 }}>
+            <div className="note-input-group" style={{ marginTop: "auto", display: "flex", gap: 12 }}>
               <input 
                 type="text" 
                 className="note-input" 
                 id="modal-note-input" 
-                placeholder="Add a note..." 
+                placeholder="Share an update..." 
+                style={{ flex: 1, padding: "15px 20px", borderRadius: "12px", border: "2px solid #e2e8f0", fontSize: "0.95rem" }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
@@ -350,7 +349,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                   }
                 }}
               />
-              <button className="btn-add-note" onClick={handleAddNote}>Add</button>
+              <button className="btn-add-note" style={{ background: "var(--color-nav-bg)", color: "white", padding: "0 25px", borderRadius: "12px", fontWeight: 800 }} onClick={handleAddNote}>Add</button>
             </div>
           </div>
         </div>

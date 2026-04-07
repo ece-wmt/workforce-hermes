@@ -363,20 +363,21 @@ export default function App() {
       <header>
         <div className="header-container">
           <div style={{ minWidth: 180 }}></div>
-          <div className="header-box">
-            <img src="https://i.imgur.com/BRd5lrB.png" alt="ECE Logo" className="header-logo" />
+          <div className="header-box" style={{ padding: "15px 40px", borderRadius: "30px", border: "1px solid #f1f5f9", boxShadow: "var(--shadow-md)" }}>
+            <img src="https://i.imgur.com/BRd5lrB.png" alt="ECE Logo" className="header-logo" style={{ height: "60px" }} />
             <div className="header-text-content">
-              <h1>WORKFORCE HERMES</h1>
-              <p>Workforce Programming Project Database</p>
+              <h1 style={{ fontSize: "2.2rem", letterSpacing: "-1.5px" }}>WORKFORCE HERMES</h1>
+              <p style={{ fontSize: "0.95rem", letterSpacing: "1px", color: "var(--color-text-secondary)", fontWeight: 700 }}>Workforce Programming Project Database</p>
             </div>
-            <img src="https://i.imgur.com/ycmU6oP.png" alt="WFM Logo" className="header-logo" />
+            <img src="https://i.imgur.com/ycmU6oP.png" alt="WFM Logo" className="header-logo" style={{ height: "60px" }} />
           </div>
-          <div className="user-profile" style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "15px", width: "auto" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: "5px", alignItems: "flex-end" }}>
-              <div className="role-badge">{userRole}</div>
+          <div className="user-profile" style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "20px", width: "auto" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px", alignItems: "flex-end" }}>
+              <div className="role-badge" style={{ padding: "4px 12px", borderRadius: "10px", letterSpacing: "0.5px" }}>{userRole}</div>
               {!isMainAdmin && actualRole === "Admin" && (
                 <select
                   className="role-switcher"
+                  style={{ padding: "6px 12px", borderRadius: "10px", border: "1px solid #e2e8f0", fontSize: "0.75rem" }}
                   value={userRole}
                   onChange={(e) => changeRole(e.target.value)}
                 >
@@ -387,15 +388,15 @@ export default function App() {
             </div>
             <button
               className="btn-secondary"
-              style={{ padding: "6px 12px", fontSize: "0.6rem", background: "var(--color-logout)", textTransform: "uppercase" }}
+              style={{ padding: "10px 20px", fontSize: "0.75rem", background: "var(--color-logout)", borderRadius: "12px", fontWeight: 800 }}
               onClick={logout}
             >
               LOGOUT
             </button>
           </div>
         </div>
-        <div className="nav-bar">
-          <div className="nav-label">NAVIGATION &amp; QUICK ACTIONS</div>
+        <div className="nav-bar" style={{ padding: "12px 0 20px 0" }}>
+          <div className="nav-label" style={{ marginBottom: "12px", fontSize: "0.65rem", letterSpacing: "3px", opacity: 0.6 }}>NAVIGATION &amp; QUICK ACTIONS</div>
           <div className="nav-links">
             {userRole === "Admin" && (
               <div

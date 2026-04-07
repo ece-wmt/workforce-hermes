@@ -28,8 +28,8 @@ export default function AdminPanel({ showModal }) {
   return (
     <div id="admin-view" className="view-section">
       <div className="container">
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: 30 }}>
-          <div className="section-card">
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: 50 }}>
+          <div className="section-card" style={{ padding: "40px", borderRadius: "var(--radius-lg)" }}>
             <h2 style={{ fontWeight: 900, marginTop: 0, textTransform: "uppercase" }}>Add New Staff</h2>
             <form onSubmit={handleSubmit}>
               <div className="form-group">
@@ -47,13 +47,13 @@ export default function AdminPanel({ showModal }) {
               <button type="submit" className="btn-primary">Register Staff Member</button>
             </form>
           </div>
-          <div className="section-card">
+          <div className="section-card" style={{ padding: "40px", borderRadius: "var(--radius-lg)" }}>
             <h2 style={{ fontWeight: 900, marginTop: 0, textTransform: "uppercase", marginBottom: 20 }}>Staff Management</h2>
             
             <div style={{ marginBottom: 40 }}>
-              <h3 style={{ color: "var(--color-accent)", borderBottom: "2px solid var(--color-accent)", paddingBottom: 10, marginBottom: 15, fontSize: "1rem", textTransform: "uppercase" }}>Pending Access Requests</h3>
+              <h3 style={{ color: "var(--color-accent)", borderBottom: "2px solid var(--color-accent)", paddingBottom: 15, marginBottom: 25, fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "1px" }}>Pending Access Requests</h3>
               {pendingRequests.length > 0 ? (
-                <table className="table" style={{ background: "var(--color-bg-primary)", border: "1px solid var(--color-accent)" }}>
+                <table className="table" style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "var(--radius-md)", overflow: "hidden" }}>
                   <thead>
                     <tr>
                       <th>Name</th>

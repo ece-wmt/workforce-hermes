@@ -3,33 +3,46 @@
    ============================================================ */
 
 :root {
-  --color-bg-primary: #f0fdf4; /* Light Mint Background */
+  /* Premium Emerald Palette */
+  --color-bg-primary: #f8fafc; /* Crisp, clean background */
   --color-card-bg: #ffffff;
-  --color-text-primary: #064e3b; /* Deep Forest Green (High Contrast) */
-  --color-text-secondary: #374151; /* Dark Gray-Green */
-  --color-nav-bg: #064e3b; /* Deep Forest Green (Matches WFM logo black/gray as dark green) */
-  --color-accent: #10b981; /* Emerald Green (Matches ECE logo) */
+  --color-text-primary: #0f172a; /* Deep Slate for better contrast */
+  --color-text-secondary: #475569; /* Balanced Gray */
+  --color-nav-bg: #064e3b; /* Deep Forest Green */
+  --color-accent: #10b981; /* Vibrant Emerald */
   --color-accent-hover: #059669;
-  --color-logout: #4b5563; /* Dark Grey-Green for Logout */
-  --color-amber: var(--color-accent); /* Unified with Green */
+  --color-logout: #64748b; 
+  
+  /* Refined Kanban Colors */
+  --col-todo: #065f46;
+  --col-pending: #10b981;
+  --col-dev: #059669;
+  --col-test: #34d399;
+  --col-done: #064e3b;
+  --col-scrap: #94a3b8;
 
-  /* Unified Kanban Column Colors (Green Theme) */
-  --col-todo: #065f46;    /* Emerald 800 */
-  --col-pending: #10b981; /* Emerald 500 */
-  --col-dev: #059669;     /* Emerald 600 */
-  --col-test: #34d399;    /* Emerald 400 */
-  --col-done: #064e3b;    /* Forest 900 */
-  --col-scrap: #6b7280;   /* Slate Gray for Scrapyard (Higher Contrast) */
-
-  --header-height: 180px;
+  /* Modern Interface Tokens */
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.3);
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  
+  --header-height: 180px; /* Kept for compatibility, will refine in components */
+  --radius-lg: 24px;
+  --radius-md: 16px;
+  --radius-sm: 12px;
 }
 
 body {
-  font-family: "Inter", sans-serif;
-  background-color: var(--color-bg-primary); /* Use Mint instead of Slate Grey */
+  font-family: "Outfit", "Inter", sans-serif; /* Adding Outfit for a more premium look if user has it, fallback to Inter */
+  background-color: var(--color-bg-primary);
   margin: 0;
   padding-top: var(--header-height);
   min-height: 100vh;
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Background Grid Pattern */
@@ -781,23 +794,26 @@ header {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(15, 23, 42, 0.4);
   z-index: 2000;
   display: flex;
   align-items: center;
   justify-content: center;
-  backdrop-filter: blur(5px);
-}
-.modal-content {
-  background: white;
-  width: 90%;
-  max-width: 1000px;
-  max-height: 90vh;
-  border-radius: 24px;
-  position: relative;
+  backdrop-filter: blur(12px);
   padding: 40px;
+}
+
+.modal-content {
+  background: var(--color-card-bg);
+  width: 100%;
+  max-width: 1100px;
+  max-height: calc(100vh - 80px);
+  border-radius: var(--radius-lg);
+  position: relative;
+  padding: 60px; /* More spacious padding */
   overflow-y: auto;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-xl);
+  border: 1px solid var(--glass-border);
 }
 .modal-close {
   position: absolute;
