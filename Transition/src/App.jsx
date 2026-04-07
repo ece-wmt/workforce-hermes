@@ -53,6 +53,9 @@ export default function App() {
   });
 
   // --- Convex ---
+  const staff = useQuery(api.staff.getStaff);
+  const addStaffMutation = useMutation(api.staff.addStaff);
+  const setPasswordMutation = useMutation(api.staff.setPassword);
   const deleteStaffMutation = useMutation(api.staff.deleteStaff);
   const deleteTask = useMutation(api.tasks.deleteTask);
   const updateProjectLink = useMutation(api.tasks.updateProjectLink);
