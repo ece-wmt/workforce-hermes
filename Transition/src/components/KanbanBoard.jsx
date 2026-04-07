@@ -266,6 +266,13 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
             <div className="progress-container">
               <div className="progress-fill" style={{ width: `${progressPercent}%` }}></div>
             </div>
+            <div className="milestones-grid" style={{ marginTop: 10 }}>
+              {Array.from({ length: totalM }, (_, i) => (
+                <div key={i} className={`milestone-dot ${i < doneM ? "active" : ""}`}>
+                  {i + 1}
+                </div>
+              ))}
+            </div>
             {!isFullView && (
               <div className="card-actions">
                 {["todo", "pending", "development", "testing", "done", "scrapyard"].map((s) => (
