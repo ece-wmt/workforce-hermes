@@ -51,9 +51,9 @@ export default function AdminPanel({ showModal }) {
             <h2 style={{ fontWeight: 900, marginTop: 0, textTransform: "uppercase", marginBottom: 20 }}>Staff Management</h2>
             
             <div style={{ marginBottom: 40 }}>
-              <h3 style={{ color: "#d97706", borderBottom: "2px solid #fde68a", paddingBottom: 10, marginBottom: 15, fontSize: "1rem", textTransform: "uppercase" }}>Pending Access Requests</h3>
+              <h3 style={{ color: "var(--color-accent)", borderBottom: "2px solid var(--color-accent)", paddingBottom: 10, marginBottom: 15, fontSize: "1rem", textTransform: "uppercase" }}>Pending Access Requests</h3>
               {pendingRequests.length > 0 ? (
-                <table className="table" style={{ background: "#fffbeb", border: "1px solid #fde68a" }}>
+                <table className="table" style={{ background: "var(--color-bg-primary)", border: "1px solid var(--color-accent)" }}>
                   <thead>
                     <tr>
                       <th>Name</th>
@@ -92,7 +92,7 @@ export default function AdminPanel({ showModal }) {
                             </button>
                             <button
                               className="btn-secondary"
-                              style={{ padding: "6px 12px", fontSize: "0.75rem", background: "#ef4444", color: "white" }}
+                              style={{ padding: "6px 12px", fontSize: "0.75rem", background: "var(--color-logout)", color: "white" }}
                               onClick={async () => {
                                 try {
                                   await deleteStaffMut({ email: s.email });
@@ -125,7 +125,7 @@ export default function AdminPanel({ showModal }) {
               )}
             </div>
 
-            <h3 style={{ borderBottom: "2px solid #e2e8f0", paddingBottom: 10, marginBottom: 15, fontSize: "1rem", color: "#1e293b", textTransform: "uppercase" }}>Active Staff</h3>
+            <h3 style={{ borderBottom: "2px solid var(--color-bg-primary)", paddingBottom: 10, marginBottom: 15, fontSize: "1rem", color: "var(--color-text-primary)", textTransform: "uppercase" }}>Active Staff</h3>
             <table className="table">
               <thead>
                 <tr>
@@ -153,7 +153,7 @@ export default function AdminPanel({ showModal }) {
                     <td>
                       <button
                         className="btn-secondary"
-                        style={{ padding: "4px 8px", fontSize: "0.75rem", background: "#ef4444", color: "white" }}
+                        style={{ padding: "4px 8px", fontSize: "0.75rem", background: "var(--color-logout)", color: "white" }}
                         onClick={() => {
                           showModal({
                             title: "Revoke Access",

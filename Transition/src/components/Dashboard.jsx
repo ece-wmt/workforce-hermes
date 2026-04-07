@@ -21,15 +21,15 @@ export default function Dashboard() {
             <div className="stat-label">Queue</div>
           </div>
           <div className="stat-card">
-            <div className="stat-value" style={{ color: "var(--color-amber)" }}>{stats.development || 0}</div>
+            <div className="stat-value" style={{ color: "var(--color-accent)" }}>{stats.development || 0}</div>
             <div className="stat-label">Active</div>
           </div>
           <div className="stat-card">
-            <div className="stat-value" style={{ color: "#10b981" }}>{stats.done || 0}</div>
+            <div className="stat-value" style={{ color: "var(--col-test)" }}>{stats.done || 0}</div>
             <div className="stat-label">Deployed</div>
           </div>
           <div className="stat-card">
-            <div className="stat-value" style={{ color: "#6366f1" }}>{stats.overallCompletion || 0}%</div>
+            <div className="stat-value" style={{ color: "var(--color-nav-bg)" }}>{stats.overallCompletion || 0}%</div>
             <div className="stat-label">Efficiency</div>
           </div>
         </div>
@@ -70,12 +70,12 @@ export default function Dashboard() {
                   <div style={{ fontWeight: 800, color: "#1e293b", fontSize: "0.9rem" }}>{w.name}</div>
                   <div style={{ display: "flex", gap: 10 }}>
                     {w.active > 0 && (
-                      <span style={{ background: "linear-gradient(135deg,#6366f1,#a5b4fc)", color: "white", padding: "3px 10px", borderRadius: 12, fontSize: "0.75rem", fontWeight: 700 }}>
+                      <span style={{ background: "linear-gradient(135deg,var(--color-accent),#5eead4)", color: "white", padding: "3px 10px", borderRadius: 12, fontSize: "0.75rem", fontWeight: 700 }}>
                         Active: {w.active}
                       </span>
                     )}
                     {w.pending > 0 && (
-                      <span style={{ background: "linear-gradient(135deg,#f59e0b,#fcd34d)", color: "white", padding: "3px 10px", borderRadius: 12, fontSize: "0.75rem", fontWeight: 700 }}>
+                      <span style={{ background: "linear-gradient(135deg,#94a3b8,#cbd5e1)", color: "white", padding: "3px 10px", borderRadius: 12, fontSize: "0.75rem", fontWeight: 700 }}>
                         Pending: {w.pending}
                       </span>
                     )}

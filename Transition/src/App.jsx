@@ -294,12 +294,12 @@ export default function App() {
           <img src="https://i.imgur.com/ycmU6oP.png" alt="WFM Logo" className="header-logo" />
         </div>
         <div style={{ background: "white", padding: 40, borderRadius: 24, boxShadow: "0 10px 25px rgba(0,0,0,0.1)", maxWidth: 420, textAlign: "center" }}>
-          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" style={{ marginBottom: 20 }}>
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" strokeWidth="2" style={{ marginBottom: 20 }}>
             <circle cx="12" cy="12" r="10" />
             <line x1="12" y1="8" x2="12" y2="12" />
             <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
-          <h2 style={{ color: "#1e293b", marginBottom: 10 }}>Access Restricted</h2>
+          <h2 style={{ color: "var(--color-text-primary)", marginBottom: 10 }}>Access Restricted</h2>
           <p style={{ color: "#64748b", lineHeight: 1.6 }}>
             {staff?.find(s => s.email.toLowerCase() === localStorage.getItem("wf_email")?.toLowerCase())?.role === "Revoked" 
               ? "Your access has been revoked. Please contact an administrator if you believe this is an error."
@@ -310,7 +310,7 @@ export default function App() {
           </p>
           <button
             className="btn-secondary"
-            style={{ marginTop: 25, padding: "10px 24px", background: "#ef4444" }}
+            style={{ marginTop: 25, padding: "10px 24px", background: "var(--color-logout)" }}
             onClick={logout}
           >
             Back to Login
@@ -362,7 +362,7 @@ export default function App() {
             </div>
             <button
               className="btn-secondary"
-              style={{ padding: "6px 12px", fontSize: "0.6rem", background: "#ef4444", textTransform: "uppercase" }}
+              style={{ padding: "6px 12px", fontSize: "0.6rem", background: "var(--color-logout)", textTransform: "uppercase" }}
               onClick={logout}
             >
               LOGOUT

@@ -132,13 +132,13 @@ export default function TaskEntry({ userRole, userName, onCreated, showModal }) 
           {/* Left: Form */}
           <div className="section-card">
             <div style={{ textAlign: "center", marginBottom: 30 }}>
-              <h1 style={{ fontWeight: 900, margin: 0, fontSize: "2rem", color: "#1e293b" }}>Create New Task</h1>
-              <p style={{ color: "#64748b", fontSize: "0.9rem", marginTop: 5 }}>Enter project details and milestones</p>
+              <h1 style={{ fontWeight: 900, margin: 0, fontSize: "2rem", color: "var(--color-text-primary)" }}>Create New Task</h1>
+              <p style={{ color: "var(--color-text-secondary)", fontSize: "0.9rem", marginTop: 5 }}>Enter project details and milestones</p>
             </div>
 
             <form ref={formRef} onSubmit={handleSubmit}>
               <div style={{ marginBottom: 30 }}>
-                <h3 style={{ fontWeight: 800, textTransform: "uppercase", fontSize: "0.85rem", color: "#475569", borderBottom: "1px solid #f1f5f9", paddingBottom: 10, marginBottom: 20 }}>
+                <h3 style={{ fontWeight: 800, textTransform: "uppercase", fontSize: "0.85rem", color: "var(--color-text-secondary)", borderBottom: "1px solid var(--color-bg-primary)", paddingBottom: 10, marginBottom: 20 }}>
                   Task Information
                 </h3>
                 <div className="form-group">
@@ -177,7 +177,7 @@ export default function TaskEntry({ userRole, userName, onCreated, showModal }) 
               </div>
 
               <div>
-                <h3 style={{ fontWeight: 800, textTransform: "uppercase", fontSize: "0.85rem", color: "#475569", borderBottom: "1px solid #f1f5f9", paddingBottom: 10, marginBottom: 20 }}>
+                <h3 style={{ fontWeight: 800, textTransform: "uppercase", fontSize: "0.85rem", color: "var(--color-text-secondary)", borderBottom: "1px solid var(--color-bg-primary)", paddingBottom: 10, marginBottom: 20 }}>
                   Project Milestones
                 </h3>
                 <div className="milestone-rows-box">
@@ -204,7 +204,7 @@ export default function TaskEntry({ userRole, userName, onCreated, showModal }) 
           {/* Right: Guide */}
           <div className="section-card">
             <h2 style={{ fontWeight: 900, marginTop: 0, textTransform: "uppercase", fontSize: "1.2rem", marginBottom: 10 }}>Standard Milestone Guide</h2>
-            <div style={{ height: 2, background: "linear-gradient(to right, #6366f1, transparent)", marginBottom: 25 }}></div>
+            <div style={{ height: 2, background: "linear-gradient(to right, var(--color-accent), transparent)", marginBottom: 25 }}></div>
             <div className="guide-list">
               {milestones.map((m, idx) => (
                 <div key={idx} className="guide-item">
@@ -214,7 +214,7 @@ export default function TaskEntry({ userRole, userName, onCreated, showModal }) 
               ))}
             </div>
             <div className="timeline-summary-box">
-              <div style={{ fontWeight: 800, color: "#6366f1", fontSize: "0.9rem" }}>
+              <div style={{ fontWeight: 800, color: "var(--color-accent)", fontSize: "0.9rem" }}>
                 Total Guided Timeline: {totalDays} Days (~{months} Months)
               </div>
             </div>

@@ -37,8 +37,8 @@ export default function Notebook({ userRole, userName }) {
     <div id="notebook-view" className="view-section">
       <div className="container">
         <div style={{ textAlign: "center", marginBottom: 40 }}>
-          <h1 style={{ fontWeight: 900, margin: 0, fontSize: "2rem", color: "#1e293b" }}>Project Ideas & Concepts</h1>
-          <div style={{ height: 3, width: "100%", background: "#6366f1", marginTop: 10 }}></div>
+          <h1 style={{ fontWeight: 900, margin: 0, fontSize: "2rem", color: "var(--color-text-primary)" }}>Project Ideas & Concepts</h1>
+          <div style={{ height: 3, width: "100%", background: "var(--color-accent)", marginTop: 10 }}></div>
         </div>
 
         <div className="notebook-grid">
@@ -51,13 +51,13 @@ export default function Notebook({ userRole, userName }) {
 
               if (i.taker) {
                 takerBadge = (
-                  <span style={{ background: "#10b981", color: "white", padding: "2px 8px", borderRadius: 12, fontSize: "0.7rem", fontWeight: 800 }}>
+                  <span style={{ background: "var(--color-accent)", color: "white", padding: "2px 8px", borderRadius: 12, fontSize: "0.7rem", fontWeight: 800 }}>
                     Taken by: {i.taker}
                   </span>
                 );
               } else {
                 takerBadge = (
-                  <span style={{ background: "#f59e0b", color: "white", padding: "2px 8px", borderRadius: 12, fontSize: "0.7rem", fontWeight: 800 }}>
+                  <span style={{ background: "var(--color-text-secondary)", color: "white", padding: "2px 8px", borderRadius: 12, fontSize: "0.7rem", fontWeight: 800 }}>
                     Open for takers
                   </span>
                 );
@@ -72,7 +72,7 @@ export default function Notebook({ userRole, userName }) {
 
               if (userRole === "Admin") {
                 actions.push(
-                  <button key="del" className="btn-secondary" style={{ background: "#ef4444", padding: "6px 12px", fontSize: "0.75rem" }} onClick={() => handleDelete(i._id)}>
+                  <button key="del" className="btn-secondary" style={{ background: "var(--color-logout)", padding: "6px 12px", fontSize: "0.75rem" }} onClick={() => handleDelete(i._id)}>
                     Delete
                   </button>
                 );
@@ -90,7 +90,7 @@ export default function Notebook({ userRole, userName }) {
                   <p>{i.description}</p>
 
                   {i.details && (
-                    <div style={{ margin: "10px 0", padding: 12, background: "#f1f5f9", borderRadius: 8, fontSize: "0.85rem", color: "#334155", borderLeft: "4px solid #3b82f6", lineHeight: 1.5 }}>
+                    <div style={{ margin: "10px 0", padding: 12, background: "var(--color-bg-primary)", borderRadius: 8, fontSize: "0.85rem", color: "var(--color-text-primary)", borderLeft: "4px solid var(--color-accent)", lineHeight: 1.5 }}>
                       <strong>Details:</strong><br />{i.details}
                     </div>
                   )}
@@ -125,7 +125,7 @@ export default function Notebook({ userRole, userName }) {
           {userRole === "Admin" && (
             <div className="section-card">
               <h2 style={{ fontWeight: 900, marginTop: 0, textTransform: "uppercase", marginBottom: 30, textAlign: "center" }}>Add New Idea</h2>
-              <div style={{ height: 2, background: "#6366f1", marginBottom: 25 }}></div>
+              <div style={{ height: 2, background: "var(--color-accent)", marginBottom: 25 }}></div>
               <form onSubmit={handleSubmit}>
                 <div className="form-group">
                   <label className="form-label">Project Name *</label>
@@ -151,7 +151,7 @@ export default function Notebook({ userRole, userName }) {
                   <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={() => document.getElementById("idea-title")?.closest("form")?.reset()}>
                     Clear
                   </button>
-                  <button type="submit" className="btn-primary" style={{ flex: 2, background: "#6366f1" }}>Save Idea</button>
+                  <button type="submit" className="btn-primary" style={{ flex: 2, background: "var(--color-accent)" }}>Save Idea</button>
                 </div>
               </form>
             </div>

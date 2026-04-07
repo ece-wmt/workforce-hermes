@@ -3,22 +3,25 @@
    ============================================================ */
 
 :root {
-  --color-bg-primary: #f0f4f8;
+  --color-bg-primary: #f8fafc;
   --color-card-bg: #ffffff;
-  --color-text-primary: #1f2937;
-  --color-text-secondary: #6b7280;
-  --color-nav-bg: #4355f1;
-  --color-amber: #f59e0b;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #64748b;
+  --color-nav-bg: #1e293b; /* Dark Slate (Matches WFM logo black/gray) */
+  --color-accent: #0d9488; /* Professional Teal (Matches ECE logo) */
+  --color-accent-hover: #0f766e;
+  --color-logout: #94a3b8; /* Muted Grey for Logout */
+  --color-amber: var(--color-accent); /* Replacing Amber with Accent */
 
-  /* Kanban Column Colors */
-  --col-todo: #2563eb;
-  --col-pending: #f97316;
-  --col-dev: #f59e0b;
-  --col-test: #7c3aed;
-  --col-done: #10b981;
-  --col-scrap: #64748b;
+  /* Unified Kanban Column Colors (Professional Theme) */
+  --col-todo: #475569;    /* Slate */
+  --col-pending: #94a3b8; /* Light Slate */
+  --col-dev: #0d9488;     /* Teal */
+  --col-test: #14b8a6;    /* Bright Teal */
+  --col-done: #0f172a;    /* Deep Navy */
+  --col-scrap: #cbd5e1;   /* Muted Gray */
 
-  --header-height: 200px;
+  --header-height: 180px;
 }
 
 body {
@@ -62,7 +65,7 @@ header {
   width: 100%;
   max-width: 900px;
   margin: 0 auto;
-  border: 2px solid var(--color-amber);
+  border: 2px solid #e2e8f0; /* Muted border instead of Amber */
   border-radius: 20px;
   padding: 10px 30px;
   text-align: center;
@@ -129,12 +132,12 @@ header {
   text-transform: uppercase;
 }
 .nav-btn:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.2);
   transform: translateY(-1px);
 }
 .nav-btn.active {
-  background: #6366f1;
-  border-color: white;
+  background: var(--color-accent);
+  border-color: var(--color-accent);
 }
 .nav-btn.highlight {
   background: var(--color-amber);
@@ -247,22 +250,22 @@ header {
 }
 
 .col-todo {
-  background: linear-gradient(to bottom, #dbeafe, white);
+  background: linear-gradient(to bottom, #f1f5f9, white);
 }
 .col-pending {
-  background: linear-gradient(to bottom, #fef3c7, white);
+  background: linear-gradient(to bottom, #f8fafc, white);
 }
 .col-dev {
-  background: linear-gradient(to bottom, #e0e7ff, white);
+  background: linear-gradient(to bottom, #f0fdfa, white);
 }
 .col-test {
-  background: linear-gradient(to bottom, #bae6fd, white);
+  background: linear-gradient(to bottom, #f0fdfa, white);
 }
 .col-done {
-  background: linear-gradient(to bottom, #d1fae5, white);
+  background: linear-gradient(to bottom, #f1f5f9, white);
 }
 .col-scrap {
-  background: linear-gradient(to bottom, #6e6d6d, white);
+  background: linear-gradient(to bottom, #f8fafc, white);
 }
 
 .col-content {
@@ -322,7 +325,7 @@ header {
 }
 .progress-fill {
   height: 100%;
-  background: #10b981;
+  background: var(--color-accent);
   border-radius: 10px;
   transition: width 0.3s;
 }
@@ -347,10 +350,10 @@ header {
   border: 1px solid #e2e8f0;
 }
 .milestone-dot.active {
-  background: #10b981;
+  background: var(--color-accent);
   color: white;
-  border-color: #059669;
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+  border-color: var(--color-accent-hover);
+  box-shadow: 0 0 8px rgba(13, 148, 136, 0.4);
 }
 
 .card-actions {
@@ -659,7 +662,7 @@ header {
   padding: 15px;
   border-radius: 15px;
   border: none;
-  background: #10b981;
+  background: var(--color-accent);
   color: white;
   font-weight: 800;
   text-transform: uppercase;
@@ -667,7 +670,7 @@ header {
   transition: 0.2s;
 }
 .btn-add-milestone:hover {
-  background: #059669;
+  background: var(--color-accent-hover);
 }
 
 .btn-remove-milestone {
@@ -736,14 +739,14 @@ header {
   min-width: 140px;
 }
 .role-badge {
-  background: #6366f1;
+  background: var(--color-nav-bg);
   color: white;
   padding: 2px 8px;
   border-radius: 20px;
   font-size: 0.55rem;
   font-weight: 800;
   text-transform: uppercase;
-  box-shadow: 0 2px 5px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 2px 5px rgba(30, 41, 59, 0.3);
 }
 .role-switcher {
   background: white;
