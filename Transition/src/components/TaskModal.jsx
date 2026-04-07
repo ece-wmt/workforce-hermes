@@ -133,19 +133,19 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <button className="modal-close" onClick={onClose}>×</button>
 
-        <div className="modal-grid" style={{ gridTemplateColumns: "1.6fr 1fr", gap: "50px" }}>
+        <div className="modal-grid" style={{ gridTemplateColumns: "1.6fr 1.1fr", gap: "35px" }}>
           <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 30 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
               {isEditMode ? (
                 <input 
                   type="text" 
                   className="form-input" 
                   value={editedTitle} 
                   onChange={(e) => setEditedTitle(e.target.value)}
-                  style={{ fontSize: "2.2rem", fontWeight: 900, padding: "10px 15px", width: "100%", marginRight: 30, borderRadius: "var(--radius-md)" }}
+                  style={{ fontSize: "1.5rem", fontWeight: 900, padding: "8px 12px", width: "100%", marginRight: 20, borderRadius: "var(--radius-md)" }}
                 />
               ) : (
-                <h1 className="modal-title" style={{ marginBottom: 0, fontSize: "2.5rem", letterSpacing: "-1px" }}>{task.title}</h1>
+                <h1 className="modal-title" style={{ marginBottom: 0, fontSize: "1.8rem", letterSpacing: "-1px" }}>{task.title}</h1>
               )}
               
               {isEditMode ? (
@@ -205,18 +205,18 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
               )}
             </div>
 
-            <div className="modal-desc" style={{ marginBottom: 40 }}>
-              <h3 style={{ fontWeight: 900, textTransform: "uppercase", fontSize: "0.8rem", color: "var(--color-text-secondary)", marginBottom: 15, letterSpacing: "1px" }}>Project Description</h3>
+            <div className="modal-desc" style={{ marginBottom: 30 }}>
+              <h3 style={{ fontWeight: 900, textTransform: "uppercase", fontSize: "0.75rem", color: "var(--color-text-secondary)", marginBottom: 10, letterSpacing: "1px" }}>Project Description</h3>
               {isEditMode ? (
                 <textarea 
                   className="form-input" 
                   value={editedDesc} 
                   onChange={(e) => setEditedDesc(e.target.value)}
-                  style={{ width: "100%", height: 120, fontSize: "1rem", padding: 20, borderRadius: "var(--radius-md)" }}
+                  style={{ width: "100%", height: 100, fontSize: "0.95rem", padding: 15, borderRadius: "var(--radius-md)" }}
                   placeholder="Enter project description..."
                 />
               ) : (
-                <div style={{ fontSize: "1.1rem", color: "var(--color-text-primary)", lineHeight: 1.8 }}>
+                <div style={{ fontSize: "0.95rem", color: "var(--color-text-primary)", lineHeight: 1.6 }}>
                   {task.description || "No description provided."}
                 </div>
               )}
@@ -299,21 +299,21 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
             {/* Admin Credentials Section - Left Column */}
             {/* Admin Credentials Section - Secure Emerald Edition */}
             {userRole === "Admin" && (
-              <div className="admin-creds-box" style={{ marginTop: 40, background: "#ecfdf5", border: "2px solid #10b981", borderRadius: "var(--radius-md)", overflow: "hidden", boxShadow: "var(--shadow-md)" }}>
-                <div className="creds-header" style={{ background: "#10b981", padding: "12px 20px", color: "white", fontSize: "0.75rem", fontWeight: 900, display: "flex", alignItems: "center", gap: "10px", letterSpacing: "1px" }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+              <div className="admin-creds-box" style={{ marginTop: 30, background: "#ecfdf5", border: "2px solid #10b981", borderRadius: "var(--radius-md)", overflow: "hidden", boxShadow: "var(--shadow-md)" }}>
+                <div className="creds-header" style={{ background: "#10b981", padding: "10px 15px", color: "white", fontSize: "0.7rem", fontWeight: 900, display: "flex", alignItems: "center", gap: "10px", letterSpacing: "1px" }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                     <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                   </svg>
                   ADMIN CREDENTIALS (SENSITIVE)
                 </div>
-                <div className="creds-content" style={{ padding: "25px", color: "#064e3b" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: "15px 20px", alignItems: "center" }}>
-                    <span style={{ fontSize: "0.7rem", fontWeight: 900, textTransform: "uppercase", color: "#059669", letterSpacing: "0.5px" }}>Email:</span>
-                    <span style={{ fontWeight: 700, fontSize: "1rem", fontFamily: "monospace" }}>{task.adminCredentials?.email || "—"}</span>
+                <div className="creds-content" style={{ padding: "15px 20px", color: "#064e3b" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: "10px 15px", alignItems: "center" }}>
+                    <span style={{ fontSize: "0.65rem", fontWeight: 900, textTransform: "uppercase", color: "#059669", letterSpacing: "0.5px" }}>Email:</span>
+                    <span style={{ fontWeight: 700, fontSize: "0.9rem", fontFamily: "monospace" }}>{task.adminCredentials?.email || "—"}</span>
                     
-                    <span style={{ fontSize: "0.7rem", fontWeight: 900, textTransform: "uppercase", color: "#059669", letterSpacing: "0.5px" }}>Password:</span>
-                    <span style={{ fontWeight: 700, fontSize: "1rem", fontFamily: "monospace" }}>
+                    <span style={{ fontSize: "0.65rem", fontWeight: 900, textTransform: "uppercase", color: "#059669", letterSpacing: "0.5px" }}>Password:</span>
+                    <span style={{ fontWeight: 700, fontSize: "0.9rem", fontFamily: "monospace" }}>
                       {task.adminCredentials?.password || "—"}
                     </span>
                   </div>
@@ -322,26 +322,26 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
             )}
           </div>
 
-          <div style={{ background: "rgba(241, 245, 249, 0.5)", border: "1px solid #f1f5f9", padding: 40, borderRadius: "var(--radius-lg)", alignSelf: "stretch", display: "flex", flexDirection: "column" }}>
-            <h3 style={{ fontWeight: 900, textTransform: "uppercase", fontSize: "0.8rem", color: "var(--color-text-secondary)", marginBottom: 25, letterSpacing: "1px" }}>Notes & Updates</h3>
-            <div className="notes-list" style={{ flex: 1, maxHeight: "unset", overflowY: "auto", marginBottom: 30 }}>
+          <div style={{ background: "rgba(241, 245, 249, 0.5)", border: "1px solid #f1f5f9", padding: 30, borderRadius: "var(--radius-lg)", alignSelf: "stretch", display: "flex", flexDirection: "column" }}>
+            <h3 style={{ fontWeight: 900, textTransform: "uppercase", fontSize: "0.75rem", color: "var(--color-text-secondary)", marginBottom: 15, letterSpacing: "1px" }}>Notes & Updates</h3>
+            <div className="notes-list" style={{ flex: 1, maxHeight: "unset", overflowY: "auto", marginBottom: 20 }}>
               {(task.notes || []).map((n, i) => (
-                <div key={i} className="note-item" style={{ background: "white", padding: 20, borderRadius: "var(--radius-md)", border: "1px solid #f1f5f9", marginBottom: 15, boxShadow: "var(--shadow-sm)" }}>
-                  <div className="note-date" style={{ color: "var(--color-accent)", marginBottom: 8, fontSize: "0.7rem" }}>{n.date}</div>
-                  <div className="note-text" style={{ fontSize: "0.95rem", lineHeight: 1.5 }}>{n.text}</div>
+                <div key={i} className="note-item" style={{ background: "white", padding: 15, borderRadius: "var(--radius-md)", border: "1px solid #f1f5f9", marginBottom: 10, boxShadow: "var(--shadow-sm)" }}>
+                  <div className="note-date" style={{ color: "var(--color-accent)", marginBottom: 4, fontSize: "0.65rem" }}>{n.date}</div>
+                  <div className="note-text" style={{ fontSize: "0.85rem", lineHeight: 1.5 }}>{n.text}</div>
                 </div>
               ))}
               {(task.notes || []).length === 0 && (
-                <div style={{ textAlign: "center", color: "#94a3b8", fontStyle: "italic", marginTop: 40 }}>No updates yet.</div>
+                <div style={{ textAlign: "center", color: "#94a3b8", fontStyle: "italic", marginTop: 40, fontSize: "0.85rem" }}>No updates yet.</div>
               )}
             </div>
-            <div className="note-input-group" style={{ marginTop: "auto", display: "flex", gap: 12 }}>
+            <div className="note-input-group" style={{ marginTop: "auto", display: "flex", gap: 10 }}>
               <input 
                 type="text" 
                 className="note-input" 
                 id="modal-note-input" 
                 placeholder="Share an update..." 
-                style={{ flex: 1, padding: "15px 20px", borderRadius: "12px", border: "2px solid #e2e8f0", fontSize: "0.95rem" }}
+                style={{ flex: 1, padding: "12px 15px", borderRadius: "10px", border: "2px solid #e2e8f0", fontSize: "0.85rem" }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
@@ -349,7 +349,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                   }
                 }}
               />
-              <button className="btn-add-note" style={{ background: "var(--color-nav-bg)", color: "white", padding: "0 25px", borderRadius: "12px", fontWeight: 800 }} onClick={handleAddNote}>Add</button>
+              <button className="btn-add-note" style={{ background: "var(--color-nav-bg)", color: "white", padding: "0 20px", borderRadius: "10px", fontWeight: 800, fontSize: "0.8rem" }} onClick={handleAddNote}>Add</button>
             </div>
           </div>
         </div>
