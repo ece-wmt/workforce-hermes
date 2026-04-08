@@ -804,14 +804,14 @@ header {
   align-items: center;
   justify-content: center;
   backdrop-filter: blur(12px);
-  padding: 40px;
+  padding: 60px 40px; /* Increased vertical margin */
 }
 
 .modal-content {
   background: var(--color-card-bg);
   width: 100%;
   max-width: 1100px;
-  max-height: calc(100vh - 40px);
+  max-height: calc(100vh - 120px); /* Ensured it stays within overlay padding */
   border-radius: var(--radius-lg);
   position: relative;
   padding: 30px; /* Reduced for compact high-end look */

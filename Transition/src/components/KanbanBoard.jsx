@@ -25,6 +25,15 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
   const [draggedMilestoneIdx, setDraggedMilestoneIdx] = useState(null);
   const [lastKnownTasks, setLastKnownTasks] = useState([]);
   const [fullViewColumn, setFullViewColumn] = useState(null);
+  
+  // Body scroll lock for full column view
+  useEffect(() => {
+    if (fullViewColumn) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+  }, [fullViewColumn]);
 
   useEffect(() => {
     if (Array.isArray(tasks) && tasks.length > 0) {

@@ -103,12 +103,19 @@ export default function App() {
     setLoading(false);
   }, [staff, authStage]);
 
-  // --- Body scroll lock ---
+  // --- Body scroll lock (Unified) ---
   useEffect(() => {
-    const locked = authStage !== "authenticated";
-    document.body.style.overflow = locked ? "hidden" : "";
+    const isModalOpen = !!modalTaskId || modalConfig.isOpen || inputModal.isOpen;
+    const authRestricted = authStage !== "authenticated";
+    
+    if (isModalOpen || authRestricted) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    
     return () => { document.body.style.overflow = ""; };
-  }, [authStage]);
+  }, [authStage, modalTaskId, modalConfig.isOpen, inputModal.isOpen]);
 
   // --- Role class on body ---
   useEffect(() => {
