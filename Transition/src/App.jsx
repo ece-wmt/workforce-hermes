@@ -52,6 +52,13 @@ export default function App() {
     onConfirm: () => {},
     onCancel: () => {},
   });
+  const [inputModal, setInputModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    fields: [],
+    onConfirm: () => {},
+  });
 
   // --- Convex ---
   const staff = useQuery(api.staff.getStaff);
@@ -282,13 +289,7 @@ export default function App() {
     });
   }
 
-  const [inputModal, setInputModal] = useState({
-    isOpen: false,
-    title: "",
-    message: "",
-    fields: [],
-    onConfirm: () => {},
-  });
+
 
   function showInputModal({ title, message, fields, onConfirm }) {
     setInputModal({
