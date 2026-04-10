@@ -324,7 +324,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
 
           <div style={{ background: "rgba(241, 245, 249, 0.5)", border: "1px solid #f1f5f9", padding: 30, borderRadius: "var(--radius-lg)", alignSelf: "stretch", display: "flex", flexDirection: "column" }}>
             <h3 style={{ fontWeight: 900, textTransform: "uppercase", fontSize: "0.75rem", color: "var(--color-text-secondary)", marginBottom: 15, letterSpacing: "1px" }}>Notes & Updates</h3>
-            <div className="notes-list" style={{ flex: 1, maxHeight: "unset", overflowY: "auto", marginBottom: 20 }}>
+            <div className="notes-list" style={{ flex: 1, maxHeight: "50vh", minHeight: "300px", overflowY: "auto", marginBottom: 20, paddingRight: "5px" }}>
               {(task.notes || []).map((n, i) => (
                 <div key={i} className="note-item" style={{ background: "white", padding: 15, borderRadius: "var(--radius-md)", border: "1px solid #f1f5f9", marginBottom: 10, boxShadow: "var(--shadow-sm)" }}>
                   <div className="note-date" style={{ color: "#10b981", marginBottom: 4, fontSize: "0.65rem", fontWeight: 700 }}>
