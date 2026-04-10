@@ -69,7 +69,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
     const input = document.getElementById("modal-note-input");
     const text = input?.value?.trim();
     if (!text) return;
-    addNoteToTask({ taskId, noteText: text });
+    addNoteToTask({ taskId, noteText: text, writer: userName });
     input.value = "";
   }
 
@@ -327,8 +327,10 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
             <div className="notes-list" style={{ flex: 1, maxHeight: "unset", overflowY: "auto", marginBottom: 20 }}>
               {(task.notes || []).map((n, i) => (
                 <div key={i} className="note-item" style={{ background: "white", padding: 15, borderRadius: "var(--radius-md)", border: "1px solid #f1f5f9", marginBottom: 10, boxShadow: "var(--shadow-sm)" }}>
-                  <div className="note-date" style={{ color: "var(--color-accent)", marginBottom: 4, fontSize: "0.65rem" }}>{n.date}</div>
-                  <div className="note-text" style={{ fontSize: "0.85rem", lineHeight: 1.5 }}>{n.text}</div>
+                  <div className="note-date" style={{ color: "#10b981", marginBottom: 4, fontSize: "0.65rem", fontWeight: 700 }}>
+                    {n.date} {n.writer && <span style={{ color: "#065f46", fontWeight: 900 }}> - {n.writer}</span>}
+                  </div>
+                  <div className="note-text" style={{ fontSize: "0.85rem", lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{n.text}</div>
                 </div>
               ))}
               {(task.notes || []).length === 0 && (

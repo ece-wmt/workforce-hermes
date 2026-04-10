@@ -20,6 +20,7 @@ export default defineSchema({
       v.object({
         text: v.string(),
         date: v.string(),
+        writer: v.optional(v.string()),
       })
     ),
     startDate: v.optional(v.string()),

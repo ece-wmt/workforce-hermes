@@ -144,6 +144,7 @@ export const addNoteToTask = mutation({
   args: {
     taskId: v.id("tasks"),
     noteText: v.string(),
+    writer: v.string(),
   },
   handler: async (ctx, args) => {
     const task = await ctx.db.get(args.taskId);
@@ -153,6 +154,7 @@ export const addNoteToTask = mutation({
     notes.push({
       text: args.noteText,
       date: new Date().toLocaleString(),
+      writer: args.writer,
     });
 
     await ctx.db.patch(args.taskId, {
