@@ -27,6 +27,18 @@ export default defineSchema({
     projectLink: v.optional(v.string()),
     adminCredentials: v.optional(v.any()),
     lastUpdated: v.number(),
+    features: v.optional(
+      v.array(
+        v.object({
+          id: v.string(),
+          name: v.string(),
+          description: v.string(),
+          status: v.string(),
+          suggestedBy: v.optional(v.string()),
+          imageStorageIds: v.optional(v.array(v.string())),
+        })
+      )
+    ),
   }),
 
   staff: defineTable({

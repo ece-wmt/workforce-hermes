@@ -237,3 +237,73 @@ export const updateAdminCredentials = mutation({
     });
   },
 });
+
+export const generateUploadUrl = mutation(async (ctx) => {
+  return await ctx.storage.generateUploadUrl();
+});
+
+export const getFeatureImageUrls = query({
+  args: { storageIds: v.array(v.id("_storage")) },
+  handler: async (ctx, args) => {
+    const urls = [];
+    for (const id of args.storageIds) {
+      urls.push(await ctx.storage.getUrl(id));
+    }
+    return urls;
+  },
+});
+
+export const addTaskFeature = mutation({
+  args: {
+    taskId: v.id("tasks"),
+    feature: v.object({
+      id: v.string(),
+      name: v.string(),
+      description: v.string(),
+      status: v.string(),
+      suggestedBy: v.optional(v.string()),
+      imageStorageIds: v.optional(v.array(v.string())),
+    }),
+  },
+  handler: async (ctx, args) => {
+    console.log("Adding feature to task:", args.taskId, args.feature);
+    const task = await ctx.db.get(args.taskId);
+    if (!task) throw new Error("Task not found");
+    const features = [...(task.features || [])];
+    features.push(args.feature);
+    await ctx.db.patch(args.taskId, { features, lastUpdated: Date.now() });
+  },
+});
+
+export const updateFeatureStatus = mutation({
+  args: {
+    taskId: v.id("tasks"),
+    featureId: v.string(),
+    status: v.string(),
+    writer: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const task = await ctx.db.get(args.taskId);
+    if (!task) throw new Error("Task not found");
+    const features = [...(task.features || [])];
+    const featIndex = features.findIndex(f => f.id === args.featureId);
+    if (featIndex === -1) return;
+    
+    if (features[featIndex].status === args.status) return;
+
+    features[featIndex].status = args.status;
+    const updates: any = { features, lastUpdated: Date.now() };
+
+    if (args.status === "completed") {
+      const notes = [...(task.notes || [])];
+      notes.push({
+        text: `Feature '${features[featIndex].name}' has been completed.`,
+        date: new Date().toLocaleString(),
+        writer: args.writer,
+      });
+      updates.notes = notes;
+    }
+    
+    await ctx.db.patch(args.taskId, updates);
+  },
+});
