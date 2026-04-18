@@ -235,21 +235,27 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
             <div className="features-header" style={{ flexShrink: 0, paddingBottom: 12, borderBottom: "1px solid #f1f5f9", marginBottom: 14 }}>
 
               {/* ── Segmented Toggle ── */}
-              <div style={{ position: "relative", display: "flex", background: "#f1f5f9", borderRadius: "12px", padding: "4px", marginBottom: "16px" }}>
-                {/* Animated pill — translateX avoids layout recalc & rendering bugs */}
+              <div style={{ position: "relative", display: "flex", background: "#eef2f7", borderRadius: "12px", padding: "3px", marginBottom: "16px" }}>
+                {/* 
+                  Pill math: padding=3px, left="3px", width=calc(50%-3px)
+                  translateX(100%) moves by own width = calc(50%-3px)
+                  → new left = 3px + (50%-3px) = 50% → exactly covers second button ✓
+                */}
                 <div style={{
                   position: "absolute",
-                  inset: "4px",
-                  width: "calc(50% - 4px)",
+                  top: "3px",
+                  bottom: "3px",
+                  left: "3px",
+                  width: "calc(50% - 3px)",
                   background: featureView === "bug"
-                    ? "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)"
+                    ? "linear-gradient(135deg, #ef4444, #dc2626)"
                     : "var(--color-nav-bg, #1e293b)",
-                  borderRadius: "8px",
-                  transform: featureView === "feature" ? "translateX(0)" : "translateX(calc(100% + 0px))",
-                  transition: "transform 0.32s cubic-bezier(0.34, 1.4, 0.64, 1), background 0.28s ease",
+                  borderRadius: "9px",
+                  transform: featureView === "feature" ? "translateX(0)" : "translateX(100%)",
+                  transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.25s ease",
                   boxShadow: featureView === "bug"
-                    ? "0 2px 10px rgba(220,38,38,0.3)"
-                    : "0 2px 10px rgba(15,23,42,0.2)",
+                    ? "0 2px 8px rgba(220,38,38,0.35)"
+                    : "0 2px 8px rgba(15,23,42,0.25)",
                   zIndex: 1,
                 }} />
 
@@ -257,16 +263,16 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                   onClick={() => setFeatureView("feature")}
                   style={{
                     flex: 1, position: "relative", zIndex: 2,
-                    padding: "8px 0",
+                    padding: "9px 0",
                     border: "none", cursor: "pointer", background: "transparent",
                     color: featureView === "feature" ? "white" : "#94a3b8",
-                    fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.4px",
+                    fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.3px",
                     transition: "color 0.25s ease",
                     display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
                     userSelect: "none",
                   }}
                 >
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ flexShrink: 0 }}>
                     <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
                   </svg>
                   Features
@@ -276,17 +282,18 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                   onClick={() => setFeatureView("bug")}
                   style={{
                     flex: 1, position: "relative", zIndex: 2,
-                    padding: "8px 0",
+                    padding: "9px 0",
                     border: "none", cursor: "pointer", background: "transparent",
                     color: featureView === "bug" ? "white" : "#94a3b8",
-                    fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.4px",
+                    fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.3px",
                     transition: "color 0.25s ease",
                     display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
                     userSelect: "none",
                   }}
                 >
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ flexShrink: 0 }}>
-                    <circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2m7-7h2M3 12h2M16.95 7.05l1.41-1.41M5.64 18.36l1.41-1.41M16.95 16.95l1.41 1.41M5.64 5.64l1.41 1.41" />
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+                    <circle cx="12" cy="12" r="4" />
+                    <path d="M12 2v2m0 16v2m7-7h2M3 12h2M16.95 7.05l1.41-1.41M5.64 18.36l1.41-1.41M16.95 16.95l1.41 1.41M5.64 5.64l1.41 1.41" />
                   </svg>
                   Bugs
                 </button>
