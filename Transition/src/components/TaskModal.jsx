@@ -21,6 +21,8 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
 
   // Use ref to avoid stale closure in drag handlers
   const draggedIdxRef = useRef(null);
+  // canDragRef: only allow drag when mousedown was on the ⋮⋮ handle
+  const canDragRef = useRef(false);
 
   const task = tasks?.find((t) => t._id === taskId);
 
@@ -39,7 +41,8 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
     }
   }, [task?._id, isEditMode]);
 
-  // Close context menu on outside click
+  // (context menu is now closed via a backdrop div — no window listener needed)
+  // placeholder to satisfy linter
   useEffect(() => {
     if (!featureContextMenu) return;
     function handleClick() {
@@ -350,27 +353,45 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                         key={idx}
                         className="milestone-list-item edit-mode-item"
                         style={{ padding: 10, gap: 10 }}
-                        draggable={false}
-                        onDragOver={onMilestoneDragOver}
-                        onDrop={(e) => onMilestoneDrop(e, idx)}
-                        onDragEnd={() => { draggedIdxRef.current = null; }}
+                        draggable={true}
+                        onDragStart={(e) => {
+                          // Only allow drag if initiated from the handle
+                          if (!canDragRef.current) {
+                            e.preventDefault();
+                            return;
+                          }
+                          draggedIdxRef.current = idx;
+                          e.dataTransfer.effectAllowed = "move";
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = "move";
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const fromIdx = draggedIdxRef.current;
+                          if (fromIdx === null || fromIdx === idx) return;
+                          setEditedMilestones(prev => {
+                            const next = [...prev];
+                            const [moved] = next.splice(fromIdx, 1);
+                            next.splice(idx, 0, moved);
+                            return next;
+                          });
+                          draggedIdxRef.current = null;
+                          canDragRef.current = false;
+                        }}
+                        onDragEnd={() => {
+                          draggedIdxRef.current = null;
+                          canDragRef.current = false;
+                        }}
                       >
-                        {/* The ⋮⋮ grab handle — dragging is initiated here only */}
+                        {/* ⋮⋮ handle: set canDragRef so the row's onDragStart allows it */}
                         <div
                           className="drag-handle"
-                          style={{ fontSize: "1rem", color: "#94a3b8", cursor: "grab", padding: "0 4px", touchAction: "none" }}
-                          draggable
-                          onDragStart={(e) => {
-                            draggedIdxRef.current = idx;
-                            e.dataTransfer.effectAllowed = "move";
-                            // Set a transparent drag image so it looks clean
-                            const ghost = document.createElement("div");
-                            ghost.style.position = "absolute";
-                            ghost.style.top = "-1000px";
-                            document.body.appendChild(ghost);
-                            e.dataTransfer.setDragImage(ghost, 0, 0);
-                            setTimeout(() => document.body.removeChild(ghost), 0);
-                          }}
+                          style={{ fontSize: "1rem", color: "#94a3b8", cursor: "grab", padding: "0 4px", userSelect: "none" }}
+                          onMouseDown={() => { canDragRef.current = true; }}
+                          onMouseUp={() => { canDragRef.current = false; }}
                         >⋮⋮</div>
                         <div className="milestone-list-content">
                           <div className="milestone-name-row" style={{ gap: 10 }}>
@@ -529,42 +550,50 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
         />
       )}
 
-      {/* Feature Context Menu */}
+      {/* Feature Context Menu — backdrop closes it when clicking outside */}
       {featureContextMenu && (
-        <div
-          style={{
-            position: "fixed",
-            top: featureContextMenu.y,
-            left: featureContextMenu.x,
-            background: "white",
-            padding: "4px 0",
-            borderRadius: 10,
-            boxShadow: "0 8px 30px rgba(0,0,0,0.18)",
-            zIndex: 10000,
-            border: "1px solid #e2e8f0",
-            minWidth: 160,
-            overflow: "hidden",
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            style={{ width: "100%", padding: "9px 16px", textAlign: "left", background: "none", border: "none", fontSize: "0.82rem", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, color: "#1e293b", fontWeight: 700 }}
-            onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"}
-            onMouseLeave={e => e.currentTarget.style.background = "none"}
-            onClick={() => handleFeatureEdit(featureContextMenu.feature)}
+        <>
+          {/* Invisible full-screen backdrop */}
+          <div
+            style={{ position: "fixed", inset: 0, zIndex: 9998 }}
+            onClick={() => setFeatureContextMenu(null)}
+            onContextMenu={(e) => { e.preventDefault(); setFeatureContextMenu(null); }}
+          />
+          {/* The actual menu */}
+          <div
+            style={{
+              position: "fixed",
+              top: featureContextMenu.y,
+              left: featureContextMenu.x,
+              background: "white",
+              padding: "4px 0",
+              borderRadius: 10,
+              boxShadow: "0 8px 30px rgba(0,0,0,0.18)",
+              zIndex: 9999,
+              border: "1px solid #e2e8f0",
+              minWidth: 160,
+              overflow: "hidden",
+            }}
           >
-            ✏️ Edit Feature
-          </button>
-          <div style={{ height: 1, background: "#f1f5f9", margin: "2px 0" }} />
-          <button
-            style={{ width: "100%", padding: "9px 16px", textAlign: "left", background: "none", border: "none", fontSize: "0.82rem", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, color: "#ef4444", fontWeight: 700 }}
-            onMouseEnter={e => e.currentTarget.style.background = "#fef2f2"}
-            onMouseLeave={e => e.currentTarget.style.background = "none"}
-            onClick={() => handleFeatureDelete(featureContextMenu.feature)}
-          >
-            🗑️ Delete Feature
-          </button>
-        </div>
+            <button
+              style={{ width: "100%", padding: "9px 16px", textAlign: "left", background: "none", border: "none", fontSize: "0.82rem", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, color: "#1e293b", fontWeight: 700 }}
+              onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"}
+              onMouseLeave={e => e.currentTarget.style.background = "none"}
+              onClick={() => handleFeatureEdit(featureContextMenu.feature)}
+            >
+              ✏️ Edit Feature
+            </button>
+            <div style={{ height: 1, background: "#f1f5f9", margin: "2px 0" }} />
+            <button
+              style={{ width: "100%", padding: "9px 16px", textAlign: "left", background: "none", border: "none", fontSize: "0.82rem", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, color: "#ef4444", fontWeight: 700 }}
+              onMouseEnter={e => e.currentTarget.style.background = "#fef2f2"}
+              onMouseLeave={e => e.currentTarget.style.background = "none"}
+              onClick={() => handleFeatureDelete(featureContextMenu.feature)}
+            >
+              🗑️ Delete Feature
+            </button>
+          </div>
+        </>
       )}
     </div>
   );
