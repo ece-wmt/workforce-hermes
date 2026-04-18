@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import FeatureModal from "./FeatureModal";
@@ -9,6 +9,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   const addNoteToTask = useMutation(api.tasks.addNoteToTask);
   const deleteTask = useMutation(api.tasks.deleteTask);
   const updateTaskDetails = useMutation(api.tasks.updateTaskDetails);
+  const deleteTaskFeature = useMutation(api.tasks.deleteTaskFeature);
 
   const [selectedAssignees, setSelectedAssignees] = useState(new Set());
   const [showOptions, setShowOptions] = useState(false);
@@ -17,9 +18,9 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   const [featureModalConfig, setFeatureModalConfig] = useState(null);
   const [featureContextMenu, setFeatureContextMenu] = useState(null);
   const [editedMilestones, setEditedMilestones] = useState([]);
-  const [draggedEditMilestoneIdx, setDraggedEditMilestoneIdx] = useState(null);
 
-  const deleteTaskFeature = useMutation(api.tasks.deleteTaskFeature);
+  // Use ref to avoid stale closure in drag handlers
+  const draggedIdxRef = useRef(null);
 
   const task = tasks?.find((t) => t._id === taskId);
 
@@ -33,17 +34,23 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
         .filter((s) => s);
       setSelectedAssignees(new Set(initialAssignees));
       if (isEditMode) {
-        setEditedMilestones(task.milestones ? [...task.milestones] : []);
+        setEditedMilestones(task.milestones ? JSON.parse(JSON.stringify(task.milestones)) : []);
       }
     }
-  }, [task, isEditMode]);
+  }, [task?._id, isEditMode]);
 
+  // Close context menu on outside click
   useEffect(() => {
+    if (!featureContextMenu) return;
     function handleClick() {
-      if (featureContextMenu) setFeatureContextMenu(null);
+      setFeatureContextMenu(null);
     }
-    window.addEventListener("click", handleClick);
-    return () => window.removeEventListener("click", handleClick);
+    // Use a timeout so this listener doesn't catch the same click that opened the menu
+    const t = setTimeout(() => window.addEventListener("click", handleClick), 0);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("click", handleClick);
+    };
   }, [featureContextMenu]);
 
   if (!tasks || !task) return null;
@@ -107,29 +114,32 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
 
   function handleSaveEdits() {
     const newMilestones = editedMilestones.map((m) => ({
-      name: m.name.trim() || "Unnamed",
+      name: (m.name || "").trim() || "Unnamed",
       days: parseInt(m.days) || 0,
       completed: m.completed || false,
       completedAt: m.completedAt,
     }));
 
-    updateTaskDetails({ 
-      taskId, 
+    updateTaskDetails({
+      taskId,
       newTitle: editedTitle,
       newDescription: editedDesc,
-      newAssignee: Array.from(selectedAssignees).join(", "), 
-      newMilestones 
+      newAssignee: Array.from(selectedAssignees).join(", "),
+      newMilestones,
     });
     onClose();
   }
 
   function appendEditableMilestone() {
-    setEditedMilestones([...editedMilestones, { name: "", days: 0 }]);
+    setEditedMilestones(prev => [...prev, { name: "", days: 0 }]);
   }
 
   function handleFeatureContextMenu(e, f) {
     if (!canManageFeatures) return;
     e.preventDefault();
+    e.stopPropagation();
+    // Stop the native event so the window click listener doesn't immediately dismiss it
+    e.nativeEvent.stopImmediatePropagation();
     setFeatureContextMenu({ x: e.clientX, y: e.clientY, feature: f });
   }
 
@@ -139,6 +149,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   }
 
   function handleFeatureDelete(f) {
+    setFeatureContextMenu(null);
     showModal({
       title: "Delete Feature",
       message: `Are you sure you want to permanently delete the feature "${f.name}"?`,
@@ -147,7 +158,26 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
         deleteTaskFeature({ taskId, featureId: f.id });
       }
     });
-    setFeatureContextMenu(null);
+  }
+
+  // ── Drag helpers for edit-mode milestones ──────────────────────
+  function onMilestoneDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  }
+
+  function onMilestoneDrop(e, targetIdx) {
+    e.preventDefault();
+    e.stopPropagation();
+    const fromIdx = draggedIdxRef.current;
+    if (fromIdx === null || fromIdx === targetIdx) return;
+    setEditedMilestones(prev => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(targetIdx, 0, moved);
+      return next;
+    });
+    draggedIdxRef.current = null;
   }
 
   return (
@@ -156,6 +186,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
         <button className="modal-close" onClick={onClose}>×</button>
 
         <div className="modal-grid-3">
+          {/* ── Features sidebar ── */}
           <div className="features-sidebar" style={{ display: "flex", flexDirection: "column", height: "100%" }}>
             <div className="features-header" style={{ flexShrink: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -175,14 +206,15 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                 </button>
               )}
             </div>
-            
+
             <div className="features-list" style={{ flex: 1, overflowY: "auto", paddingRight: "5px" }}>
               {(task.features || []).map((f) => (
-                <div 
-                  key={f.id} 
+                <div
+                  key={f.id}
                   className={`feature-card ${f.status === 'completed' ? 'completed' : ''}`}
                   onClick={() => setFeatureModalConfig({ mode: "view", feature: f })}
                   onContextMenu={(e) => handleFeatureContextMenu(e, f)}
+                  style={{ cursor: "pointer", userSelect: "none" }}
                 >
                   <div className="feature-icon-box">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -206,21 +238,22 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
             </div>
           </div>
 
+          {/* ── Main column ── */}
           <div className="modal-main-column" style={{ display: "grid", gridTemplateRows: "auto 1fr auto", height: "100%", overflow: "hidden" }}>
             <div className="modal-fixed-top" style={{ paddingBottom: 15, borderBottom: "1px solid #f1f5f9" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 15 }}>
                 {isEditMode ? (
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    value={editedTitle} 
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={editedTitle}
                     onChange={(e) => setEditedTitle(e.target.value)}
                     style={{ fontSize: "1.2rem", fontWeight: 900, padding: "6px 10px", width: "100%", marginRight: 15, borderRadius: "var(--radius-md)" }}
                   />
                 ) : (
                   <h1 className="modal-title" style={{ marginBottom: 0, fontSize: "1.3rem", letterSpacing: "-0.5px" }}>{task.title}</h1>
                 )}
-                
+
                 {isEditMode ? (
                   <button className="btn-primary" style={{ background: "#3b82f6", color: "white", padding: "8px 16px", fontSize: "0.65rem", borderRadius: 8, width: "auto", fontWeight: 800 }} onClick={handleSaveEdits}>
                     SAVE CHANGES
@@ -281,9 +314,9 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
               <div className="modal-desc" style={{ marginTop: 20 }}>
                 <h3 style={{ fontWeight: 900, textTransform: "uppercase", fontSize: "0.65rem", color: "var(--color-text-secondary)", marginBottom: 8, letterSpacing: "1px" }}>Project Description</h3>
                 {isEditMode ? (
-                  <textarea 
-                    className="form-input" 
-                    value={editedDesc} 
+                  <textarea
+                    className="form-input"
+                    value={editedDesc}
                     onChange={(e) => setEditedDesc(e.target.value)}
                     style={{ width: "100%", height: 80, fontSize: "0.85rem", padding: 12, borderRadius: "var(--radius-md)" }}
                     placeholder="Enter project description..."
@@ -307,71 +340,80 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
               </div>
             </div>
 
+            {/* ── Milestone list ── */}
             <div className="milestone-scroll-area" style={{ overflowY: "auto", paddingRight: "5px", marginTop: "10px" }}>
-              <div className="milestone-vertical-list" id="milestone-list-edit" style={{ marginTop: 10 }}>
+              <div className="milestone-vertical-list" style={{ marginTop: 10 }}>
                 {isEditMode ? (
                   <>
                     {editedMilestones.map((m, idx) => (
-                      <div 
-                        key={idx} 
-                        className="milestone-list-item edit-mode-item" 
-                        style={{ padding: 10, gap: 10, cursor: "grab" }}
-                        draggable
-                        onDragStart={(e) => { e.stopPropagation(); setDraggedEditMilestoneIdx(idx); }}
-                        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          if (draggedEditMilestoneIdx === null || draggedEditMilestoneIdx === idx) return;
-                          const next = [...editedMilestones];
-                          const [moved] = next.splice(draggedEditMilestoneIdx, 1);
-                          next.splice(idx, 0, moved);
-                          setEditedMilestones(next);
-                          setDraggedEditMilestoneIdx(null);
-                        }}
+                      <div
+                        key={idx}
+                        className="milestone-list-item edit-mode-item"
+                        style={{ padding: 10, gap: 10 }}
+                        draggable={false}
+                        onDragOver={onMilestoneDragOver}
+                        onDrop={(e) => onMilestoneDrop(e, idx)}
+                        onDragEnd={() => { draggedIdxRef.current = null; }}
                       >
-                        <div className="drag-handle" style={{ fontSize: "1rem", color: "#94a3b8" }}>⋮⋮</div>
+                        {/* The ⋮⋮ grab handle — dragging is initiated here only */}
+                        <div
+                          className="drag-handle"
+                          style={{ fontSize: "1rem", color: "#94a3b8", cursor: "grab", padding: "0 4px", touchAction: "none" }}
+                          draggable
+                          onDragStart={(e) => {
+                            draggedIdxRef.current = idx;
+                            e.dataTransfer.effectAllowed = "move";
+                            // Set a transparent drag image so it looks clean
+                            const ghost = document.createElement("div");
+                            ghost.style.position = "absolute";
+                            ghost.style.top = "-1000px";
+                            document.body.appendChild(ghost);
+                            e.dataTransfer.setDragImage(ghost, 0, 0);
+                            setTimeout(() => document.body.removeChild(ghost), 0);
+                          }}
+                        >⋮⋮</div>
                         <div className="milestone-list-content">
                           <div className="milestone-name-row" style={{ gap: 10 }}>
-                            <input 
-                              type="text" 
-                              className="form-input edit-m-name" 
-                              value={m.name} 
+                            <input
+                              type="text"
+                              className="form-input edit-m-name"
+                              value={m.name}
                               onChange={(e) => {
                                 const next = [...editedMilestones];
-                                next[idx].name = e.target.value;
+                                next[idx] = { ...next[idx], name: e.target.value };
                                 setEditedMilestones(next);
                               }}
-                              placeholder="Milestone Name" 
-                              style={{ flex: 2, padding: "4px 8px", fontSize: "0.8rem" }} 
+                              placeholder="Milestone Name"
+                              style={{ flex: 2, padding: "4px 8px", fontSize: "0.8rem" }}
                             />
-                            <input 
-                              type="number" 
-                              className="form-input edit-m-days" 
-                              value={m.days} 
+                            <input
+                              type="number"
+                              className="form-input edit-m-days"
+                              value={m.days}
                               onChange={(e) => {
                                 const next = [...editedMilestones];
-                                next[idx].days = e.target.value;
+                                next[idx] = { ...next[idx], days: e.target.value };
                                 setEditedMilestones(next);
                               }}
-                              placeholder="Days" 
-                              style={{ flex: 1, padding: "4px 8px", fontSize: "0.8rem" }} 
+                              placeholder="Days"
+                              style={{ flex: 1, padding: "4px 8px", fontSize: "0.8rem" }}
                             />
-                            <button type="button" className="btn-remove-milestone" style={{ padding: "4px 8px", fontSize: "0.8rem" }} onClick={() => {
-                              const next = [...editedMilestones];
-                              next.splice(idx, 1);
-                              setEditedMilestones(next);
-                            }}>
-                              ×
-                            </button>
+                            <button
+                              type="button"
+                              className="btn-remove-milestone"
+                              style={{ padding: "4px 8px", fontSize: "0.8rem" }}
+                              onClick={() => {
+                                setEditedMilestones(prev => prev.filter((_, i) => i !== idx));
+                              }}
+                            >×</button>
                           </div>
                         </div>
                       </div>
                     ))}
-                    <button 
-                      type="button" 
-                      className="btn-primary" 
-                      style={{ marginTop: 10, alignSelf: "flex-start", width: "auto", padding: "6px 12px", fontSize: "0.75rem", background: "white", color: "var(--color-nav-bg)", border: "2px dashed #cbd5e1" }} 
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      style={{ marginTop: 10, alignSelf: "flex-start", width: "auto", padding: "6px 12px", fontSize: "0.75rem", background: "white", color: "var(--color-nav-bg)", border: "2px dashed #cbd5e1" }}
                       onClick={appendEditableMilestone}
                     >
                       + ADD MILESTONE
@@ -380,43 +422,44 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                 ) : (
                   milestones.map((m, idx) => {
                     let status = "waiting";
-                  const firstIncompleteIdx = milestones.findIndex((ms) => !ms.completed);
-                  if (m.completed) status = "completed";
-                  else if (idx === firstIncompleteIdx) status = "active";
+                    const firstIncompleteIdx = milestones.findIndex((ms) => !ms.completed);
+                    if (m.completed) status = "completed";
+                    else if (idx === firstIncompleteIdx) status = "active";
 
-                  let actionBtn;
-                  if (canEditMilestone) {
-                    if (status === "completed") actionBtn = <button className="btn-milestone-undo" onClick={() => handleToggleMilestone(idx)}>Undo</button>;
-                    else if (status === "active") actionBtn = <button className="btn-milestone-complete" onClick={() => handleToggleMilestone(idx)}>Complete</button>;
-                    else actionBtn = <span className="badge-waiting">Waiting</span>;
-                  } else {
-                    if (status === "completed") actionBtn = <span className="badge-completed">Completed</span>;
-                    else if (status === "active") actionBtn = <span className="badge-active">Active</span>;
-                    else actionBtn = <span className="badge-waiting">Waiting</span>;
-                  }
+                    let actionBtn;
+                    if (canEditMilestone) {
+                      if (status === "completed") actionBtn = <button className="btn-milestone-undo" onClick={() => handleToggleMilestone(idx)}>Undo</button>;
+                      else if (status === "active") actionBtn = <button className="btn-milestone-complete" onClick={() => handleToggleMilestone(idx)}>Complete</button>;
+                      else actionBtn = <span className="badge-waiting">Waiting</span>;
+                    } else {
+                      if (status === "completed") actionBtn = <span className="badge-completed">Completed</span>;
+                      else if (status === "active") actionBtn = <span className="badge-active">Active</span>;
+                      else actionBtn = <span className="badge-waiting">Waiting</span>;
+                    }
 
-                  return (
-                    <div key={idx} className={`milestone-list-item ${status}`} draggable={canEditMilestone}>
-                      <div className="drag-handle">⋮⋮</div>
-                      <div className="milestone-list-content">
-                        <div className="milestone-name-row">
-                          <span className={`m-name ${m.completed ? "strike" : ""}`}>
-                            {m.name} <span style={{ fontWeight: "normal", color: "#94a3b8" }}>({m.days} days)</span>
-                          </span>
-                          {actionBtn}
-                        </div>
-                        {m.completed && m.completedAt && (
-                          <div className="milestone-date">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                              <path d="M20 6L9 17l-5-5" />
-                            </svg>
-                            Completed {m.completedAt}
+                    return (
+                      <div key={idx} className={`milestone-list-item ${status}`}>
+                        <div className="drag-handle">⋮⋮</div>
+                        <div className="milestone-list-content">
+                          <div className="milestone-name-row">
+                            <span className={`m-name ${m.completed ? "strike" : ""}`}>
+                              {m.name} <span style={{ fontWeight: "normal", color: "#94a3b8" }}>({m.days} days)</span>
+                            </span>
+                            {actionBtn}
                           </div>
-                        )}
+                          {m.completed && m.completedAt && (
+                            <div className="milestone-date">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                <path d="M20 6L9 17l-5-5" />
+                              </svg>
+                              Completed {m.completedAt}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                }))}
+                    );
+                  })
+                )}
               </div>
             </div>
 
@@ -433,24 +476,22 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                   <div style={{ display: "grid", gridTemplateColumns: "80px 1fr", gap: "2px 10px", alignItems: "center" }}>
                     <span style={{ fontSize: "0.6rem", fontWeight: 900, textTransform: "uppercase", color: "#059669" }}>Email:</span>
                     <span style={{ fontWeight: 700, fontSize: "0.8rem", fontFamily: "monospace" }}>{task.adminCredentials?.email || "—"}</span>
-                    
                     <span style={{ fontSize: "0.6rem", fontWeight: 900, textTransform: "uppercase", color: "#059669" }}>Pass:</span>
-                    <span style={{ fontWeight: 700, fontSize: "0.8rem", fontFamily: "monospace" }}>
-                      {task.adminCredentials?.password || "—"}
-                    </span>
+                    <span style={{ fontWeight: 700, fontSize: "0.8rem", fontFamily: "monospace" }}>{task.adminCredentials?.password || "—"}</span>
                   </div>
                 </div>
               </div>
             )}
           </div>
 
+          {/* ── Notes column ── */}
           <div style={{ background: "rgba(241, 245, 249, 0.5)", border: "1px solid #f1f5f9", padding: "15px 20px", borderRadius: "var(--radius-lg)", alignSelf: "stretch", display: "grid", gridTemplateRows: "auto 1fr auto", height: "100%", overflow: "hidden" }}>
             <h3 style={{ fontWeight: 900, textTransform: "uppercase", fontSize: "0.7rem", color: "var(--color-text-secondary)", marginBottom: 10, letterSpacing: "1px" }}>Notes & Updates</h3>
             <div className="notes-list" style={{ overflowY: "auto", paddingRight: "5px", marginBottom: 10 }}>
               {(task.notes || []).map((n, i) => (
                 <div key={i} className="note-item" style={{ background: "white", padding: 12, borderRadius: "var(--radius-md)", border: "1px solid #f1f5f9", marginBottom: 8, boxShadow: "var(--shadow-sm)" }}>
                   <div className="note-date" style={{ color: "#10b981", marginBottom: 4, fontSize: "0.65rem", fontWeight: 700 }}>
-                    {n.date} {n.writer && <span style={{ color: "#065f46", fontWeight: 900 }}> - {n.writer}</span>}
+                    {n.date} {n.writer && <span style={{ color: "#065f46", fontWeight: 900 }}>- {n.writer}</span>}
                   </div>
                   <div className="note-text" style={{ fontSize: "0.8rem", lineHeight: 1.4, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{n.text}</div>
                 </div>
@@ -460,17 +501,14 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
               )}
             </div>
             <div className="note-input-group" style={{ display: "flex", gap: 8, paddingTop: 10, borderTop: "1px solid #e2e8f0", marginBottom: 40 }}>
-              <input 
-                type="text" 
-                className="note-input" 
-                id="modal-note-input" 
-                placeholder="Share an update..." 
+              <input
+                type="text"
+                className="note-input"
+                id="modal-note-input"
+                placeholder="Share an update..."
                 style={{ flex: 1, padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "0.8rem" }}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleAddNote();
-                  }
+                  if (e.key === "Enter") { e.preventDefault(); handleAddNote(); }
                 }}
               />
               <button className="btn-add-note" style={{ background: "var(--color-nav-bg)", color: "white", padding: "0 15px", borderRadius: "8px", fontWeight: 800, fontSize: "0.75rem" }} onClick={handleAddNote}>Add</button>
@@ -479,6 +517,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
         </div>
       </div>
 
+      {/* Feature Modal */}
       {featureModalConfig && (
         <FeatureModal
           mode={featureModalConfig.mode}
@@ -490,10 +529,41 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
         />
       )}
 
+      {/* Feature Context Menu */}
       {featureContextMenu && (
-        <div style={{ position: "fixed", top: featureContextMenu.y, left: featureContextMenu.x, background: "white", padding: "5px 0", borderRadius: 8, boxShadow: "0 10px 25px rgba(0,0,0,0.15)", zIndex: 9999, border: "1px solid #e2e8f0", minWidth: 140 }}>
-          <button style={{ width: "100%", padding: "8px 15px", textAlign: "left", background: "none", border: "none", fontSize: "0.8rem", cursor: "pointer", display: "block", color: "#1e293b", fontWeight: 700 }} onClick={() => handleFeatureEdit(featureContextMenu.feature)}>Edit Feature</button>
-          <button style={{ width: "100%", padding: "8px 15px", textAlign: "left", background: "none", border: "none", fontSize: "0.8rem", cursor: "pointer", display: "block", color: "#ef4444", fontWeight: 700 }} onClick={() => handleFeatureDelete(featureContextMenu.feature)}>Delete Feature</button>
+        <div
+          style={{
+            position: "fixed",
+            top: featureContextMenu.y,
+            left: featureContextMenu.x,
+            background: "white",
+            padding: "4px 0",
+            borderRadius: 10,
+            boxShadow: "0 8px 30px rgba(0,0,0,0.18)",
+            zIndex: 10000,
+            border: "1px solid #e2e8f0",
+            minWidth: 160,
+            overflow: "hidden",
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            style={{ width: "100%", padding: "9px 16px", textAlign: "left", background: "none", border: "none", fontSize: "0.82rem", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, color: "#1e293b", fontWeight: 700 }}
+            onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"}
+            onMouseLeave={e => e.currentTarget.style.background = "none"}
+            onClick={() => handleFeatureEdit(featureContextMenu.feature)}
+          >
+            ✏️ Edit Feature
+          </button>
+          <div style={{ height: 1, background: "#f1f5f9", margin: "2px 0" }} />
+          <button
+            style={{ width: "100%", padding: "9px 16px", textAlign: "left", background: "none", border: "none", fontSize: "0.82rem", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, color: "#ef4444", fontWeight: 700 }}
+            onMouseEnter={e => e.currentTarget.style.background = "#fef2f2"}
+            onMouseLeave={e => e.currentTarget.style.background = "none"}
+            onClick={() => handleFeatureDelete(featureContextMenu.feature)}
+          >
+            🗑️ Delete Feature
+          </button>
         </div>
       )}
     </div>
