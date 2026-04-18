@@ -235,22 +235,21 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
             <div className="features-header" style={{ flexShrink: 0, paddingBottom: 12, borderBottom: "1px solid #f1f5f9", marginBottom: 14 }}>
 
               {/* ── Segmented Toggle ── */}
-              <div style={{ position: "relative", display: "flex", background: "#f8fafc", borderRadius: "14px", padding: "4px", marginBottom: "16px", border: "1px solid #e2e8f0" }}>
-                {/* Animated pill — uses transform so no layout recalc and no border glitch */}
+              <div style={{ position: "relative", display: "flex", background: "#f1f5f9", borderRadius: "12px", padding: "4px", marginBottom: "16px" }}>
+                {/* Animated pill — translateX avoids layout recalc & rendering bugs */}
                 <div style={{
                   position: "absolute",
-                  top: 4, bottom: 4,
-                  left: 4,
+                  inset: "4px",
                   width: "calc(50% - 4px)",
-                  background: featureView === "feature"
-                    ? "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)"
-                    : "linear-gradient(135deg, #ef4444 0%, #f97316 100%)",
-                  borderRadius: "10px",
-                  transform: featureView === "feature" ? "translateX(0)" : "translateX(100%)",
-                  transition: "transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.35s ease",
-                  boxShadow: featureView === "feature"
-                    ? "0 4px 12px rgba(99,102,241,0.35)"
-                    : "0 4px 12px rgba(239,68,68,0.35)",
+                  background: featureView === "bug"
+                    ? "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)"
+                    : "var(--color-nav-bg, #1e293b)",
+                  borderRadius: "8px",
+                  transform: featureView === "feature" ? "translateX(0)" : "translateX(calc(100% + 0px))",
+                  transition: "transform 0.32s cubic-bezier(0.34, 1.4, 0.64, 1), background 0.28s ease",
+                  boxShadow: featureView === "bug"
+                    ? "0 2px 10px rgba(220,38,38,0.3)"
+                    : "0 2px 10px rgba(15,23,42,0.2)",
                   zIndex: 1,
                 }} />
 
@@ -258,16 +257,16 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                   onClick={() => setFeatureView("feature")}
                   style={{
                     flex: 1, position: "relative", zIndex: 2,
-                    padding: "9px 4px",
+                    padding: "8px 0",
                     border: "none", cursor: "pointer", background: "transparent",
                     color: featureView === "feature" ? "white" : "#94a3b8",
-                    fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.5px",
-                    transition: "color 0.3s ease",
-                    display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                    fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.4px",
+                    transition: "color 0.25s ease",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
                     userSelect: "none",
                   }}
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ flexShrink: 0 }}>
                     <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
                   </svg>
                   Features
@@ -277,17 +276,17 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                   onClick={() => setFeatureView("bug")}
                   style={{
                     flex: 1, position: "relative", zIndex: 2,
-                    padding: "9px 4px",
+                    padding: "8px 0",
                     border: "none", cursor: "pointer", background: "transparent",
                     color: featureView === "bug" ? "white" : "#94a3b8",
-                    fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.5px",
-                    transition: "color 0.3s ease",
-                    display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                    fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.4px",
+                    transition: "color 0.25s ease",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
                     userSelect: "none",
                   }}
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M12 2v2m0 16v2m7-9h2M3 12h2M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" />
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+                    <circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2m7-7h2M3 12h2M16.95 7.05l1.41-1.41M5.64 18.36l1.41-1.41M16.95 16.95l1.41 1.41M5.64 5.64l1.41 1.41" />
                   </svg>
                   Bugs
                 </button>
@@ -295,15 +294,15 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
 
               {/* ── Row: title + pending badge + add button ── */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <h3 style={{ margin: 0, fontSize: "0.85rem", fontWeight: 800, color: "#0f172a", letterSpacing: "-0.2px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
+                  <h3 style={{ margin: 0, fontSize: "0.82rem", fontWeight: 800, color: "#0f172a", letterSpacing: "-0.2px" }}>
                     {featureView === "feature" ? "Features" : "Bug Reports"}
                   </h3>
                   {(task.features || []).filter(f => (f.type || "feature") === featureView && f.status === "pending").length > 0 && (
                     <span style={{
-                      background: featureView === "bug" ? "#fee2e2" : "#ede9fe",
-                      color: featureView === "bug" ? "#ef4444" : "#7c3aed",
-                      fontSize: "0.58rem", padding: "2px 7px", borderRadius: "20px", fontWeight: 800, letterSpacing: "0.5px",
+                      background: featureView === "bug" ? "#fee2e2" : "#e2e8f0",
+                      color: featureView === "bug" ? "#dc2626" : "#475569",
+                      fontSize: "0.58rem", padding: "2px 7px", borderRadius: "20px", fontWeight: 800, letterSpacing: "0.4px",
                     }}>
                       {(task.features || []).filter(f => (f.type || "feature") === featureView && f.status === "pending").length} OPEN
                     </span>
@@ -313,14 +312,14 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                   <button
                     className="btn-add-feature"
                     style={{
-                      background: featureView === "bug" ? "#fef2f2" : "#f5f3ff",
-                      color: featureView === "bug" ? "#ef4444" : "#7c3aed",
-                      border: `1.5px solid ${featureView === "bug" ? "#fca5a5" : "#c4b5fd"}`,
+                      background: featureView === "bug" ? "#fef2f2" : "#f8fafc",
+                      color: featureView === "bug" ? "#dc2626" : "#475569",
+                      border: `1.5px solid ${featureView === "bug" ? "#fca5a5" : "#e2e8f0"}`,
                       transition: "all 0.2s ease",
                     }}
                     onClick={() => setFeatureModalConfig({ mode: "add", type: featureView })}
                   >
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                       <path d="M12 5v14M5 12h14" />
                     </svg>
                     ADD
