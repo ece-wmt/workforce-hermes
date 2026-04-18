@@ -9,12 +9,16 @@ export default function Notebook({ userRole, userName }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    const estDate = new Date().toLocaleDateString("en-US", {
+      timeZone: "America/New_York",
+    });
     await addIdea({
       name: document.getElementById("idea-title").value,
       description: document.getElementById("idea-desc").value,
       pros: document.getElementById("idea-pros").value,
       cons: document.getElementById("idea-cons").value,
       details: document.getElementById("idea-details").value,
+      date: estDate,
     });
     alert("Concept Saved to Notebook");
     e.target.reset();

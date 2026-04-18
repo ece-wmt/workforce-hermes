@@ -119,7 +119,11 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
     const input = document.getElementById(inputId);
     const text = input?.value?.trim();
     if (!text) return;
-    addNoteToTask({ taskId, noteText: text, writer: userName });
+    const estDate = new Date().toLocaleString("en-US", {
+      timeZone: "America/New_York",
+      year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
+    });
+    addNoteToTask({ taskId, noteText: text, writer: userName, date: estDate });
     input.value = "";
   }
 

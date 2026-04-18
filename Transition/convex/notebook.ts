@@ -14,6 +14,7 @@ export const addIdea = mutation({
     pros: v.optional(v.string()),
     cons: v.optional(v.string()),
     details: v.optional(v.string()),
+    date: v.string(),
   },
   handler: async (ctx, args) => {
     await ctx.db.insert("notebook", {
@@ -22,7 +23,7 @@ export const addIdea = mutation({
       pros: args.pros || "",
       cons: args.cons || "",
       details: args.details || "",
-      date: new Date().toLocaleDateString(),
+      date: args.date,
     });
   },
 });

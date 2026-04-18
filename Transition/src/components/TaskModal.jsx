@@ -85,7 +85,11 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
     const input = document.getElementById("modal-note-input");
     const text = input?.value?.trim();
     if (!text) return;
-    addNoteToTask({ taskId, noteText: text, writer: userName });
+    const estDate = new Date().toLocaleString("en-US", {
+      timeZone: "America/New_York",
+      year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
+    });
+    addNoteToTask({ taskId, noteText: text, writer: userName, date: estDate });
     input.value = "";
   }
 
