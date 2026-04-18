@@ -323,6 +323,10 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                   <div className="feature-info">
                     <h4>{f.name}</h4>
                     <p>{f.description}</p>
+                    <div style={{ display: "flex", gap: "8px", fontSize: "0.65rem", color: "#64748b", marginBottom: "4px" }}>
+                      <span>Created: {f.createdAt || "N/A"}</span>
+                      {f.completedAt && <span>Completed: {f.completedAt}</span>}
+                    </div>
                     <span className={`feature-badge ${f.status}`} style={{ background: featureView === "bug" && f.status === "pending" ? "#fee2e2" : undefined, color: featureView === "bug" && f.status === "pending" ? "#ef4444" : undefined }}>
                       {f.status === "completed" ? "COMPLETED" : "PENDING"}
                     </span>

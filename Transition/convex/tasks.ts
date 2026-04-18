@@ -265,6 +265,7 @@ export const addTaskFeature = mutation({
       suggestedBy: v.optional(v.string()),
       imageStorageIds: v.optional(v.array(v.string())),
       type: v.optional(v.string()),
+      createdAt: v.optional(v.string()),
     }),
   },
   handler: async (ctx, args) => {
@@ -272,7 +273,14 @@ export const addTaskFeature = mutation({
     const task = await ctx.db.get(args.taskId);
     if (!task) throw new Error("Task not found");
     const features = [...(task.features || [])];
-    features.push(args.feature);
+    const featureWithTimestamp = {
+      ...args.feature,
+      createdAt: args.feature.createdAt || new Date().toLocaleString("en-US", {
+        timeZone: "America/New_York",
+        year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
+      }),
+    };
+    features.push(featureWithTimestamp);
     await ctx.db.patch(args.taskId, { features, lastUpdated: Date.now() });
   },
 });
@@ -297,13 +305,12 @@ export const updateFeatureStatus = mutation({
     const updates: any = { features, lastUpdated: Date.now() };
 
     if (args.status === "completed") {
-      const notes = [...(task.notes || [])];
-      notes.push({
-        text: `Feature '${features[featIndex].name}' has been completed.`,
-        date: new Date().toLocaleString(),
-        writer: args.writer,
+      features[featIndex].completedAt = new Date().toLocaleString("en-US", {
+        timeZone: "America/New_York",
+        year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
       });
-      updates.notes = notes;
+    } else {
+      delete features[featIndex].completedAt;
     }
     
     await ctx.db.patch(args.taskId, updates);

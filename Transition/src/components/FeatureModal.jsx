@@ -83,6 +83,10 @@ export default function FeatureModal({ mode, feature, taskId, onClose, canEdit, 
       }
 
       if (mode === "add") {
+        const estDate = new Date().toLocaleString("en-US", {
+          timeZone: "America/New_York",
+          year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
+        });
         await addTaskFeature({
           taskId,
           feature: {
@@ -93,6 +97,7 @@ export default function FeatureModal({ mode, feature, taskId, onClose, canEdit, 
             suggestedBy: userName || "Anonymous",
             imageStorageIds: finalStorageIds,
             type: type || "feature",
+            createdAt: estDate,
           },
         });
       } else if (mode === "edit") {
