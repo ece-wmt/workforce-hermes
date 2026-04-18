@@ -37,6 +37,8 @@ export default defineSchema({
           suggestedBy: v.optional(v.string()),
           imageStorageIds: v.optional(v.array(v.string())),
           type: v.optional(v.string()),
+          createdAt: v.optional(v.string()),
+          completedAt: v.optional(v.string()),
         })
       )
     ),
