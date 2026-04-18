@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
-export default function FeatureModal({ mode, feature, taskId, onClose, canEdit, userName }) {
+export default function FeatureModal({ mode, feature, taskId, onClose, canEdit, userName, type }) {
   const [name, setName] = useState(feature?.name || "");
   const [description, setDescription] = useState(feature?.description || "");
   const [files, setFiles] = useState([]);
@@ -92,6 +92,7 @@ export default function FeatureModal({ mode, feature, taskId, onClose, canEdit, 
             status: "pending",
             suggestedBy: userName || "Anonymous",
             imageStorageIds: finalStorageIds,
+            type: type || "feature",
           },
         });
       } else if (mode === "edit") {
@@ -163,17 +164,17 @@ export default function FeatureModal({ mode, feature, taskId, onClose, canEdit, 
           <button className="modal-close" onClick={onClose}>×</button>
 
           <h2 style={{ margin: "0 0 20px 0", fontSize: "1.4rem", fontWeight: 900 }}>
-            {mode === "add" ? "Add New Feature" : mode === "edit" ? "Edit Feature" : "Feature Details"}
+            {mode === "add" ? `Add New ${type === "bug" ? "Bug" : "Feature"}` : mode === "edit" ? `Edit ${type === "bug" ? "Bug" : "Feature"}` : `${type === "bug" ? "Bug" : "Feature"} Details`}
           </h2>
 
           {(mode === "add" || mode === "edit") && (
             <div>
               <div className="form-group">
-                <label className="form-label">Feature Name</label>
+                <label className="form-label">{type === "bug" ? "Bug Name" : "Feature Name"}</label>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="e.g. Advanced Analytics"
+                  placeholder={type === "bug" ? "e.g. Broken login button" : "e.g. Advanced Analytics"}
                   value={name}
                   onChange={e => setName(e.target.value)}
                 />
@@ -182,7 +183,7 @@ export default function FeatureModal({ mode, feature, taskId, onClose, canEdit, 
                 <label className="form-label">Description</label>
                 <textarea
                   className="form-input"
-                  placeholder="Describe the feature..."
+                  placeholder={`Describe the ${type === "bug" ? "bug" : "feature"}...`}
                   style={{ height: 100, resize: "vertical" }}
                   value={description}
                   onChange={e => setDescription(e.target.value)}
@@ -229,9 +230,9 @@ export default function FeatureModal({ mode, feature, taskId, onClose, canEdit, 
                 className="btn-primary"
                 onClick={handleAddOrUpdateSubmit}
                 disabled={isSubmitting}
-                style={{ marginTop: 20 }}
+                style={{ marginTop: 20, background: type === "bug" ? "#ef4444" : undefined }}
               >
-                {isSubmitting ? "SAVING..." : mode === "edit" ? "SAVE CHANGES" : "ADD FEATURE"}
+                {isSubmitting ? "SAVING..." : mode === "edit" ? "SAVE CHANGES" : `ADD ${type === "bug" ? "BUG" : "FEATURE"}`}
               </button>
             </div>
           )}
@@ -263,7 +264,7 @@ export default function FeatureModal({ mode, feature, taskId, onClose, canEdit, 
               </div>
 
               <div style={{ marginBottom: 20 }}>
-                <span style={{ fontSize: "0.7rem", fontWeight: 800, color: "var(--color-accent)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Suggested By</span>
+                <span style={{ fontSize: "0.7rem", fontWeight: 800, color: "var(--color-accent)", textTransform: "uppercase", letterSpacing: "0.5px" }}>{type === "bug" ? "Reported By" : "Suggested By"}</span>
                 <div style={{ fontSize: "0.9rem", color: "#1e293b", fontWeight: 700, marginTop: "4px" }}>{feature.suggestedBy || "System"}</div>
               </div>
 

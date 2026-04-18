@@ -18,6 +18,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   const [featureModalConfig, setFeatureModalConfig] = useState(null);
   const [featureContextMenu, setFeatureContextMenu] = useState(null);
   const [editedMilestones, setEditedMilestones] = useState([]);
+  const [featureView, setFeatureView] = useState("feature"); // 'feature' or 'bug'
 
   // Drag refs — no React state updated during drag to avoid re-render/listener issues
   const milestoneListRef = useRef(null);
@@ -138,8 +139,8 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   function handleFeatureDelete(f) {
     setFeatureContextMenu(null);
     showModal({
-      title: "Delete Feature",
-      message: `Are you sure you want to permanently delete the feature "${f.name}"?`,
+      title: `Delete ${f.type === "bug" ? "Bug" : "Feature"}`,
+      message: `Are you sure you want to permanently delete the ${f.type === "bug" ? "bug" : "feature"} "${f.name}"?`,
       type: "confirm",
       onConfirm: () => { deleteTaskFeature({ taskId, featureId: f.id }); }
     });
@@ -229,52 +230,76 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
 
         <div className="modal-grid-3">
 
-          {/* ── Features sidebar ── */}
+          {/* ── Features & Bugs sidebar ── */}
           <div className="features-sidebar" style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-            <div className="features-header" style={{ flexShrink: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <h3>Features</h3>
-                {(task.features || []).filter(f => f.status === "pending").length > 0 && (
-                  <span style={{ background: "#fef3c7", color: "#d97706", fontSize: "0.6rem", padding: "2px 6px", borderRadius: "10px", fontWeight: "900" }}>
-                    {(task.features || []).filter(f => f.status === "pending").length} PENDING
-                  </span>
+            <div className="features-header" style={{ flexShrink: 0, paddingBottom: 10 }}>
+              <div style={{ display: "flex", background: "#f1f5f9", borderRadius: "8px", padding: "4px", marginBottom: "15px" }}>
+                <button 
+                  onClick={() => setFeatureView("feature")}
+                  style={{ flex: 1, background: featureView === "feature" ? "white" : "transparent", padding: "6px 0", borderRadius: "6px", fontSize: "0.75rem", fontWeight: 800, border: "none", cursor: "pointer", boxShadow: featureView === "feature" ? "var(--shadow-sm)" : "none", color: featureView === "feature" ? "var(--color-primary)" : "#64748b", transition: "all 0.2s" }}
+                >
+                  Features
+                </button>
+                <button 
+                  onClick={() => setFeatureView("bug")}
+                  style={{ flex: 1, background: featureView === "bug" ? "white" : "transparent", padding: "6px 0", borderRadius: "6px", fontSize: "0.75rem", fontWeight: 800, border: "none", cursor: "pointer", boxShadow: featureView === "bug" ? "var(--shadow-sm)" : "none", color: featureView === "bug" ? "#ef4444" : "#64748b", transition: "all 0.2s" }}
+                >
+                  Bugs
+                </button>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <h3 style={{ margin: 0, fontSize: "0.95rem" }}>{featureView === "feature" ? "Features" : "Bugs"}</h3>
+                  {(task.features || []).filter(f => (f.type || "feature") === featureView && f.status === "pending").length > 0 && (
+                    <span style={{ background: featureView === "bug" ? "#fee2e2" : "#fef3c7", color: featureView === "bug" ? "#ef4444" : "#d97706", fontSize: "0.6rem", padding: "2px 6px", borderRadius: "10px", fontWeight: "900" }}>
+                      {(task.features || []).filter(f => (f.type || "feature") === featureView && f.status === "pending").length} PENDING
+                    </span>
+                  )}
+                </div>
+                {canManageFeatures && (
+                  <button className="btn-add-feature" style={{ background: featureView === "bug" ? "#fef2f2" : "#f1f5f9", color: featureView === "bug" ? "#ef4444" : "#334155", borderColor: featureView === "bug" ? "#fca5a5" : "#cbd5e1" }} onClick={() => setFeatureModalConfig({ mode: "add", type: featureView })}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                      <path d="M12 5v14M5 12h14" />
+                    </svg>
+                    ADD
+                  </button>
                 )}
               </div>
-              {canManageFeatures && (
-                <button className="btn-add-feature" onClick={() => setFeatureModalConfig({ mode: "add" })}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                    <path d="M12 5v14M5 12h14" />
-                  </svg>
-                  ADD
-                </button>
-              )}
             </div>
             <div className="features-list" style={{ flex: 1, overflowY: "auto", paddingRight: "5px" }}>
-              {(task.features || []).map((f) => (
+              {(task.features || []).filter(f => (f.type || "feature") === featureView).map((f) => (
                 <div
                   key={f.id}
                   className={`feature-card ${f.status === "completed" ? "completed" : ""}`}
-                  onClick={() => setFeatureModalConfig({ mode: "view", feature: f })}
+                  onClick={() => setFeatureModalConfig({ mode: "view", feature: f, type: featureView })}
                   onContextMenu={(e) => handleFeatureContextMenu(e, f)}
-                  style={{ cursor: "pointer", userSelect: "none" }}
+                  style={{ cursor: "pointer", userSelect: "none", borderLeft: featureView === "bug" && f.status !== "completed" ? "3px solid #ef4444" : undefined }}
                 >
-                  <div className="feature-icon-box">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-                    </svg>
+                  <div className="feature-icon-box" style={{ background: featureView === "bug" ? "#fef2f2" : undefined, color: featureView === "bug" ? "#ef4444" : undefined }}>
+                    {featureView === "bug" ? (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M20.9 9.1C21.7 8.3 21.7 7 20.9 6.2c-.8-.8-2.1-.8-2.9 0L17.5 6.7m-11 0L6 6.2C5.2 5.4 3.9 5.4 3.1 6.2c-.8.8-.8 2.1 0 2.9l.5.5m0 6L3.1 16.1C2.3 16.9 2.3 18.2 3.1 19c.8.8 2.1.8 2.9 0l.5-.5m11 0l.5.5c.8.8 2.1.8 2.9 0 .8-.8.8-2.1 0-2.9l-.5-.5" />
+                        <path d="M12 2v2m0 16v2m7-9h2M3 12h2M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" />
+                      </svg>
+                    ) : (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                      </svg>
+                    )}
                   </div>
                   <div className="feature-info">
                     <h4>{f.name}</h4>
                     <p>{f.description}</p>
-                    <span className={`feature-badge ${f.status}`}>
+                    <span className={`feature-badge ${f.status}`} style={{ background: featureView === "bug" && f.status === "pending" ? "#fee2e2" : undefined, color: featureView === "bug" && f.status === "pending" ? "#ef4444" : undefined }}>
                       {f.status === "completed" ? "COMPLETED" : "PENDING"}
                     </span>
                   </div>
                 </div>
               ))}
-              {(task.features || []).length === 0 && (
+              {(task.features || []).filter(f => (f.type || "feature") === featureView).length === 0 && (
                 <div style={{ textAlign: "center", color: "#94a3b8", fontStyle: "italic", fontSize: "0.8rem", marginTop: 20 }}>
-                  No features added yet.
+                  No {featureView === "bug" ? "bugs" : "features"} added yet.
                 </div>
               )}
             </div>
@@ -547,6 +572,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
           onClose={() => setFeatureModalConfig(null)}
           canEdit={canManageFeatures}
           userName={userName}
+          type={featureModalConfig.type || featureModalConfig.feature?.type || "feature"}
         />
       )}
 
@@ -579,7 +605,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
               onMouseLeave={e => e.currentTarget.style.background = "none"}
               onClick={() => handleFeatureEdit(featureContextMenu.feature)}
             >
-              ✏️ Edit Feature
+              ✏️ {featureContextMenu.feature?.type === "bug" ? "Edit Bug" : "Edit Feature"}
             </button>
             <div style={{ height: 1, background: "#f1f5f9", margin: "2px 0" }} />
             <button
@@ -588,7 +614,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
               onMouseLeave={e => e.currentTarget.style.background = "none"}
               onClick={() => handleFeatureDelete(featureContextMenu.feature)}
             >
-              🗑️ Delete Feature
+              🗑️ {featureContextMenu.feature?.type === "bug" ? "Delete Bug" : "Delete Feature"}
             </button>
           </div>
         </>
