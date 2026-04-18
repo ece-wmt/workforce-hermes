@@ -19,10 +19,10 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   const [featureContextMenu, setFeatureContextMenu] = useState(null);
   const [editedMilestones, setEditedMilestones] = useState([]);
 
-  // Drag state: which item is being dragged and which slot is hovered
-  const [dragFrom, setDragFrom] = useState(null);   // index being dragged
-  const [dragOver, setDragOver] = useState(null);   // index being hovered over
-  const milestoneListRef = useRef(null);             // ref to the list container
+  // Drag refs — no React state updated during drag to avoid re-render/listener issues
+  const milestoneListRef = useRef(null);
+  const dragFromRef = useRef(null);
+  const dragOverRef = useRef(null);
 
   const task = tasks?.find((t) => t._id === taskId);
 
@@ -40,45 +40,6 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
       }
     }
   }, [task?._id, isEditMode]);
-
-  // Global pointermove — calculate which row the cursor is over by DOM position
-  useEffect(() => {
-    if (dragFrom === null) return;
-
-    function onPointerMove(e) {
-      const list = milestoneListRef.current;
-      if (!list) return;
-      const rows = list.querySelectorAll(".ms-drag-row");
-      let found = null;
-      rows.forEach((row, i) => {
-        const rect = row.getBoundingClientRect();
-        if (e.clientY >= rect.top && e.clientY <= rect.bottom) {
-          found = i;
-        }
-      });
-      if (found !== null) setDragOver(found);
-    }
-
-    function onPointerUp() {
-      if (dragFrom !== null && dragOver !== null && dragFrom !== dragOver) {
-        setEditedMilestones(prev => {
-          const next = [...prev];
-          const [moved] = next.splice(dragFrom, 1);
-          next.splice(dragOver, 0, moved);
-          return next;
-        });
-      }
-      setDragFrom(null);
-      setDragOver(null);
-    }
-
-    window.addEventListener("pointermove", onPointerMove);
-    window.addEventListener("pointerup", onPointerUp);
-    return () => {
-      window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerup", onPointerUp);
-    };
-  }, [dragFrom, dragOver]);
 
   if (!tasks || !task) return null;
 
@@ -132,10 +93,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
       title: "Delete Project",
       message: "Are you sure you want to permanently delete this project? This action cannot be undone.",
       type: "confirm",
-      onConfirm: () => {
-        deleteTask({ taskId });
-        onClose();
-      }
+      onConfirm: () => { deleteTask({ taskId }); onClose(); }
     });
   }
 
@@ -178,10 +136,85 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
       title: "Delete Feature",
       message: `Are you sure you want to permanently delete the feature "${f.name}"?`,
       type: "confirm",
-      onConfirm: () => {
-        deleteTaskFeature({ taskId, featureId: f.id });
-      }
+      onConfirm: () => { deleteTaskFeature({ taskId, featureId: f.id }); }
     });
+  }
+
+  // ── Pure DOM drag-and-drop (no React state during drag) ─────────────────────
+  // We mutate DOM styles directly for visual feedback; only call setEditedMilestones
+  // once on pointerup. This avoids all React re-render / listener teardown issues.
+  function startMilestoneDrag(fromIdx) {
+    dragFromRef.current = fromIdx;
+    dragOverRef.current = fromIdx;
+
+    function getRows() {
+      return milestoneListRef.current
+        ? [...milestoneListRef.current.querySelectorAll(".ms-drag-row")]
+        : [];
+    }
+
+    function applyVisuals(overIdx) {
+      getRows().forEach((r, i) => {
+        r.style.opacity = i === fromIdx ? "0.35" : "1";
+        r.style.borderTop = "";
+        r.style.borderBottom = "";
+      });
+      const rows = getRows();
+      if (overIdx !== fromIdx && rows[overIdx]) {
+        if (overIdx < fromIdx) {
+          rows[overIdx].style.borderTop = "3px solid #3b82f6";
+        } else {
+          rows[overIdx].style.borderBottom = "3px solid #3b82f6";
+        }
+      }
+    }
+
+    function clearVisuals() {
+      getRows().forEach(r => {
+        r.style.opacity = "";
+        r.style.borderTop = "";
+        r.style.borderBottom = "";
+      });
+    }
+
+    applyVisuals(fromIdx);
+
+    function onMove(e) {
+      const rows = getRows();
+      let found = dragOverRef.current;
+      for (let i = 0; i < rows.length; i++) {
+        const rect = rows[i].getBoundingClientRect();
+        if (e.clientY >= rect.top && e.clientY <= rect.bottom) {
+          found = i;
+          break;
+        }
+      }
+      if (found !== dragOverRef.current) {
+        dragOverRef.current = found;
+        applyVisuals(found);
+      }
+    }
+
+    function onUp() {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      clearVisuals();
+      const from = dragFromRef.current;
+      const to = dragOverRef.current;
+      dragFromRef.current = null;
+      dragOverRef.current = null;
+      if (from !== null && to !== null && from !== to) {
+        setEditedMilestones(prev => {
+          const next = [...prev];
+          const [moved] = next.splice(from, 1);
+          next.splice(to, 0, moved);
+          return next;
+        });
+      }
+    }
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
   }
 
   return (
@@ -190,32 +223,32 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
         <button className="modal-close" onClick={onClose}>×</button>
 
         <div className="modal-grid-3">
+
           {/* ── Features sidebar ── */}
           <div className="features-sidebar" style={{ display: "flex", flexDirection: "column", height: "100%" }}>
             <div className="features-header" style={{ flexShrink: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <h3>Features</h3>
-                {(task.features || []).filter(f => f.status === 'pending').length > 0 && (
+                {(task.features || []).filter(f => f.status === "pending").length > 0 && (
                   <span style={{ background: "#fef3c7", color: "#d97706", fontSize: "0.6rem", padding: "2px 6px", borderRadius: "10px", fontWeight: "900" }}>
-                    {(task.features || []).filter(f => f.status === 'pending').length} PENDING
+                    {(task.features || []).filter(f => f.status === "pending").length} PENDING
                   </span>
                 )}
               </div>
               {canManageFeatures && (
                 <button className="btn-add-feature" onClick={() => setFeatureModalConfig({ mode: "add" })}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                    <path d="M12 5v14M5 12h14"/>
+                    <path d="M12 5v14M5 12h14" />
                   </svg>
                   ADD
                 </button>
               )}
             </div>
-
             <div className="features-list" style={{ flex: 1, overflowY: "auto", paddingRight: "5px" }}>
               {(task.features || []).map((f) => (
                 <div
                   key={f.id}
-                  className={`feature-card ${f.status === 'completed' ? 'completed' : ''}`}
+                  className={`feature-card ${f.status === "completed" ? "completed" : ""}`}
                   onClick={() => setFeatureModalConfig({ mode: "view", feature: f })}
                   onContextMenu={(e) => handleFeatureContextMenu(e, f)}
                   style={{ cursor: "pointer", userSelect: "none" }}
@@ -266,8 +299,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                     {task.projectLink && (
                       <a
                         href={task.projectLink.startsWith("http") ? task.projectLink : `https://${task.projectLink}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                        target="_blank" rel="noopener noreferrer"
                         className="btn-primary"
                         style={{ background: "var(--color-accent)", color: "white", padding: "8px 16px", fontSize: "0.65rem", borderRadius: 8, textDecoration: "none", fontWeight: 800, textAlign: "center", display: "inline-flex", alignItems: "center" }}
                       >
@@ -325,8 +357,8 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
               </div>
 
               <div style={{ background: "white", border: "1px solid #f1f5f9", borderRadius: "10px", padding: "15px 20px", boxShadow: "var(--shadow-sm)", marginTop: 15 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 800, color: "var(--color-text-primary)", marginBottom: 12 }}>
-                  <span style={{ fontSize: "0.8rem", color: "var(--color-text-secondary)", letterSpacing: "0.5px" }}>
+                <div style={{ marginBottom: 12 }}>
+                  <span style={{ fontSize: "0.8rem", color: "var(--color-text-secondary)", letterSpacing: "0.5px", fontWeight: 800 }}>
                     Milestones: {doneM} / {milestones.length} ({progressPercent}%)
                   </span>
                 </div>
@@ -341,78 +373,57 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
               <div className="milestone-vertical-list" style={{ marginTop: 10 }} ref={milestoneListRef}>
                 {isEditMode ? (
                   <>
-                    {editedMilestones.map((m, idx) => {
-                      const isDragging = dragFrom === idx;
-                      const isTarget = dragOver === idx && dragFrom !== idx;
-                      return (
+                    {editedMilestones.map((m, idx) => (
+                      <div
+                        key={idx}
+                        className="milestone-list-item edit-mode-item ms-drag-row"
+                        style={{ padding: 10, gap: 10, userSelect: "none" }}
+                      >
+                        {/* ⋮⋮ handle: pointerdown triggers pure-DOM drag */}
                         <div
-                          key={idx}
-                          className="milestone-list-item edit-mode-item ms-drag-row"
-                          style={{
-                            padding: 10,
-                            gap: 10,
-                            opacity: isDragging ? 0.4 : 1,
-                            borderTop: isTarget && dragFrom !== null && dragFrom > idx ? "3px solid #3b82f6" : undefined,
-                            borderBottom: isTarget && dragFrom !== null && dragFrom <= idx ? "3px solid #3b82f6" : undefined,
-                            transition: "opacity 0.1s",
-                            userSelect: "none",
+                          className="drag-handle"
+                          style={{ fontSize: "1.1rem", color: "#94a3b8", cursor: "grab", padding: "0 6px", flexShrink: 0, userSelect: "none", touchAction: "none" }}
+                          onPointerDown={(e) => {
+                            e.preventDefault();
+                            startMilestoneDrag(idx);
                           }}
-                        >
-                          {/* ⋮⋮ handle — pointerdown starts tracking */}
-                          <div
-                            className="drag-handle"
-                            style={{
-                              fontSize: "1.1rem",
-                              color: dragFrom !== null ? "#3b82f6" : "#94a3b8",
-                              cursor: dragFrom !== null ? "grabbing" : "grab",
-                              padding: "0 6px",
-                              flexShrink: 0,
-                              userSelect: "none",
-                              touchAction: "none",
-                            }}
-                            onPointerDown={(e) => {
-                              e.preventDefault();
-                              setDragFrom(idx);
-                              setDragOver(idx);
-                            }}
-                          >⋮⋮</div>
-                          <div className="milestone-list-content">
-                            <div className="milestone-name-row" style={{ gap: 10 }}>
-                              <input
-                                type="text"
-                                className="form-input edit-m-name"
-                                value={m.name}
-                                onChange={(e) => {
-                                  const next = [...editedMilestones];
-                                  next[idx] = { ...next[idx], name: e.target.value };
-                                  setEditedMilestones(next);
-                                }}
-                                placeholder="Milestone Name"
-                                style={{ flex: 2, padding: "4px 8px", fontSize: "0.8rem" }}
-                              />
-                              <input
-                                type="number"
-                                className="form-input edit-m-days"
-                                value={m.days}
-                                onChange={(e) => {
-                                  const next = [...editedMilestones];
-                                  next[idx] = { ...next[idx], days: e.target.value };
-                                  setEditedMilestones(next);
-                                }}
-                                placeholder="Days"
-                                style={{ flex: 1, padding: "4px 8px", fontSize: "0.8rem" }}
-                              />
-                              <button
-                                type="button"
-                                className="btn-remove-milestone"
-                                style={{ padding: "4px 8px", fontSize: "0.8rem" }}
-                                onClick={() => setEditedMilestones(prev => prev.filter((_, i) => i !== idx))}
-                              >×</button>
-                            </div>
+                        >⋮⋮</div>
+                        <div className="milestone-list-content">
+                          <div className="milestone-name-row" style={{ gap: 10 }}>
+                            <input
+                              type="text"
+                              className="form-input edit-m-name"
+                              value={m.name}
+                              onChange={(e) => {
+                                const next = [...editedMilestones];
+                                next[idx] = { ...next[idx], name: e.target.value };
+                                setEditedMilestones(next);
+                              }}
+                              placeholder="Milestone Name"
+                              style={{ flex: 2, padding: "4px 8px", fontSize: "0.8rem" }}
+                            />
+                            <input
+                              type="number"
+                              className="form-input edit-m-days"
+                              value={m.days}
+                              onChange={(e) => {
+                                const next = [...editedMilestones];
+                                next[idx] = { ...next[idx], days: e.target.value };
+                                setEditedMilestones(next);
+                              }}
+                              placeholder="Days"
+                              style={{ flex: 1, padding: "4px 8px", fontSize: "0.8rem" }}
+                            />
+                            <button
+                              type="button"
+                              className="btn-remove-milestone"
+                              style={{ padding: "4px 8px", fontSize: "0.8rem" }}
+                              onClick={() => setEditedMilestones(prev => prev.filter((_, i) => i !== idx))}
+                            >×</button>
                           </div>
                         </div>
-                      );
-                    })}
+                      </div>
+                    ))}
                     <button
                       type="button"
                       className="btn-primary"
@@ -515,6 +526,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
               <button className="btn-add-note" style={{ background: "var(--color-nav-bg)", color: "white", padding: "0 15px", borderRadius: "8px", fontWeight: 800, fontSize: "0.75rem" }} onClick={handleAddNote}>Add</button>
             </div>
           </div>
+
         </div>
       </div>
 
