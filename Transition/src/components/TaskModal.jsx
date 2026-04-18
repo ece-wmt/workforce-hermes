@@ -233,16 +233,30 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
           {/* ── Features & Bugs sidebar ── */}
           <div className="features-sidebar" style={{ display: "flex", flexDirection: "column", height: "100%" }}>
             <div className="features-header" style={{ flexShrink: 0, paddingBottom: 10 }}>
-              <div style={{ display: "flex", background: "#f1f5f9", borderRadius: "8px", padding: "4px", marginBottom: "15px" }}>
+              <div style={{ position: "relative", display: "flex", background: "#f1f5f9", borderRadius: "12px", padding: "4px", marginBottom: "20px", boxShadow: "inset 0 1px 2px rgba(0,0,0,0.05)" }}>
+                {/* Sliding Indicator Pill */}
+                <div style={{
+                  position: "absolute",
+                  top: "4px",
+                  bottom: "4px",
+                  left: featureView === "feature" ? "4px" : "calc(50% + 2px)",
+                  width: "calc(50% - 6px)",
+                  background: "white",
+                  borderRadius: "10px",
+                  boxShadow: "0 2px 10px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)",
+                  transition: "left 0.4s cubic-bezier(0.25, 1, 0.5, 1)",
+                  zIndex: 1
+                }} />
+
                 <button 
                   onClick={() => setFeatureView("feature")}
-                  style={{ flex: 1, background: featureView === "feature" ? "white" : "transparent", padding: "6px 0", borderRadius: "6px", fontSize: "0.75rem", fontWeight: 800, border: "none", cursor: "pointer", boxShadow: featureView === "feature" ? "var(--shadow-sm)" : "none", color: featureView === "feature" ? "var(--color-primary)" : "#64748b", transition: "all 0.2s" }}
+                  style={{ flex: 1, position: "relative", zIndex: 2, padding: "10px 0", borderRadius: "10px", fontSize: "0.75rem", fontWeight: 900, border: "none", cursor: "pointer", background: "transparent", color: featureView === "feature" ? "#0f172a" : "#94a3b8", transition: "color 0.3s", letterSpacing: "1px", textTransform: "uppercase" }}
                 >
                   Features
                 </button>
                 <button 
                   onClick={() => setFeatureView("bug")}
-                  style={{ flex: 1, background: featureView === "bug" ? "white" : "transparent", padding: "6px 0", borderRadius: "6px", fontSize: "0.75rem", fontWeight: 800, border: "none", cursor: "pointer", boxShadow: featureView === "bug" ? "var(--shadow-sm)" : "none", color: featureView === "bug" ? "#ef4444" : "#64748b", transition: "all 0.2s" }}
+                  style={{ flex: 1, position: "relative", zIndex: 2, padding: "10px 0", borderRadius: "10px", fontSize: "0.75rem", fontWeight: 900, border: "none", cursor: "pointer", background: "transparent", color: featureView === "bug" ? "#ef4444" : "#94a3b8", transition: "color 0.3s", letterSpacing: "1px", textTransform: "uppercase" }}
                 >
                   Bugs
                 </button>
