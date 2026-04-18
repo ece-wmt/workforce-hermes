@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import FeatureModal from "./FeatureModal";
@@ -18,11 +18,8 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   const [featureModalConfig, setFeatureModalConfig] = useState(null);
   const [featureContextMenu, setFeatureContextMenu] = useState(null);
   const [editedMilestones, setEditedMilestones] = useState([]);
-
-  // Use ref to avoid stale closure in drag handlers
-  const draggedIdxRef = useRef(null);
-  // canDragRef: only allow drag when mousedown was on the ⋮⋮ handle
-  const canDragRef = useRef(false);
+  // msDrag tracks mouse-based milestone reordering (no HTML5 DnD needed)
+  const [msDrag, setMsDrag] = useState(null); // { fromIdx, overIdx } | null
 
   const task = tasks?.find((t) => t._id === taskId);
 
@@ -41,20 +38,29 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
     }
   }, [task?._id, isEditMode]);
 
-  // (context menu is now closed via a backdrop div — no window listener needed)
-  // placeholder to satisfy linter
+  // Commit milestone reorder on mouse release anywhere on the page
   useEffect(() => {
-    if (!featureContextMenu) return;
-    function handleClick() {
-      setFeatureContextMenu(null);
+    if (!msDrag) return;
+    function handleMouseUp() {
+      setMsDrag(prev => {
+        if (!prev) return null;
+        const { fromIdx, overIdx } = prev;
+        if (fromIdx !== overIdx) {
+          setEditedMilestones(list => {
+            const next = [...list];
+            const [moved] = next.splice(fromIdx, 1);
+            next.splice(overIdx, 0, moved);
+            return next;
+          });
+        }
+        return null;
+      });
     }
-    // Use a timeout so this listener doesn't catch the same click that opened the menu
-    const t = setTimeout(() => window.addEventListener("click", handleClick), 0);
-    return () => {
-      clearTimeout(t);
-      window.removeEventListener("click", handleClick);
-    };
-  }, [featureContextMenu]);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => window.removeEventListener("mouseup", handleMouseUp);
+  }, [msDrag]);
+
+  // (no window-click listener needed for context menu — backdrop div handles it)
 
   if (!tasks || !task) return null;
 
@@ -137,15 +143,6 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
     setEditedMilestones(prev => [...prev, { name: "", days: 0 }]);
   }
 
-  function handleFeatureContextMenu(e, f) {
-    if (!canManageFeatures) return;
-    e.preventDefault();
-    e.stopPropagation();
-    // Stop the native event so the window click listener doesn't immediately dismiss it
-    e.nativeEvent.stopImmediatePropagation();
-    setFeatureContextMenu({ x: e.clientX, y: e.clientY, feature: f });
-  }
-
   function handleFeatureEdit(f) {
     setFeatureModalConfig({ mode: "edit", feature: f });
     setFeatureContextMenu(null);
@@ -163,25 +160,6 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
     });
   }
 
-  // ── Drag helpers for edit-mode milestones ──────────────────────
-  function onMilestoneDragOver(e) {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-  }
-
-  function onMilestoneDrop(e, targetIdx) {
-    e.preventDefault();
-    e.stopPropagation();
-    const fromIdx = draggedIdxRef.current;
-    if (fromIdx === null || fromIdx === targetIdx) return;
-    setEditedMilestones(prev => {
-      const next = [...prev];
-      const [moved] = next.splice(fromIdx, 1);
-      next.splice(targetIdx, 0, moved);
-      return next;
-    });
-    draggedIdxRef.current = null;
-  }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -352,46 +330,28 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                       <div
                         key={idx}
                         className="milestone-list-item edit-mode-item"
-                        style={{ padding: 10, gap: 10 }}
-                        draggable={true}
-                        onDragStart={(e) => {
-                          // Only allow drag if initiated from the handle
-                          if (!canDragRef.current) {
-                            e.preventDefault();
-                            return;
+                        style={{
+                          padding: 10,
+                          gap: 10,
+                          opacity: msDrag?.fromIdx === idx ? 0.4 : 1,
+                          outline: msDrag?.overIdx === idx && msDrag?.fromIdx !== idx ? "2px solid #3b82f6" : "none",
+                          outlineOffset: -2,
+                          transition: "opacity 0.15s, outline 0.1s",
+                        }}
+                        onMouseEnter={() => {
+                          if (msDrag !== null) {
+                            setMsDrag(prev => prev ? { ...prev, overIdx: idx } : null);
                           }
-                          draggedIdxRef.current = idx;
-                          e.dataTransfer.effectAllowed = "move";
-                        }}
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          e.dataTransfer.dropEffect = "move";
-                        }}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          const fromIdx = draggedIdxRef.current;
-                          if (fromIdx === null || fromIdx === idx) return;
-                          setEditedMilestones(prev => {
-                            const next = [...prev];
-                            const [moved] = next.splice(fromIdx, 1);
-                            next.splice(idx, 0, moved);
-                            return next;
-                          });
-                          draggedIdxRef.current = null;
-                          canDragRef.current = false;
-                        }}
-                        onDragEnd={() => {
-                          draggedIdxRef.current = null;
-                          canDragRef.current = false;
                         }}
                       >
-                        {/* ⋮⋮ handle: set canDragRef so the row's onDragStart allows it */}
+                        {/* ⋮⋮ handle — mousedown starts the drag */}
                         <div
                           className="drag-handle"
-                          style={{ fontSize: "1rem", color: "#94a3b8", cursor: "grab", padding: "0 4px", userSelect: "none" }}
-                          onMouseDown={() => { canDragRef.current = true; }}
-                          onMouseUp={() => { canDragRef.current = false; }}
+                          style={{ fontSize: "1rem", color: "#94a3b8", cursor: msDrag ? "grabbing" : "grab", padding: "0 4px", userSelect: "none", flexShrink: 0 }}
+                          onMouseDown={(e) => {
+                            e.preventDefault(); // prevent text selection
+                            setMsDrag({ fromIdx: idx, overIdx: idx });
+                          }}
                         >⋮⋮</div>
                         <div className="milestone-list-content">
                           <div className="milestone-name-row" style={{ gap: 10 }}>
