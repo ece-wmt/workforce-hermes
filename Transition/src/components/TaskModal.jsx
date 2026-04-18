@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { notifyNoteAdded, notifyMilestoneCompleted } from "../utils/notifications";
 import FeatureModal from "./FeatureModal";
 
 export default function TaskModal({ taskId, isEditMode, userRole, actualRole, userName, staff, onClose, showModal }) {
@@ -75,6 +76,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
         timeZone: "America/New_York",
         year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
       });
+      notifyMilestoneCompleted(task.title, updated[idx].name);
     } else {
       delete updated[idx].completedAt;
     }
@@ -91,6 +93,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
       year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
     });
     addNoteToTask({ taskId, noteText: text, writer: userName, date: estDate });
+    notifyNoteAdded(task.title, text);
     input.value = "";
   }
 
@@ -609,6 +612,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
           canEdit={canManageFeatures}
           userName={userName}
           type={featureModalConfig.type || featureModalConfig.feature?.type || "feature"}
+          taskTitle={task.title}
         />
       )}
 

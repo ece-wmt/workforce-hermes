@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { notifyTaskUpdated, notifyMilestoneCompleted, notifyNoteAdded } from "../utils/notifications";
 
 export default function KanbanBoard({ userRole, actualRole, userName, openTaskModal, onContextMenu, showModal }) {
   const tasks = useQuery(api.tasks.getTasks);
@@ -96,6 +97,10 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
   }
 
   function handleMoveTask(taskId, newStatus) {
+    const task = lastKnownTasks.find((t) => t._id === taskId);
+    if (task) {
+      notifyTaskUpdated(task.title);
+    }
     updateTaskStatus({ taskId, newStatus });
   }
 
@@ -108,6 +113,7 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
         timeZone: "America/New_York",
         year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
       });
+      notifyMilestoneCompleted(task.title, milestones[milestoneIdx].name);
     } else {
       delete milestones[milestoneIdx].completedAt;
     }
@@ -119,11 +125,15 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
     const input = document.getElementById(inputId);
     const text = input?.value?.trim();
     if (!text) return;
+    const task = lastKnownTasks.find((t) => t._id === taskId);
     const estDate = new Date().toLocaleString("en-US", {
       timeZone: "America/New_York",
       year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
     });
     addNoteToTask({ taskId, noteText: text, writer: userName, date: estDate });
+    if (task) {
+      notifyNoteAdded(task.title, text);
+    }
     input.value = "";
   }
 

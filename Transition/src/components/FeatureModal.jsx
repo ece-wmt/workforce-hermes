@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { notifyFeatureAdded, notifyFeatureCompleted } from "../utils/notifications";
 
-export default function FeatureModal({ mode, feature, taskId, onClose, canEdit, userName, type }) {
+export default function FeatureModal({ mode, feature, taskId, onClose, canEdit, userName, type, taskTitle }) {
   const [name, setName] = useState(feature?.name || "");
   const [description, setDescription] = useState(feature?.description || "");
   const [files, setFiles] = useState([]);
@@ -100,6 +101,7 @@ export default function FeatureModal({ mode, feature, taskId, onClose, canEdit, 
             createdAt: estDate,
           },
         });
+        notifyFeatureAdded(taskTitle || "Task", name);
       } else if (mode === "edit") {
         await updateTaskFeature({
           taskId,
@@ -125,6 +127,7 @@ export default function FeatureModal({ mode, feature, taskId, onClose, canEdit, 
         status: "completed",
         writer: userName,
       });
+      notifyFeatureCompleted(taskTitle || "Task", feature.name);
       onClose();
     } catch (err) {
       console.error(err);

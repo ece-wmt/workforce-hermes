@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../convex/_generated/api";
+import { initNotifications } from "./utils/notifications";
 import Dashboard from "./components/Dashboard";
 import KanbanBoard from "./components/KanbanBoard";
 import TaskEntry from "./components/TaskEntry";
@@ -109,6 +110,13 @@ export default function App() {
     }
     setLoading(false);
   }, [staff, authStage]);
+
+  // --- Initialize notifications on authentication ---
+  useEffect(() => {
+    if (authStage === "authenticated") {
+      initNotifications();
+    }
+  }, [authStage]);
 
   // --- Body scroll lock (Unified) ---
   useEffect(() => {
