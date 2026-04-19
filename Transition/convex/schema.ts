@@ -60,4 +60,10 @@ export default defineSchema({
     date: v.string(),
     taker: v.optional(v.string()),
   }),
+
+  taskViewHistory: defineTable({
+    taskId: v.id("tasks"),
+    userEmail: v.string(),
+    lastViewedAt: v.number(),
+  }).index("by_task_user", ["taskId", "userEmail"]),
 });

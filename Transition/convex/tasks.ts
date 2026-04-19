@@ -357,3 +357,41 @@ export const deleteTaskFeature = mutation({
     await ctx.db.patch(args.taskId, { features, lastUpdated: Date.now() });
   },
 });
+
+export const markTaskAsViewed = mutation({
+  args: {
+    taskId: v.id("tasks"),
+    userEmail: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("taskViewHistory")
+      .withIndex("by_task_user", (q) => q.eq("taskId", args.taskId).eq("userEmail", args.userEmail))
+      .first();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, { lastViewedAt: Date.now() });
+    } else {
+      await ctx.db.insert("taskViewHistory", {
+        taskId: args.taskId,
+        userEmail: args.userEmail,
+        lastViewedAt: Date.now(),
+      });
+    }
+  },
+});
+
+export const getTaskViewHistory = query({
+  args: {
+    taskId: v.id("tasks"),
+    userEmail: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const record = await ctx.db
+      .query("taskViewHistory")
+      .withIndex("by_task_user", (q) => q.eq("taskId", args.taskId).eq("userEmail", args.userEmail))
+      .first();
+
+    return record ? record.lastViewedAt : 0;
+  },
+});

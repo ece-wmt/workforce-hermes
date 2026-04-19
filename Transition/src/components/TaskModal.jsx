@@ -11,6 +11,8 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   const deleteTask = useMutation(api.tasks.deleteTask);
   const updateTaskDetails = useMutation(api.tasks.updateTaskDetails);
   const deleteTaskFeature = useMutation(api.tasks.deleteTaskFeature);
+  const markTaskAsViewed = useMutation(api.tasks.markTaskAsViewed);
+  const getTaskViewHistory = useQuery(api.tasks.getTaskViewHistory, { taskId, userEmail: localStorage.getItem("wf_email") || "" });
 
   const [selectedAssignees, setSelectedAssignees] = useState(new Set());
   const [showOptions, setShowOptions] = useState(false);
@@ -40,8 +42,12 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
       if (isEditMode) {
         setEditedMilestones(task.milestones ? JSON.parse(JSON.stringify(task.milestones)) : []);
       }
+      // Mark task as viewed when modal opens (only for programmers)
+      if (actualRole === "Programmer") {
+        markTaskAsViewed({ taskId, userEmail: localStorage.getItem("wf_email") || "" });
+      }
     }
-  }, [task?._id, isEditMode]);
+  }, [task?._id, isEditMode, actualRole]);
 
   if (!tasks || !task) return null;
 
@@ -57,6 +63,27 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   }
 
   const canManageFeatures = actualRole === "Admin" || canEditMilestone;
+  const isProgrammer = actualRole === "Programmer";
+
+  // Calculate new notifications since last viewed (only for programmers)
+  const lastViewedTime = isProgrammer ? (getTaskViewHistory || 0) : 0;
+  
+  const newNotes = isProgrammer ? (task.notes || []).filter((n) => {
+    const noteTime = new Date(n.date).getTime();
+    return noteTime > lastViewedTime;
+  }).length : 0;
+
+  const newFeatures = isProgrammer ? (task.features || []).filter((f) => {
+    if ((f.type || "feature") !== "feature") return false;
+    const featureTime = new Date(f.createdAt || "").getTime() || 0;
+    return featureTime > lastViewedTime;
+  }).length : 0;
+
+  const newBugs = isProgrammer ? (task.features || []).filter((f) => {
+    if ((f.type || "feature") !== "bug") return false;
+    const featureTime = new Date(f.createdAt || "").getTime() || 0;
+    return featureTime > lastViewedTime;
+  }).length : 0;
 
   function toggleAssignee(name) {
     setSelectedAssignees((prev) => {
@@ -245,11 +272,29 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                   aria-selected={featureView === "feature"}
                   className={`taskmodal-tab ${featureView === "feature" ? "active" : ""}`}
                   onClick={() => setFeatureView("feature")}
+                  style={{ position: "relative" }}
                 >
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ flexShrink: 0 }}>
                     <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
                   </svg>
                   Features
+                  {isProgrammer && newFeatures > 0 && (
+                    <span style={{
+                      position: "absolute",
+                      top: "3px",
+                      right: "3px",
+                      background: "#ef4444",
+                      color: "white",
+                      fontSize: "0.6rem",
+                      fontWeight: 800,
+                      padding: "2px 5px",
+                      borderRadius: "10px",
+                      minWidth: "18px",
+                      textAlign: "center",
+                    }}>
+                      {newFeatures}
+                    </span>
+                  )}
                 </button>
 
                 <button
@@ -258,12 +303,30 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                   aria-selected={featureView === "bug"}
                   className={`taskmodal-tab ${featureView === "bug" ? "active" : ""}`}
                   onClick={() => setFeatureView("bug")}
+                  style={{ position: "relative" }}
                 >
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ flexShrink: 0 }}>
                     <circle cx="12" cy="12" r="4" />
                     <path d="M12 2v2m0 16v2m7-7h2M3 12h2M16.95 7.05l1.41-1.41M5.64 18.36l1.41-1.41M16.95 16.95l1.41 1.41M5.64 5.64l1.41 1.41" />
                   </svg>
                   Bugs
+                  {isProgrammer && newBugs > 0 && (
+                    <span style={{
+                      position: "absolute",
+                      top: "3px",
+                      right: "3px",
+                      background: "#ef4444",
+                      color: "white",
+                      fontSize: "0.6rem",
+                      fontWeight: 800,
+                      padding: "2px 5px",
+                      borderRadius: "10px",
+                      minWidth: "18px",
+                      textAlign: "center",
+                    }}>
+                      {newBugs}
+                    </span>
+                  )}
                 </button>
               </div>
 
@@ -572,7 +635,23 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
 
           {/* ── Notes column ── */}
           <div style={{ background: "rgba(241, 245, 249, 0.5)", border: "1px solid #f1f5f9", padding: "15px 20px", borderRadius: "var(--radius-lg)", alignSelf: "stretch", display: "grid", gridTemplateRows: "auto 1fr auto", height: "100%", overflow: "hidden" }}>
-            <h3 style={{ fontWeight: 900, textTransform: "uppercase", fontSize: "0.7rem", color: "var(--color-text-secondary)", marginBottom: 10, letterSpacing: "1px" }}>Notes & Updates</h3>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: 10 }}>
+              <h3 style={{ fontWeight: 900, textTransform: "uppercase", fontSize: "0.7rem", color: "var(--color-text-secondary)", letterSpacing: "1px", margin: 0 }}>Notes & Updates</h3>
+              {isProgrammer && newNotes > 0 && (
+                <span style={{
+                  background: "#ef4444",
+                  color: "white",
+                  fontSize: "0.6rem",
+                  fontWeight: 800,
+                  padding: "2px 6px",
+                  borderRadius: "10px",
+                  minWidth: "18px",
+                  textAlign: "center",
+                }}>
+                  {newNotes}
+                </span>
+              )}
+            </div>
             <div className="notes-list" style={{ overflowY: "auto", paddingRight: "5px", marginBottom: 10 }}>
               {(task.notes || []).map((n, i) => (
                 <div key={i} className="note-item" style={{ background: "white", padding: 12, borderRadius: "var(--radius-md)", border: "1px solid #f1f5f9", marginBottom: 8, boxShadow: "var(--shadow-sm)" }}>
