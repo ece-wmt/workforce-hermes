@@ -47,7 +47,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
 
   useEffect(() => {
     const markViewed = () => {
-      if (actualRole === "Programmer" && taskId) {
+      if (taskId) {
         const userEmail = localStorage.getItem("wf_email") || "";
         // Store in localStorage for client-side badge calculation
         localStorage.setItem(`task_viewed_${taskId}`, Date.now().toString());
@@ -63,7 +63,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
 
     // Mark task as viewed AGAIN when modal closes (so any self-made edits inside the modal are counted as viewed)
     return () => markViewed();
-  }, [taskId, actualRole, markTaskAsViewed]);
+  }, [taskId, markTaskAsViewed]);
 
   if (!tasks || !task) return null;
 
@@ -79,7 +79,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   }
 
   const canManageFeatures = actualRole === "Admin" || canEditMilestone;
-  const isProgrammer = actualRole === "Programmer";
+  const isProgrammer = actualRole === "Programmer" || userRole === "Programmer";
 
   // Calculate new notifications since last viewed (only for programmers)
   // Use localStorage first (immediate), then fallback to query result
