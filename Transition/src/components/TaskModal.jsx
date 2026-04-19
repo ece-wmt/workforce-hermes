@@ -68,7 +68,8 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   const isProgrammer = actualRole === "Programmer";
 
   // Calculate new notifications since last viewed (only for programmers)
-  const lastViewedTime = isProgrammer && getTaskViewHistory ? getTaskViewHistory : 0;
+  // getTaskViewHistory is a query that returns a number or 0, but might be undefined while loading
+  const lastViewedTime = isProgrammer && typeof getTaskViewHistory === 'number' ? getTaskViewHistory : 0;
   
   const newNotes = isProgrammer ? (task.notes || []).filter((n) => {
     const noteTime = n.timestamp || 0;
@@ -89,6 +90,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
 
   // Debug logging
   useEffect(() => {
+    console.log("👤 ROLE CHECK:", { userEmail: localStorage.getItem("wf_email"), actualRole, isProgrammer, userRole });
     if (isProgrammer) {
       console.log("📊 BADGE DEBUG:", {
         isProgrammer,
@@ -103,7 +105,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
         features: (task.features || []).slice(0, 3).map((f, i) => ({ i, type: f.type, createdAtTime: f.createdAtTime, name: f.name })),
       });
     }
-  }, [task, isProgrammer, lastViewedTime, newNotes, newFeatures, newBugs]);
+  }, [task, isProgrammer, lastViewedTime, newNotes, newFeatures, newBugs, actualRole, userRole]);
 
   function toggleAssignee(name) {
     setSelectedAssignees((prev) => {
@@ -139,7 +141,9 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
       timeZone: "America/New_York",
       year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
     });
+    console.log("📝 Adding note:", { taskId, text: text.substring(0, 30), writer: userName });
     addNoteToTask({ taskId, noteText: text, writer: userName, date: estDate });
+    console.log("🔔 Calling notifyNoteAdded:", { taskTitle: task.title, notePreview: text.substring(0, 30) });
     notifyNoteAdded(task.title, text);
     input.value = "";
   }

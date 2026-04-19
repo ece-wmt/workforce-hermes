@@ -73,10 +73,18 @@ export const notifyFeatureCompleted = (taskTitle, featureName) => {
 };
 
 export const notifyNoteAdded = (taskTitle, notePreview) => {
-  sendNotification("Note Added", {
-    body: `New note on "${taskTitle}": ${notePreview.substring(0, 50)}${notePreview.length > 50 ? "..." : ""}`,
-    tag: "note-add",
-  });
+  console.log("📌 notifyNoteAdded called with:", { taskTitle, previewLength: notePreview?.length });
+  try {
+    const preview = notePreview?.substring(0, 50) || "Update";
+    const body = `New note on "${taskTitle}": ${preview}${notePreview?.length > 50 ? "..." : ""}`;
+    console.log("📌 Sending notification:", body);
+    sendNotification("Note Added", {
+      body,
+      tag: "note-add",
+    });
+  } catch (err) {
+    console.error("❌ Error in notifyNoteAdded:", err);
+  }
 };
 
 export const notifyMilestoneCompleted = (taskTitle, milestoneName) => {
