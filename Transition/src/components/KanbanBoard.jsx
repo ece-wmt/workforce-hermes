@@ -26,6 +26,41 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
   const [draggedMilestoneIdx, setDraggedMilestoneIdx] = useState(null);
   const [lastKnownTasks, setLastKnownTasks] = useState([]);
   const [fullViewColumn, setFullViewColumn] = useState(null);
+  const [storageRefresh, setStorageRefresh] = useState(0); // Trigger re-render when tasks are viewed
+  
+  // Listen for custom event when tasks are marked as viewed (in same tab)
+  useEffect(() => {
+    const handleTaskViewed = () => {
+      console.log("🔄 Task viewed event received, refreshing badges");
+      setStorageRefresh(prev => prev + 1);
+    };
+    window.addEventListener("task-viewed", handleTaskViewed);
+    return () => window.removeEventListener("task-viewed", handleTaskViewed);
+  }, []);
+  
+  // For Programmer: calculate badge counts
+  const isProgrammer = actualRole === "Programmer";
+  const userEmail = localStorage.getItem("wf_email") || "";
+  
+  // Helper to calculate badges for a single task
+  const getTaskBadges = (task) => {
+    if (!isProgrammer || !task) return { newNotes: 0, newFeatures: 0, newBugs: 0, hasBadges: false };
+    
+    // Get last view time from localStorage as fallback
+    const storageKey = `task_viewed_${task._id}`;
+    const lastViewedTime = parseInt(localStorage.getItem(storageKey) || "0", 10);
+    
+    const newNotes = (task.notes || []).filter(n => (n.timestamp || 0) > lastViewedTime).length;
+    const newFeatures = (task.features || [])
+      .filter(f => (f.type || "feature") === "feature" && (f.createdAtTime || 0) > lastViewedTime).length;
+    const newBugs = (task.features || [])
+      .filter(f => (f.type || "feature") === "bug" && (f.createdAtTime || 0) > lastViewedTime).length;
+    
+    const hasBadges = newNotes > 0 || newFeatures > 0 || newBugs > 0;
+    console.log(`📌 Badge calc for ${task._id}:`, { newNotes, newFeatures, newBugs, hasBadges, lastViewedTime });
+    
+    return { newNotes, newFeatures, newBugs, hasBadges, total: newNotes + newFeatures + newBugs };
+  };
   
   // Body scroll lock for full column view
   useEffect(() => {
@@ -184,11 +219,28 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
         onClick={() => { setFullViewColumn(null); openTaskModal(t._id); }}
         onContextMenu={(e) => onContextMenu(e, t)}
       >
-        <div className="card-header" style={{ marginBottom: 12 }}>
-          <h4 style={{ fontSize: "0.85rem", fontWeight: 900, letterSpacing: "-0.4px" }}>{t.title}</h4>
-          <div style={{ fontSize: "0.6rem", color: "#94a3b8", fontWeight: 800, letterSpacing: "0.8px" }}>
-            #{(t._id || "").slice(-4).toUpperCase()}
+        <div className="card-header" style={{ marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div>
+            <h4 style={{ fontSize: "0.85rem", fontWeight: 900, letterSpacing: "-0.4px" }}>{t.title}</h4>
+            <div style={{ fontSize: "0.6rem", color: "#94a3b8", fontWeight: 800, letterSpacing: "0.8px" }}>
+              #{(t._id || "").slice(-4).toUpperCase()}
+            </div>
           </div>
+          {isProgrammer && getTaskBadges(t).hasBadges && (
+            <div style={{
+              background: "#ef4444",
+              color: "white",
+              fontSize: "0.65rem",
+              fontWeight: 900,
+              padding: "3px 7px",
+              borderRadius: "12px",
+              minWidth: "24px",
+              textAlign: "center",
+              whiteSpace: "nowrap",
+            }}>
+              {getTaskBadges(t).total}
+            </div>
+          )}
         </div>
         
         {isFullView && (

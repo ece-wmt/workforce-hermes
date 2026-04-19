@@ -39,7 +39,7 @@ export const sendNotification = (title, options = {}) => {
   const defaultOptions = {
     icon: "/notification-icon.png",
     tag: "wf-hermes-notification",
-    requireInteraction: false,
+    requireInteraction: true,  // Force notification to stay visible and require user interaction
     ...options,
   };
 

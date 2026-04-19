@@ -46,6 +46,11 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
       if (actualRole === "Programmer") {
         const userEmail = localStorage.getItem("wf_email") || "";
         console.log("👁️ Marking task as viewed:", { taskId, actualRole, userEmail });
+        // Store in localStorage for client-side badge calculation
+        localStorage.setItem(`task_viewed_${taskId}`, Date.now().toString());
+        // Dispatch event to notify KanbanBoard to refresh badges
+        window.dispatchEvent(new Event("task-viewed"));
+        // Also call server-side mutation for persistence
         markTaskAsViewed({ taskId, userEmail });
       }
     }
@@ -68,8 +73,9 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   const isProgrammer = actualRole === "Programmer";
 
   // Calculate new notifications since last viewed (only for programmers)
-  // getTaskViewHistory is a query that returns a number or 0, but might be undefined while loading
-  const lastViewedTime = isProgrammer && typeof getTaskViewHistory === 'number' ? getTaskViewHistory : 0;
+  // Use localStorage first (immediate), then fallback to query result
+  const lastViewedTimeLS = parseInt(localStorage.getItem(`task_viewed_${taskId}`) || "0", 10);
+  const lastViewedTime = isProgrammer ? (lastViewedTimeLS || (typeof getTaskViewHistory === 'number' ? getTaskViewHistory : 0)) : 0;
   
   const newNotes = isProgrammer ? (task.notes || []).filter((n) => {
     const noteTime = n.timestamp || 0;
