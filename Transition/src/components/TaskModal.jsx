@@ -45,25 +45,35 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
     }
   }, [task?._id, isEditMode]);
 
+  const [refreshBadges, setRefreshBadges] = useState(0);
+
   useEffect(() => {
     const markViewed = () => {
       if (taskId) {
         const userEmail = localStorage.getItem("wf_email") || "";
-        // Store in localStorage for client-side badge calculation
-        localStorage.setItem(`task_viewed_${taskId}`, Date.now().toString());
-        // Dispatch event to notify KanbanBoard to refresh badges
+        const nowStr = Date.now().toString();
+        // Clear global and specific so everything is clean on exit
+        localStorage.setItem(`task_viewed_${taskId}`, nowStr);
+        localStorage.setItem(`task_viewed_features_${taskId}`, nowStr);
+        localStorage.setItem(`task_viewed_bugs_${taskId}`, nowStr);
+        localStorage.setItem(`task_viewed_notes_${taskId}`, nowStr);
+        localStorage.setItem(`task_viewed_milestones_${taskId}`, nowStr);
         window.dispatchEvent(new Event("task-viewed"));
-        // Also call server-side mutation for persistence
         markTaskAsViewed({ taskId, userEmail });
       }
     };
 
-    // Mark task as viewed when modal opens
-    markViewed();
-
-    // Mark task as viewed AGAIN when modal closes (so any self-made edits inside the modal are counted as viewed)
+    // ONLY mark tasks globally viewed when the modal CLOSES, so badges stay active while looking around!
     return () => markViewed();
   }, [taskId, markTaskAsViewed]);
+
+  const clearBadge = (type) => {
+    if (actualRole === "Programmer" || userRole === "Programmer") {
+      localStorage.setItem(`task_viewed_${type}_${taskId}`, Date.now().toString());
+      setRefreshBadges(r => r + 1);
+      window.dispatchEvent(new Event("task-viewed"));
+    }
+  };
 
   if (!tasks || !task) return null;
 
@@ -81,31 +91,36 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   const canManageFeatures = actualRole === "Admin" || canEditMilestone;
   const isProgrammer = actualRole === "Programmer" || userRole === "Programmer";
 
-  // Calculate new notifications since last viewed (only for programmers)
-  // Use localStorage first (immediate), then fallback to query result
-  const lastViewedTimeLS = parseInt(localStorage.getItem(`task_viewed_${taskId}`) || "0", 10);
-  const lastViewedTime = isProgrammer ? (lastViewedTimeLS || (typeof taskViewHistoryTime === 'number' ? taskViewHistoryTime : 0)) : 0;
+  // Use localStorage specific times (immediate), then fallback to query result / global time
+  const globalLS = parseInt(localStorage.getItem(`task_viewed_${taskId}`) || "0", 10);
+  const globalDB = typeof taskViewHistoryTime === 'number' ? taskViewHistoryTime : 0;
+  const globalTime = Math.max(globalLS, globalDB);
+
+  const lastViewedFeatures = isProgrammer ? Math.max(parseInt(localStorage.getItem(`task_viewed_features_${taskId}`) || "0", 10), globalTime) : 0;
+  const lastViewedBugs = isProgrammer ? Math.max(parseInt(localStorage.getItem(`task_viewed_bugs_${taskId}`) || "0", 10), globalTime) : 0;
+  const lastViewedNotes = isProgrammer ? Math.max(parseInt(localStorage.getItem(`task_viewed_notes_${taskId}`) || "0", 10), globalTime) : 0;
+  const lastViewedMilestones = isProgrammer ? Math.max(parseInt(localStorage.getItem(`task_viewed_milestones_${taskId}`) || "0", 10), globalTime) : 0;
   
   const newNotes = isProgrammer ? (task.notes || []).filter((n) => {
     const noteTime = n.timestamp || 0;
-    return noteTime > lastViewedTime;
+    return noteTime > 0 && noteTime > lastViewedNotes;
   }).length : 0;
 
   const newFeatures = isProgrammer ? (task.features || []).filter((f) => {
     if ((f.type || "feature") !== "feature") return false;
     const featureTime = f.createdAtTime || 0;
-    return featureTime > lastViewedTime;
+    return featureTime > 0 && featureTime > lastViewedFeatures;
   }).length : 0;
 
   const newBugs = isProgrammer ? (task.features || []).filter((f) => {
     if ((f.type || "feature") !== "bug") return false;
     const featureTime = f.createdAtTime || 0;
-    return featureTime > lastViewedTime;
+    return featureTime > 0 && featureTime > lastViewedBugs;
   }).length : 0;
 
   const newMilestones = isProgrammer ? (task.milestones || []).filter((m) => {
     const milestoneTime = m.createdAtTime || 0;
-    return milestoneTime > 0 && milestoneTime > lastViewedTime;
+    return milestoneTime > 0 && milestoneTime > lastViewedMilestones;
   }).length : 0;
 
   // Debug logging
@@ -114,7 +129,8 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
     if (isProgrammer) {
       console.log("📊 BADGE DEBUG:", {
         isProgrammer,
-        lastViewedTime,
+        globalTime,
+        lastViewedFeatures,
         taskNotesCount: (task.notes || []).length,
         taskFeaturesCount: (task.features || []).filter(f => (f.type || "feature") === "feature").length,
         taskBugsCount: (task.features || []).filter(f => (f.type || "feature") === "bug").length,
@@ -126,7 +142,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
         features: (task.features || []).slice(0, 3).map((f, i) => ({ i, type: f.type, createdAtTime: f.createdAtTime, name: f.name })),
       });
     }
-  }, [task, isProgrammer, lastViewedTime, newNotes, newFeatures, newBugs, newMilestones, actualRole, userRole]);
+  }, [task, isProgrammer, globalTime, newNotes, newFeatures, newBugs, newMilestones, actualRole, userRole]);
 
   function toggleAssignee(name) {
     setSelectedAssignees((prev) => {
@@ -316,7 +332,10 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                   role="tab"
                   aria-selected={featureView === "feature"}
                   className={`taskmodal-tab ${featureView === "feature" ? "active" : ""}`}
-                  onClick={() => setFeatureView("feature")}
+                  onClick={() => {
+                    setFeatureView("feature");
+                    clearBadge("features");
+                  }}
                   style={{ position: "relative" }}
                 >
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ flexShrink: 0 }}>
@@ -349,7 +368,10 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                   role="tab"
                   aria-selected={featureView === "bug"}
                   className={`taskmodal-tab ${featureView === "bug" ? "active" : ""}`}
-                  onClick={() => setFeatureView("bug")}
+                  onClick={() => {
+                    setFeatureView("bug");
+                    clearBadge("bugs");
+                  }}
                   style={{ position: "relative" }}
                 >
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ flexShrink: 0 }}>
@@ -683,7 +705,10 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
           </div>
 
           {/* ── Notes column ── */}
-          <div style={{ background: "rgba(241, 245, 249, 0.5)", border: "1px solid #f1f5f9", padding: "15px 20px", borderRadius: "var(--radius-lg)", alignSelf: "stretch", display: "grid", gridTemplateRows: "auto 1fr auto", height: "100%", overflow: "hidden" }}>
+          <div 
+            onClick={() => clearBadge("notes")}
+            style={{ background: "rgba(241, 245, 249, 0.5)", border: "1px solid #f1f5f9", padding: "15px 20px", borderRadius: "var(--radius-lg)", alignSelf: "stretch", display: "grid", gridTemplateRows: "auto 1fr auto", height: "100%", overflow: "hidden" }}
+          >
             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: 10, position: "relative" }}>
               <h3 style={{ fontWeight: 900, textTransform: "uppercase", fontSize: "0.7rem", color: "var(--color-text-secondary)", letterSpacing: "1px", margin: 0 }}>Notes & Updates</h3>
               {isProgrammer && newNotes > 0 && (

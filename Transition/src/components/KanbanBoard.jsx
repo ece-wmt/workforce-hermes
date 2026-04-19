@@ -50,35 +50,37 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
       return { newNotes: 0, newFeatures: 0, newBugs: 0, hasBadges: false };
     }
     
-    // Get last view time from localStorage as fallback
-    const storageKey = `task_viewed_${task._id}`;
-    const lastViewedTime = parseInt(localStorage.getItem(storageKey) || "0", 10);
+    const globalViewedTime = parseInt(localStorage.getItem(`task_viewed_${task._id}`) || "0", 10);
     
-    // For notes: include those with timestamp OR no timestamp (old notes are treated as old, only new timestamped ones count)
-    // Only count notes that have explicit timestamps and are newer than last view
+    // Check specific timestamps or fallback to global
+    const lastViewedFeatures = Math.max(parseInt(localStorage.getItem(`task_viewed_features_${task._id}`) || "0", 10), globalViewedTime);
+    const lastViewedBugs = Math.max(parseInt(localStorage.getItem(`task_viewed_bugs_${task._id}`) || "0", 10), globalViewedTime);
+    const lastViewedNotes = Math.max(parseInt(localStorage.getItem(`task_viewed_notes_${task._id}`) || "0", 10), globalViewedTime);
+    const lastViewedMilestones = Math.max(parseInt(localStorage.getItem(`task_viewed_milestones_${task._id}`) || "0", 10), globalViewedTime);
+
     const newNotes = (task.notes || []).filter(n => {
-      const noteTime = n.timestamp || 0; // Old notes without timestamps get 0, treated as very old
-      return noteTime > 0 && noteTime > lastViewedTime; // Only count if it has a timestamp AND is newer
+      const noteTime = n.timestamp || 0;
+      return noteTime > 0 && noteTime > lastViewedNotes;
     }).length;
     
     const newFeatures = (task.features || [])
       .filter(f => {
         if ((f.type || "feature") !== "feature") return false;
         const featureTime = f.createdAtTime || 0;
-        return featureTime > 0 && featureTime > lastViewedTime;
+        return featureTime > 0 && featureTime > lastViewedFeatures;
       }).length;
       
     const newBugs = (task.features || [])
       .filter(f => {
         if ((f.type || "feature") !== "bug") return false;
         const featureTime = f.createdAtTime || 0;
-        return featureTime > 0 && featureTime > lastViewedTime;
+        return featureTime > 0 && featureTime > lastViewedBugs;
       }).length;
     
     const newMilestones = (task.milestones || [])
       .filter(m => {
         const mTime = m.createdAtTime || 0;
-        return mTime > 0 && mTime > lastViewedTime;
+        return mTime > 0 && mTime > lastViewedMilestones;
       }).length;
       
     const hasBadges = newNotes > 0 || newFeatures > 0 || newBugs > 0 || newMilestones > 0;
@@ -88,14 +90,14 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
       console.log(`📌 Badge calc for ${task.title} (${task._id}):`, { 
         hasBadges, 
         total,
-        lastViewedTime,
-        lastViewString: lastViewedTime > 0 ? new Date(lastViewedTime).toLocaleString() : "Never Viewed",
+        lastViewedTime: globalViewedTime,
+        lastViewString: globalViewedTime > 0 ? new Date(globalViewedTime).toLocaleString() : "Never Viewed",
         notesCount: (task.notes || []).length,
         notesDetail: (task.notes || []).map(n => ({ 
           text: n.text?.slice(0,15), 
           hasTimestamp: !!n.timestamp,
           timestamp: n.timestamp,
-          isNew: (n.timestamp || 0) > lastViewedTime
+          isNew: (n.timestamp || 0) > lastViewedNotes
         })),
         newNotes, 
         newFeatures, 
