@@ -75,15 +75,21 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
         return featureTime > 0 && featureTime > lastViewedTime;
       }).length;
     
-    const hasBadges = newNotes > 0 || newFeatures > 0 || newBugs > 0;
-    const total = newNotes + newFeatures + newBugs;
+    const newMilestones = (task.milestones || [])
+      .filter(m => {
+        const mTime = m.createdAtTime || 0;
+        return mTime > 0 && mTime > lastViewedTime;
+      }).length;
+      
+    const hasBadges = newNotes > 0 || newFeatures > 0 || newBugs > 0 || newMilestones > 0;
+    const total = newNotes + newFeatures + newBugs + newMilestones;
     
     if (hasBadges || total > 0) {
       console.log(`📌 Badge calc for ${task.title} (${task._id}):`, { 
         hasBadges, 
         total,
         lastViewedTime,
-        lastViewString: new Date(lastViewedTime).toLocaleString(),
+        lastViewString: lastViewedTime > 0 ? new Date(lastViewedTime).toLocaleString() : "Never Viewed",
         notesCount: (task.notes || []).length,
         notesDetail: (task.notes || []).map(n => ({ 
           text: n.text?.slice(0,15), 

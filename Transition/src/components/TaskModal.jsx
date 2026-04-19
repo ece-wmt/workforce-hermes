@@ -42,10 +42,13 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
       if (isEditMode) {
         setEditedMilestones(task.milestones ? JSON.parse(JSON.stringify(task.milestones)) : []);
       }
-      // Mark task as viewed when modal opens (only for programmers)
-      if (actualRole === "Programmer") {
+    }
+  }, [task?._id, isEditMode]);
+
+  useEffect(() => {
+    const markViewed = () => {
+      if (actualRole === "Programmer" && taskId) {
         const userEmail = localStorage.getItem("wf_email") || "";
-        console.log("👁️ Marking task as viewed:", { taskId, actualRole, userEmail });
         // Store in localStorage for client-side badge calculation
         localStorage.setItem(`task_viewed_${taskId}`, Date.now().toString());
         // Dispatch event to notify KanbanBoard to refresh badges
@@ -53,8 +56,14 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
         // Also call server-side mutation for persistence
         markTaskAsViewed({ taskId, userEmail });
       }
-    }
-  }, [task?._id, isEditMode, actualRole, markTaskAsViewed, taskId]);
+    };
+
+    // Mark task as viewed when modal opens
+    markViewed();
+
+    // Mark task as viewed AGAIN when modal closes (so any self-made edits inside the modal are counted as viewed)
+    return () => markViewed();
+  }, [taskId, actualRole, markTaskAsViewed]);
 
   if (!tasks || !task) return null;
 
@@ -94,6 +103,11 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
     return featureTime > lastViewedTime;
   }).length : 0;
 
+  const newMilestones = isProgrammer ? (task.milestones || []).filter((m) => {
+    const milestoneTime = m.createdAtTime || 0;
+    return milestoneTime > 0 && milestoneTime > lastViewedTime;
+  }).length : 0;
+
   // Debug logging
   useEffect(() => {
     console.log("👤 ROLE CHECK:", { userEmail: localStorage.getItem("wf_email"), actualRole, isProgrammer, userRole });
@@ -107,11 +121,12 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
         newNotes,
         newFeatures,
         newBugs,
+        newMilestones,
         notes: (task.notes || []).slice(0, 3).map((n, i) => ({ i, timestamp: n.timestamp, text: n.text?.slice(0, 20) })),
         features: (task.features || []).slice(0, 3).map((f, i) => ({ i, type: f.type, createdAtTime: f.createdAtTime, name: f.name })),
       });
     }
-  }, [task, isProgrammer, lastViewedTime, newNotes, newFeatures, newBugs, actualRole, userRole]);
+  }, [task, isProgrammer, lastViewedTime, newNotes, newFeatures, newBugs, newMilestones, actualRole, userRole]);
 
   function toggleAssignee(name) {
     setSelectedAssignees((prev) => {
@@ -311,16 +326,18 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                   {isProgrammer && newFeatures > 0 && (
                     <span style={{
                       position: "absolute",
-                      top: "3px",
-                      right: "3px",
-                      background: "#ef4444",
+                      top: "-6px",
+                      right: "-8px",
+                      background: "radial-gradient(circle, #ef4444 0%, #dc2626 100%)",
                       color: "white",
-                      fontSize: "0.6rem",
-                      fontWeight: 800,
-                      padding: "2px 5px",
+                      fontSize: "0.55rem",
+                      fontWeight: 900,
+                      padding: "1px 5px",
                       borderRadius: "10px",
-                      minWidth: "18px",
+                      minWidth: "16px",
                       textAlign: "center",
+                      boxShadow: "0 0 8px 2px rgba(239, 68, 68, 0.4)",
+                      zIndex: 10,
                     }}>
                       {newFeatures}
                     </span>
@@ -343,16 +360,18 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                   {isProgrammer && newBugs > 0 && (
                     <span style={{
                       position: "absolute",
-                      top: "3px",
-                      right: "3px",
-                      background: "#ef4444",
+                      top: "-6px",
+                      right: "-8px",
+                      background: "radial-gradient(circle, #ef4444 0%, #dc2626 100%)",
                       color: "white",
-                      fontSize: "0.6rem",
-                      fontWeight: 800,
-                      padding: "2px 5px",
+                      fontSize: "0.55rem",
+                      fontWeight: 900,
+                      padding: "1px 5px",
                       borderRadius: "10px",
-                      minWidth: "18px",
+                      minWidth: "16px",
                       textAlign: "center",
+                      boxShadow: "0 0 8px 2px rgba(239, 68, 68, 0.4)",
+                      zIndex: 10,
                     }}>
                       {newBugs}
                     </span>
@@ -665,18 +684,23 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
 
           {/* ── Notes column ── */}
           <div style={{ background: "rgba(241, 245, 249, 0.5)", border: "1px solid #f1f5f9", padding: "15px 20px", borderRadius: "var(--radius-lg)", alignSelf: "stretch", display: "grid", gridTemplateRows: "auto 1fr auto", height: "100%", overflow: "hidden" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: 10, position: "relative" }}>
               <h3 style={{ fontWeight: 900, textTransform: "uppercase", fontSize: "0.7rem", color: "var(--color-text-secondary)", letterSpacing: "1px", margin: 0 }}>Notes & Updates</h3>
               {isProgrammer && newNotes > 0 && (
                 <span style={{
-                  background: "#ef4444",
+                  position: "absolute",
+                  left: "135px",
+                  top: "-5px",
+                  background: "radial-gradient(circle, #ef4444 0%, #dc2626 100%)",
                   color: "white",
-                  fontSize: "0.6rem",
-                  fontWeight: 800,
-                  padding: "2px 6px",
+                  fontSize: "0.55rem",
+                  fontWeight: 900,
+                  padding: "1px 5px",
                   borderRadius: "10px",
-                  minWidth: "18px",
+                  minWidth: "16px",
                   textAlign: "center",
+                  boxShadow: "0 0 8px 2px rgba(239, 68, 68, 0.4)",
+                  zIndex: 10,
                 }}>
                   {newNotes}
                 </span>

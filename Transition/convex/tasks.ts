@@ -86,6 +86,7 @@ export const addTask = mutation({
         days: v.number(),
         completed: v.optional(v.boolean()),
         completedAt: v.optional(v.string()),
+        createdAtTime: v.optional(v.number()),
       })
     ),
     startDate: v.optional(v.string()),
@@ -96,7 +97,7 @@ export const addTask = mutation({
       status: "todo",
       assignee: args.assignee,
       description: args.description || "",
-      milestones: args.milestones,
+      milestones: args.milestones.map((m) => ({ ...m, createdAtTime: Date.now() })),
       completedMilestones: 0,
       notes: [],
       startDate: args.startDate,
@@ -127,6 +128,7 @@ export const updateTaskMilestones = mutation({
         days: v.number(),
         completed: v.optional(v.boolean()),
         completedAt: v.optional(v.string()),
+        createdAtTime: v.optional(v.number()),
       })
     ),
     completedCount: v.number(),
@@ -187,6 +189,7 @@ export const updateTaskDetails = mutation({
         days: v.number(),
         completed: v.optional(v.boolean()),
         completedAt: v.optional(v.string()),
+        createdAtTime: v.optional(v.number()),
       })
     ),
   },
@@ -199,7 +202,7 @@ export const updateTaskDetails = mutation({
       title: args.newTitle,
       description: args.newDescription || "",
       assignee: args.newAssignee,
-      milestones: args.newMilestones,
+      milestones: args.newMilestones.map(m => ({ ...m, createdAtTime: m.createdAtTime || Date.now() })),
       completedMilestones: completedCount,
       lastUpdated: Date.now(),
     });

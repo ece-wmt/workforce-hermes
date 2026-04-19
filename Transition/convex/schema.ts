@@ -13,6 +13,7 @@ export default defineSchema({
         days: v.number(),
         completed: v.optional(v.boolean()),
         completedAt: v.optional(v.string()),
+        createdAtTime: v.optional(v.number()),
       })
     ),
     completedMilestones: v.number(),
