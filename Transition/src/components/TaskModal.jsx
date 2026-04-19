@@ -12,7 +12,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   const updateTaskDetails = useMutation(api.tasks.updateTaskDetails);
   const deleteTaskFeature = useMutation(api.tasks.deleteTaskFeature);
   const markTaskAsViewed = useMutation(api.tasks.markTaskAsViewed);
-  const getTaskViewHistory = useQuery(api.tasks.getTaskViewHistory, { taskId, userEmail: localStorage.getItem("wf_email") || "" });
+  const taskViewHistoryTime = useQuery(api.tasks.getTaskViewHistory, { taskId, userEmail: localStorage.getItem("wf_email") || "" });
 
   const [selectedAssignees, setSelectedAssignees] = useState(new Set());
   const [showOptions, setShowOptions] = useState(false);
@@ -75,7 +75,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   // Calculate new notifications since last viewed (only for programmers)
   // Use localStorage first (immediate), then fallback to query result
   const lastViewedTimeLS = parseInt(localStorage.getItem(`task_viewed_${taskId}`) || "0", 10);
-  const lastViewedTime = isProgrammer ? (lastViewedTimeLS || (typeof getTaskViewHistory === 'number' ? getTaskViewHistory : 0)) : 0;
+  const lastViewedTime = isProgrammer ? (lastViewedTimeLS || (typeof taskViewHistoryTime === 'number' ? taskViewHistoryTime : 0)) : 0;
   
   const newNotes = isProgrammer ? (task.notes || []).filter((n) => {
     const noteTime = n.timestamp || 0;

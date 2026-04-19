@@ -42,15 +42,6 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
   const isProgrammer = actualRole === "Programmer";
   const userEmail = localStorage.getItem("wf_email") || "";
   
-  console.log("🎯 KanbanBoard render:", { 
-    userRole, 
-    actualRole, 
-    isProgrammer,
-    shouldShowBadges: userRole === "Programmer" || actualRole === "Programmer",
-    tasksCount: displayTasks?.length || 0, 
-    storageRefresh 
-  });
-  
   // Helper to calculate badges for a single task
   // Show badges if user is in Programmer view OR has Programmer role
   const getTaskBadges = (task) => {
