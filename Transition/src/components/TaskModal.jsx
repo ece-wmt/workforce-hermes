@@ -479,7 +479,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
           </div>
 
           {/* ── Main column ── */}
-          <div className="modal-main-column" style={{ display: "grid", gridTemplateRows: "auto 1fr auto", height: "100%", overflow: "hidden" }}>
+          <div className="modal-main-column" style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
             <div className="modal-fixed-top" style={{ paddingBottom: 15, borderBottom: "1px solid #f1f5f9" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 15 }}>
                 {isEditMode ? (
@@ -572,7 +572,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
             </div>
 
             {/* ── Milestone list ── */}
-            <div className="milestone-scroll-area" style={{ overflowY: "auto", paddingRight: "5px", marginTop: "10px" }}>
+            <div className="milestone-scroll-area" style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingRight: "5px", marginTop: "10px" }}>
               <div className="milestone-vertical-list" style={{ marginTop: 10 }} ref={milestoneListRef}>
                 {isEditMode ? (
                   <>
@@ -707,9 +707,9 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
           {/* ── Notes column ── */}
           <div 
             onClick={() => clearBadge("notes")}
-            style={{ background: "rgba(241, 245, 249, 0.5)", border: "1px solid #f1f5f9", padding: "15px 20px", borderRadius: "var(--radius-lg)", alignSelf: "stretch", display: "grid", gridTemplateRows: "auto 1fr auto", height: "100%", overflow: "hidden" }}
+            style={{ background: "rgba(241, 245, 249, 0.5)", border: "1px solid #f1f5f9", padding: "15px 20px", borderRadius: "var(--radius-lg)", alignSelf: "stretch", display: "flex", flexDirection: "column", height: "100%", minHeight: 0, overflow: "hidden" }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: 10, position: "relative" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: 10, position: "relative", flexShrink: 0 }}>
               <h3 style={{ fontWeight: 900, textTransform: "uppercase", fontSize: "0.7rem", color: "var(--color-text-secondary)", letterSpacing: "1px", margin: 0 }}>Notes & Updates</h3>
               {isProgrammer && newNotes > 0 && (
                 <span style={{
@@ -731,7 +731,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                 </span>
               )}
             </div>
-            <div className="notes-list" style={{ overflowY: "auto", paddingRight: "5px", marginBottom: 10 }}>
+            <div className="notes-list" style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingRight: "5px", marginBottom: 10 }}>
               {(task.notes || []).map((n, i) => (
                 <div key={i} className="note-item" style={{ background: "white", padding: 12, borderRadius: "var(--radius-md)", border: "1px solid #f1f5f9", marginBottom: 8, boxShadow: "var(--shadow-sm)" }}>
                   <div className="note-date" style={{ color: "#10b981", marginBottom: 4, fontSize: "0.65rem", fontWeight: 700 }}>
@@ -744,7 +744,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                 <div style={{ textAlign: "center", color: "#94a3b8", fontStyle: "italic", marginTop: 40, fontSize: "0.8rem" }}>No updates yet.</div>
               )}
             </div>
-            <div className="note-input-group" style={{ display: "flex", gap: 8, paddingTop: 10, borderTop: "1px solid #e2e8f0", marginBottom: 40 }}>
+            <div className="note-input-group" style={{ display: "flex", gap: 8, paddingTop: 10, borderTop: "1px solid #e2e8f0", flexShrink: 0 }}>
               <input
                 type="text"
                 className="note-input"
