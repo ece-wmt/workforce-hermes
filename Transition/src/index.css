@@ -910,6 +910,7 @@ header {
   overflow: hidden;
   box-shadow: var(--shadow-xl);
   border: 1px solid var(--glass-border);
+  box-sizing: border-box;
 }
 
 .modal-close {
@@ -1097,6 +1098,7 @@ header {
 .modal-grid-3 > * {
   min-height: 0;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 /* Features Sidebar in Modal */
