@@ -58,6 +58,19 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
     });
   };
 
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === "Escape") {
+        setSelectedNotes(new Set());
+        setSelectedFeatures(new Set());
+        setSelectedBugs(new Set());
+        setSelectedMilestones(new Set());
+      }
+    };
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, []);
+
   // Drag refs — no React state updated during drag to avoid re-render/listener issues
   const milestoneListRef = useRef(null);
   const dragFromRef = useRef(null);
@@ -531,12 +544,14 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                 </div>
                 {canManageFeatures && (
                   <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                    <button
-                      className="select-all-btn"
-                      onClick={() => handleSelectAll(featureView === "feature" ? "features" : "bugs", (task.features || []).filter(f => (f.type || "feature") === featureView))}
-                    >
-                      Select All
-                    </button>
+                    {(featureView === "feature" ? selectedFeatures.size : selectedBugs.size) > 0 && (
+                      <button
+                        className="select-all-btn"
+                        onClick={() => handleSelectAll(featureView === "feature" ? "features" : "bugs", (task.features || []).filter(f => (f.type || "feature") === featureView))}
+                      >
+                        Select All
+                      </button>
+                    )}
                     <button
                       className="btn-add-feature"
                       style={{
@@ -556,7 +571,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                 )}
               </div>
             </div>
-            <div className="features-list" style={{ flex: 1, overflowY: "auto", paddingRight: "5px" }}>
+            <div className="features-list" style={{ flex: 1, overflowY: "auto", padding: "5px" }}>
               {featureView === "feature" && selectedFeatures.size > 0 && (
                 <div className="bulk-action-bar">
                   <span>{selectedFeatures.size} selected</span>
@@ -584,7 +599,10 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                     onContextMenu={(e) => handleFeatureContextMenu(e, f)}
                     style={{ cursor: "pointer", userSelect: "none", borderLeft: featureView === "bug" && f.status !== "completed" ? "3px solid #ef4444" : undefined, display: "flex", alignItems: "center" }}
                   >
-                    <div style={{ flex: 1, display: "flex", gap: "12px", alignItems: "flex-start" }} onClick={() => setFeatureModalConfig({ mode: "view", feature: f, type: featureView })}>
+                    <div style={{ flex: 1, display: "flex", gap: "12px", alignItems: "flex-start" }} onClick={(e) => {
+                      if (e.ctrlKey || e.metaKey) return;
+                      setFeatureModalConfig({ mode: "view", feature: f, type: featureView });
+                    }}>
                       <div className="feature-icon-box" style={{ background: featureView === "bug" ? "#fef2f2" : undefined, color: featureView === "bug" ? "#ef4444" : undefined }}>
                         {featureView === "bug" ? (
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -717,12 +735,14 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
             <div className="milestone-scroll-area" style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingRight: "5px", marginTop: "10px" }}>
               {!isEditMode && canEditMilestone && (
                 <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "8px" }}>
-                  <button
-                    className="select-all-btn"
-                    onClick={() => handleSelectAll("milestones", task.milestones || [])}
-                  >
-                    Select All
-                  </button>
+                  {selectedMilestones.size > 0 && (
+                    <button
+                      className="select-all-btn"
+                      onClick={() => handleSelectAll("milestones", task.milestones || [])}
+                    >
+                      Select All
+                    </button>
+                  )}
                 </div>
               )}
               {!isEditMode && selectedMilestones.size > 0 && (
@@ -733,7 +753,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                   </button>
                 </div>
               )}
-              <div className="milestone-vertical-list" style={{ marginTop: 10 }} ref={milestoneListRef}>
+              <div className="milestone-vertical-list" style={{ marginTop: 10, padding: "5px" }} ref={milestoneListRef}>
                 {isEditMode ? (
                   <>
                     {editedMilestones.map((m, idx) => (
@@ -900,15 +920,17 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                 </span>
               )}
               <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                <button
-                  className="select-all-btn"
-                  onClick={() => handleSelectAll("notes", task.notes || [])}
-                >
-                  Select All
-                </button>
+                {selectedNotes.size > 0 && (
+                  <button
+                    className="select-all-btn"
+                    onClick={() => handleSelectAll("notes", task.notes || [])}
+                  >
+                    Select All
+                  </button>
+                )}
               </div>
             </div>
-            <div className="notes-list" onClick={() => setNoteContextMenu(null)} style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingRight: "5px", marginBottom: 10 }}>
+            <div className="notes-list" onClick={() => setNoteContextMenu(null)} style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "0 5px", marginBottom: 10 }}>
               {selectedNotes.size > 0 && (
                 <div className="bulk-action-bar">
                   <span>{selectedNotes.size} selected</span>
