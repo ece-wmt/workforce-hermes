@@ -136,7 +136,9 @@ export default function AnnouncementComposer({ userName, showModal }) {
                         <span style={{ fontSize: "0.6rem", color: "#94a3b8", fontWeight: 700 }}>
                           {a.postedBy} · {new Date(a.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                           {" · "}
-                          <span style={{ color: "#10b981" }}>{a.seenBy?.length || 0} seen</span>
+                          <span style={{ color: "#10b981", cursor: "help" }} title={a.seenBy?.length > 0 ? a.seenBy.join(', ') : 'No one yet'}>
+                            {a.seenBy?.length || 0} seen
+                          </span>
                         </span>
                       </div>
                       <button

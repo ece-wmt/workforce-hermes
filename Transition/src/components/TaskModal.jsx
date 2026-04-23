@@ -973,7 +973,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                           <button
                             key={key}
                             className={`reaction-pill ${isActive ? "active" : ""} ${arr.length > 0 ? "has-count" : ""}`}
-                            title={label}
+                            title={arr.length > 0 ? `${label}: ${arr.join(', ')}` : label}
                             onClick={(e) => {
                               e.stopPropagation();
                               toggleNoteReaction({ taskId, noteIndex: i, reactionType: key, userEmail: currentUserEmail });
