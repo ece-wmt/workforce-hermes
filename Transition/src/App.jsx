@@ -399,7 +399,7 @@ export default function App() {
           </div>
           <div className="user-profile" style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "20px", width: "auto" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px", alignItems: "flex-end" }}>
-              <div className="role-badge" style={{ padding: "4px 12px", borderRadius: "10px", letterSpacing: "0.5px" }}>{userRole}</div>
+              <div className="role-badge" style={{ padding: "4px 12px", borderRadius: "10px", letterSpacing: "0.5px" }}>{actualRole === "Admin+" ? "Admin+" : userRole}</div>
               {!isMainAdmin && (actualRole === "Admin" || actualRole === "Admin+") && (
                 <select
                   className="role-switcher"
@@ -412,13 +412,24 @@ export default function App() {
                 </select>
               )}
             </div>
-            <button
-              className="btn-secondary"
-              style={{ padding: "8px 16px", fontSize: "0.65rem", background: "var(--color-logout)", borderRadius: "8px", fontWeight: 800 }}
-              onClick={logout}
-            >
-              LOGOUT
-            </button>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {actualRole === "Admin+" && (
+                <button
+                  className="btn-announce-header"
+                  onClick={() => switchView("announcements")}
+                  title="Post Announcement"
+                >
+                  📢 Announce
+                </button>
+              )}
+              <button
+                className="btn-secondary"
+                style={{ padding: "8px 16px", fontSize: "0.65rem", background: "var(--color-logout)", borderRadius: "8px", fontWeight: 800 }}
+                onClick={logout}
+              >
+                LOGOUT
+              </button>
+            </div>
           </div>
         </div>
         <div className="nav-bar" style={{ padding: "12px 0 20px 0" }}>

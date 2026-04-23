@@ -143,7 +143,15 @@ export default function AdminPanel({ showModal }) {
                       <select
                         className="role-switcher"
                         value={s.role}
-                        onChange={(e) => updateStaffRole({ staffEmail: s.email, newRole: e.target.value })}
+                        onChange={async (e) => {
+                          const newRole = e.target.value;
+                          await updateStaffRole({ staffEmail: s.email, newRole });
+                          showModal({
+                            title: "Role Updated",
+                            message: `${s.name}'s role has been changed to ${newRole}.`,
+                            type: "success"
+                          });
+                        }}
                       >
                         <option value="Programmer">Programmer</option>
                         <option value="Admin">Admin</option>

@@ -24,6 +24,8 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   const [featureContextMenu, setFeatureContextMenu] = useState(null);
   const [editedMilestones, setEditedMilestones] = useState([]);
   const [featureView, setFeatureView] = useState("feature"); // 'feature' or 'bug'
+  const [noteInputText, setNoteInputText] = useState("");
+  const [notesFullscreen, setNotesFullscreen] = useState(false);
 
   // Drag refs — no React state updated during drag to avoid re-render/listener issues
   const milestoneListRef = useRef(null);
@@ -176,8 +178,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   }
 
   function handleAddNote() {
-    const input = document.getElementById("modal-note-input");
-    const text = input?.value?.trim();
+    const text = noteInputText.trim();
     if (!text) return;
     const estDate = new Date().toLocaleString("en-US", {
       timeZone: "America/New_York",
@@ -187,7 +188,8 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
     addNoteToTask({ taskId, noteText: text, writer: userName, date: estDate });
     console.log("🔔 Calling notifyNoteAdded:", { taskTitle: task.title, notePreview: text.substring(0, 30) });
     notifyNoteAdded(task.title, text);
-    input.value = "";
+    setNoteInputText("");
+    setNotesFullscreen(false);
   }
 
   function handleDelete() {
@@ -751,19 +753,19 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                       {n.date} {n.writer && <span style={{ color: "#065f46", fontWeight: 900 }}>- {n.writer}</span>}
                     </div>
                     <div className="note-text" style={{ fontSize: "0.8rem", lineHeight: 1.4, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{n.text}</div>
-                    <div className="note-reactions">
+                    <div className="note-reactions-fixed">
                       {reactionTypes.map(({ key, emoji, label }) => {
                         const arr = reactions[key] || [];
                         const isActive = arr.includes(currentUserEmail);
                         return (
                           <button
                             key={key}
-                            className={`reaction-btn ${isActive ? "active" : ""}`}
+                            className={`reaction-pill ${isActive ? "active" : ""} ${arr.length > 0 ? "has-count" : ""}`}
                             title={label}
                             onClick={() => toggleNoteReaction({ taskId, noteIndex: i, reactionType: key, userEmail: currentUserEmail })}
                           >
-                            <span className="reaction-emoji">{emoji}</span>
-                            {arr.length > 0 && <span className="reaction-count">{arr.length}</span>}
+                            <span className="reaction-emoji-fixed">{emoji}</span>
+                            {arr.length > 0 && <span className="reaction-count-fixed">{arr.length}</span>}
                           </button>
                         );
                       })}
@@ -780,12 +782,56 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                 type="text"
                 className="note-input"
                 id="modal-note-input"
-                placeholder="Share an update..."
-                style={{ flex: 1, padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "0.8rem" }}
+                placeholder="Share an update... (click to expand)"
+                value={noteInputText}
+                onChange={(e) => setNoteInputText(e.target.value)}
+                style={{ flex: 1, padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "0.8rem", cursor: "pointer" }}
+                onClick={() => setNotesFullscreen(true)}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddNote(); } }}
+                readOnly
               />
-              <button className="btn-add-note" style={{ background: "var(--color-nav-bg)", color: "white", padding: "0 15px", borderRadius: "8px", fontWeight: 800, fontSize: "0.75rem" }} onClick={handleAddNote}>Add</button>
+              <button className="btn-add-note" style={{ background: "var(--color-nav-bg)", color: "white", padding: "0 15px", borderRadius: "8px", fontWeight: 800, fontSize: "0.75rem" }} onClick={() => setNotesFullscreen(true)}>Add</button>
             </div>
+
+            {/* Fullscreen Notes Editor Overlay */}
+            {notesFullscreen && (
+              <div className="notes-fullscreen-overlay" onClick={() => setNotesFullscreen(false)}>
+                <div className="notes-fullscreen-card" onClick={(e) => e.stopPropagation()}>
+                  <div className="notes-fullscreen-header">
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                      </svg>
+                      <span>COMPOSE UPDATE</span>
+                    </div>
+                    <button className="announcement-close-btn" onClick={() => setNotesFullscreen(false)}>×</button>
+                  </div>
+                  <div style={{ padding: 20, flex: 1, display: "flex", flexDirection: "column" }}>
+                    <textarea
+                      className="notes-fullscreen-textarea"
+                      placeholder="Write your update here...\n\nSupports multi-line text and paragraphs."
+                      value={noteInputText}
+                      onChange={(e) => setNoteInputText(e.target.value)}
+                      autoFocus
+                      onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); handleAddNote(); } }}
+                    />
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
+                      <span style={{ fontSize: "0.65rem", color: "#94a3b8" }}>Ctrl+Enter to send</span>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          style={{ background: "#f1f5f9", color: "#475569", border: "none", padding: "10px 20px", borderRadius: 10, fontSize: "0.75rem", fontWeight: 800, cursor: "pointer" }}
+                          onClick={() => setNotesFullscreen(false)}
+                        >Cancel</button>
+                        <button
+                          style={{ background: "var(--color-nav-bg)", color: "white", border: "none", padding: "10px 24px", borderRadius: 10, fontSize: "0.75rem", fontWeight: 800, cursor: "pointer" }}
+                          onClick={handleAddNote}
+                        >Post Update</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
         </div>
