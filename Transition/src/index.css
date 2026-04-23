@@ -1754,3 +1754,383 @@ body.role-programmer .kanban-col.col-scrap {
   font-size: 0.65rem;
   border-radius: 6px;
 }
+
+/* ============================================================
+   ANNOUNCEMENT POPUP — Premium overlay for system-wide alerts
+   ============================================================ */
+
+.announcement-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(30px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.announcement-popup {
+  background: white;
+  border-radius: 20px;
+  max-width: 520px;
+  width: 90%;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255,255,255,0.1);
+  overflow: hidden;
+  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.announcement-popup-header {
+  background: linear-gradient(135deg, #064e3b, #059669);
+  color: white;
+  padding: 14px 20px;
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.announcement-close-btn {
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: white;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: 0.2s;
+}
+
+.announcement-close-btn:hover {
+  background: rgba(255,255,255,0.3);
+}
+
+.announcement-popup-title {
+  margin: 0;
+  padding: 20px 20px 8px;
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: #0f172a;
+  letter-spacing: -0.5px;
+}
+
+.announcement-popup-body {
+  padding: 0 20px 20px;
+  font-size: 0.85rem;
+  color: #475569;
+  line-height: 1.7;
+}
+
+.announcement-popup-body p {
+  margin: 0 0 8px 0;
+}
+
+.announcement-popup-body b, .announcement-popup-body strong {
+  color: #0f172a;
+}
+
+.announcement-popup-footer {
+  border-top: 1px solid #f1f5f9;
+  padding: 15px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.announcement-popup-meta {
+  font-size: 0.65rem;
+  color: #94a3b8;
+}
+
+.announcement-dismiss-btn {
+  background: linear-gradient(135deg, #064e3b, #059669);
+  color: white;
+  border: none;
+  padding: 10px 28px;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: 0.2s;
+}
+
+.announcement-dismiss-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+}
+
+/* ============================================================
+   ANNOUNCEMENT COMPOSER — Rich text editor for Admin+
+   ============================================================ */
+
+.composer-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-bottom: none;
+  border-radius: 10px 10px 0 0;
+}
+
+.toolbar-btn {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: #475569;
+  transition: 0.15s;
+}
+
+.toolbar-btn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.composer-editor {
+  min-height: 160px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 0 0 10px 10px;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: #1e293b;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.composer-editor:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.composer-editor:empty:before {
+  content: attr(data-placeholder);
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.announcement-history-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px 16px;
+  transition: 0.15s;
+}
+
+.announcement-history-card:hover {
+  border-color: #cbd5e1;
+}
+
+.announcement-history-body {
+  margin-top: 8px;
+  font-size: 0.78rem;
+  color: #475569;
+  line-height: 1.5;
+  max-height: 80px;
+  overflow: hidden;
+}
+
+/* ============================================================
+   TASK NOTIFICATION POPUP — Login-time alert for Programmers
+   ============================================================ */
+
+.task-notif-popup {
+  background: white;
+  border-radius: 20px;
+  max-width: 480px;
+  width: 90%;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.task-notif-header {
+  background: linear-gradient(135deg, #1e40af, #3b82f6);
+  color: white;
+  padding: 14px 20px;
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.task-notif-list {
+  max-height: 350px;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.task-notif-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: 0.15s;
+  border: 1px solid transparent;
+}
+
+.task-notif-item:hover {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+}
+
+.task-notif-item-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.task-notif-icon-box {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #3b82f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.task-notif-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 4px;
+}
+
+.task-notif-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  letter-spacing: 0.3px;
+}
+
+.notif-notes {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.notif-features {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.notif-bugs {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.notif-milestones {
+  background: #fefce8;
+  color: #ca8a04;
+}
+
+.task-notif-footer {
+  border-top: 1px solid #f1f5f9;
+  padding: 14px 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.task-notif-dismiss-btn {
+  background: #f1f5f9;
+  color: #475569;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.task-notif-dismiss-btn:hover {
+  background: #e2e8f0;
+}
+
+/* ============================================================
+   NOTE REACTIONS — Emoji buttons on task notes
+   ============================================================ */
+
+.note-reactions {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.reaction-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: 0.15s;
+  font-size: 0.7rem;
+}
+
+.reaction-btn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  transform: scale(1.05);
+}
+
+.reaction-btn.active {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+
+.reaction-emoji {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.reaction-count {
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: #475569;
+}

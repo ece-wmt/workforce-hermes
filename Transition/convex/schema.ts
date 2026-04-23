@@ -23,6 +23,14 @@ export default defineSchema({
         date: v.string(),
         timestamp: v.optional(v.number()),
         writer: v.optional(v.string()),
+        reactions: v.optional(
+          v.object({
+            like: v.optional(v.array(v.string())),
+            wow: v.optional(v.array(v.string())),
+            heart: v.optional(v.array(v.string())),
+            haha: v.optional(v.array(v.string())),
+          })
+        ),
       })
     ),
     startDate: v.optional(v.string()),
@@ -70,4 +78,13 @@ export default defineSchema({
     userEmail: v.string(),
     lastViewedAt: v.number(),
   }).index("by_task_user", ["taskId", "userEmail"]),
+
+  announcements: defineTable({
+    title: v.string(),
+    body: v.string(),
+    postedBy: v.string(),
+    postedByEmail: v.string(),
+    createdAt: v.number(),
+    seenBy: v.array(v.string()),
+  }),
 });

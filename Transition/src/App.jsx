@@ -13,6 +13,9 @@ import SetPassword from "./components/SetPassword";
 import CustomModal from "./components/CustomModal";
 import InputModal from "./components/InputModal";
 import IntroAnimation from "./components/IntroAnimation";
+import AnnouncementPopup from "./components/AnnouncementPopup";
+import AnnouncementComposer from "./components/AnnouncementComposer";
+import TaskNotificationPopup from "./components/TaskNotificationPopup";
 
 export default function App() {
   // --- Auth state ---
@@ -45,6 +48,7 @@ export default function App() {
     // Show intro on auto-login (user didn't log out)
     return localStorage.getItem("wf_authenticated") === "true";
   });
+  const [showLoginNotifications, setShowLoginNotifications] = useState(false);
   const [modalConfig, setModalConfig] = useState({
     isOpen: false,
     title: "",
@@ -105,7 +109,8 @@ export default function App() {
       }
       setUserName(user.name);
       setActualRole(user.role);
-      setUserRole(user.role);
+      // Admin+ users see the Admin view by default (they have all Admin privileges)
+      setUserRole(user.role === "Admin+" ? "Admin" : user.role);
       if (user.role === "Programmer") setCurrentView("kanban");
     }
     setLoading(false);
@@ -134,8 +139,8 @@ export default function App() {
 
   // --- Role class on body ---
   useEffect(() => {
-    document.body.classList.remove("role-admin", "role-programmer");
-    document.body.classList.add("role-" + userRole.toLowerCase());
+    document.body.classList.remove("role-admin", "role-programmer", "role-admin+");
+    document.body.classList.add("role-" + userRole.toLowerCase().replace("+", "plus"));
   }, [userRole]);
 
   // --- Context menu close ---
@@ -223,6 +228,10 @@ export default function App() {
       setLoading(true);
       setShowIntro(true);
       setAuthStage("authenticated");
+      // Trigger notification popup for programmers after login
+      if (user.role === "Programmer") {
+        setShowLoginNotifications(true);
+      }
     } else {
       setLoginError("Incorrect password.");
     }
@@ -254,10 +263,11 @@ export default function App() {
   function changeRole(role) {
     setUserRole(role);
     if (role === "Programmer") setCurrentView("kanban");
+    if (role === "Admin" || role === "Admin+") setCurrentView("dashboard");
   }
 
   function switchView(viewId) {
-    const adminViews = ["admin", "dashboard"];
+    const adminViews = ["admin", "dashboard", "announcements"];
     if (userRole === "Programmer" && adminViews.includes(viewId)) return;
     setCurrentView(viewId);
   }
@@ -390,7 +400,7 @@ export default function App() {
           <div className="user-profile" style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "20px", width: "auto" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px", alignItems: "flex-end" }}>
               <div className="role-badge" style={{ padding: "4px 12px", borderRadius: "10px", letterSpacing: "0.5px" }}>{userRole}</div>
-              {!isMainAdmin && actualRole === "Admin" && (
+              {!isMainAdmin && (actualRole === "Admin" || actualRole === "Admin+") && (
                 <select
                   className="role-switcher"
                   style={{ padding: "6px 12px", borderRadius: "10px", border: "1px solid #e2e8f0", fontSize: "0.75rem" }}
@@ -414,7 +424,7 @@ export default function App() {
         <div className="nav-bar" style={{ padding: "12px 0 20px 0" }}>
           <div className="nav-label" style={{ marginBottom: "12px", fontSize: "0.65rem", letterSpacing: "3px", opacity: 0.6 }}>NAVIGATION &amp; QUICK ACTIONS</div>
           <div className="nav-links">
-            {userRole === "Admin" && (
+            {(userRole === "Admin" || userRole === "Admin+") && (
               <div
                 className={`nav-btn ${currentView === "dashboard" ? "active" : ""}`}
                 onClick={() => switchView("dashboard")}
@@ -440,12 +450,25 @@ export default function App() {
             >
               NOTEBOOK
             </div>
-            {userRole === "Admin" && (
+            {(userRole === "Admin" || userRole === "Admin+") && (
               <div
                 className={`nav-btn ${currentView === "admin" ? "active" : ""}`}
                 onClick={() => switchView("admin")}
               >
                 ADMIN
+              </div>
+            )}
+            {actualRole === "Admin+" && (
+              <div
+                className={`nav-btn ${currentView === "announcements" ? "active" : ""}`}
+                onClick={() => switchView("announcements")}
+                style={{ display: "flex", alignItems: "center", gap: 5 }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </svg>
+                ANNOUNCEMENTS
               </div>
             )}
           </div>
@@ -476,6 +499,9 @@ export default function App() {
         <Notebook userRole={userRole} userName={userName} />
       )}
       {currentView === "admin" && <AdminPanel showModal={showModal} />}
+      {currentView === "announcements" && actualRole === "Admin+" && (
+        <AnnouncementComposer userName={userName} showModal={showModal} />
+      )}
 
       {/* Task Modal */}
       {modalTaskId && (
@@ -604,6 +630,21 @@ export default function App() {
         onConfirm={inputModal.onConfirm}
         onCancel={() => setInputModal(prev => ({ ...prev, isOpen: false }))}
       />
+
+      {/* Announcement Popup — real-time, shows for all authenticated users */}
+      <AnnouncementPopup />
+
+      {/* Task Notification Popup — shows on login for Programmers */}
+      {showLoginNotifications && (
+        <TaskNotificationPopup
+          userName={userName}
+          onDismiss={() => setShowLoginNotifications(false)}
+          onOpenTask={(taskId) => {
+            openTaskModal(taskId);
+            setShowLoginNotifications(false);
+          }}
+        />
+      )}
 
       {/* Intro Animation Overlay */}
       {showIntro && <IntroAnimation onDone={() => setShowIntro(false)} />}

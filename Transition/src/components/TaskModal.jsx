@@ -12,6 +12,8 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   const updateTaskDetails = useMutation(api.tasks.updateTaskDetails);
   const deleteTaskFeature = useMutation(api.tasks.deleteTaskFeature);
   const markTaskAsViewed = useMutation(api.tasks.markTaskAsViewed);
+  const toggleNoteReaction = useMutation(api.tasks.toggleNoteReaction);
+  const currentUserEmail = (localStorage.getItem("wf_email") || "").toLowerCase();
   const taskViewHistoryTime = useQuery(api.tasks.getTaskViewHistory, { taskId, userEmail: localStorage.getItem("wf_email") || "" });
 
   const [selectedAssignees, setSelectedAssignees] = useState(new Set());
@@ -81,14 +83,17 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   const doneM = task.completedMilestones || 0;
   const progressPercent = milestones.length > 0 ? Math.round((doneM / milestones.length) * 100) : 0;
 
+  const isAdminPlus = actualRole === "Admin+";
+  const isAdminLevel = actualRole === "Admin" || isAdminPlus;
+
   let canEditMilestone = true;
-  if (actualRole === "Admin") {
+  if (isAdminLevel) {
     const assigneeVal = (task.assignee || "").toLowerCase();
     const userNameVal = (userName || "").toLowerCase();
     if (!assigneeVal.includes(userNameVal)) canEditMilestone = false;
   }
 
-  const canManageFeatures = actualRole === "Admin" || canEditMilestone;
+  const canManageFeatures = isAdminLevel || canEditMilestone;
   const isProgrammer = actualRole === "Programmer" || userRole === "Programmer";
 
   // Use localStorage specific times (immediate), then fallback to query result / global time
@@ -683,7 +688,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
               </div>
             </div>
 
-            {userRole === "Admin" && (
+            {(userRole === "Admin" || userRole === "Admin+") && (
               <div className="admin-creds-box" style={{ flexShrink: 0, marginTop: 10, background: "#ecfdf5", border: "2px solid #10b981", borderRadius: "8px", overflow: "hidden", boxShadow: "var(--shadow-sm)" }}>
                 <div className="creds-header" style={{ background: "#10b981", padding: "6px 12px", color: "white", fontSize: "0.6rem", fontWeight: 900, display: "flex", alignItems: "center", gap: "8px", letterSpacing: "1px" }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
@@ -732,14 +737,40 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
               )}
             </div>
             <div className="notes-list" style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingRight: "5px", marginBottom: 10 }}>
-              {(task.notes || []).map((n, i) => (
-                <div key={i} className="note-item" style={{ background: "white", padding: 12, borderRadius: "var(--radius-md)", border: "1px solid #f1f5f9", marginBottom: 8, boxShadow: "var(--shadow-sm)" }}>
-                  <div className="note-date" style={{ color: "#10b981", marginBottom: 4, fontSize: "0.65rem", fontWeight: 700 }}>
-                    {n.date} {n.writer && <span style={{ color: "#065f46", fontWeight: 900 }}>- {n.writer}</span>}
+              {(task.notes || []).map((n, i) => {
+                const reactions = n.reactions || {};
+                const reactionTypes = [
+                  { key: "like", emoji: "👍", label: "Like" },
+                  { key: "wow", emoji: "😮", label: "Wow" },
+                  { key: "heart", emoji: "❤️", label: "Heart" },
+                  { key: "haha", emoji: "😂", label: "Haha" },
+                ];
+                return (
+                  <div key={i} className="note-item" style={{ background: "white", padding: 12, borderRadius: "var(--radius-md)", border: "1px solid #f1f5f9", marginBottom: 8, boxShadow: "var(--shadow-sm)" }}>
+                    <div className="note-date" style={{ color: "#10b981", marginBottom: 4, fontSize: "0.65rem", fontWeight: 700 }}>
+                      {n.date} {n.writer && <span style={{ color: "#065f46", fontWeight: 900 }}>- {n.writer}</span>}
+                    </div>
+                    <div className="note-text" style={{ fontSize: "0.8rem", lineHeight: 1.4, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{n.text}</div>
+                    <div className="note-reactions">
+                      {reactionTypes.map(({ key, emoji, label }) => {
+                        const arr = reactions[key] || [];
+                        const isActive = arr.includes(currentUserEmail);
+                        return (
+                          <button
+                            key={key}
+                            className={`reaction-btn ${isActive ? "active" : ""}`}
+                            title={label}
+                            onClick={() => toggleNoteReaction({ taskId, noteIndex: i, reactionType: key, userEmail: currentUserEmail })}
+                          >
+                            <span className="reaction-emoji">{emoji}</span>
+                            {arr.length > 0 && <span className="reaction-count">{arr.length}</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div className="note-text" style={{ fontSize: "0.8rem", lineHeight: 1.4, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{n.text}</div>
-                </div>
-              ))}
+                );
+              })}
               {(task.notes || []).length === 0 && (
                 <div style={{ textAlign: "center", color: "#94a3b8", fontStyle: "italic", marginTop: 40, fontSize: "0.8rem" }}>No updates yet.</div>
               )}

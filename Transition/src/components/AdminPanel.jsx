@@ -147,6 +147,7 @@ export default function AdminPanel({ showModal }) {
                       >
                         <option value="Programmer">Programmer</option>
                         <option value="Admin">Admin</option>
+                        <option value="Admin+">Admin+</option>
                       </select>
                     </td>
                     <td style={{ color: "#64748b" }}>{s.email}</td>

@@ -402,3 +402,42 @@ export const getTaskViewHistory = query({
     return record ? record.lastViewedAt : 0;
   },
 });
+
+export const toggleNoteReaction = mutation({
+  args: {
+    taskId: v.id("tasks"),
+    noteIndex: v.number(),
+    reactionType: v.string(), // "like" | "wow" | "heart" | "haha"
+    userEmail: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const task = await ctx.db.get(args.taskId);
+    if (!task) throw new Error("Task not found");
+
+    const notes = [...(task.notes || [])];
+    if (args.noteIndex < 0 || args.noteIndex >= notes.length) return;
+
+    const note = { ...notes[args.noteIndex] };
+    const reactions = note.reactions
+      ? { ...note.reactions }
+      : { like: [], wow: [], heart: [], haha: [] };
+
+    const key = args.reactionType as "like" | "wow" | "heart" | "haha";
+    const arr = [...(reactions[key] || [])];
+    const lowerEmail = args.userEmail.toLowerCase();
+    const idx = arr.indexOf(lowerEmail);
+
+    if (idx >= 0) {
+      arr.splice(idx, 1); // remove reaction
+    } else {
+      arr.push(lowerEmail); // add reaction
+    }
+
+    reactions[key] = arr;
+    note.reactions = reactions;
+    notes[args.noteIndex] = note;
+
+    await ctx.db.patch(args.taskId, { notes });
+  },
+});
+
