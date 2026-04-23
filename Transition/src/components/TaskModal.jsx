@@ -26,6 +26,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   const [featureView, setFeatureView] = useState("feature"); // 'feature' or 'bug'
   const [noteInputText, setNoteInputText] = useState("");
   const [notesFullscreen, setNotesFullscreen] = useState(false);
+  const [noteContextMenu, setNoteContextMenu] = useState(null);
 
   // Drag refs — no React state updated during drag to avoid re-render/listener issues
   const milestoneListRef = useRef(null);
@@ -738,7 +739,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                 </span>
               )}
             </div>
-            <div className="notes-list" style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingRight: "5px", marginBottom: 10 }}>
+            <div className="notes-list" onClick={() => setNoteContextMenu(null)} style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingRight: "5px", marginBottom: 10 }}>
               {(task.notes || []).map((n, i) => {
                 const reactions = n.reactions || {};
                 const reactionTypes = [
@@ -748,7 +749,15 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                   { key: "haha", emoji: "😂", label: "Haha" },
                 ];
                 return (
-                  <div key={i} className="note-item" style={{ background: "white", padding: 12, borderRadius: "var(--radius-md)", border: "1px solid #f1f5f9", marginBottom: 8, boxShadow: "var(--shadow-sm)" }}>
+                  <div
+                    key={i}
+                    className="note-item"
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setNoteContextMenu(i);
+                    }}
+                    style={{ background: "white", padding: 12, borderRadius: "var(--radius-md)", border: "1px solid #f1f5f9", marginBottom: 8, boxShadow: "var(--shadow-sm)" }}
+                  >
                     <div className="note-date" style={{ color: "#10b981", marginBottom: 4, fontSize: "0.65rem", fontWeight: 700 }}>
                       {n.date} {n.writer && <span style={{ color: "#065f46", fontWeight: 900 }}>- {n.writer}</span>}
                     </div>
@@ -757,12 +766,20 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                       {reactionTypes.map(({ key, emoji, label }) => {
                         const arr = reactions[key] || [];
                         const isActive = arr.includes(currentUserEmail);
+                        const isVisible = arr.length > 0 || noteContextMenu === i;
+                        
+                        if (!isVisible) return null;
+
                         return (
                           <button
                             key={key}
                             className={`reaction-pill ${isActive ? "active" : ""} ${arr.length > 0 ? "has-count" : ""}`}
                             title={label}
-                            onClick={() => toggleNoteReaction({ taskId, noteIndex: i, reactionType: key, userEmail: currentUserEmail })}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleNoteReaction({ taskId, noteIndex: i, reactionType: key, userEmail: currentUserEmail });
+                              setNoteContextMenu(null);
+                            }}
                           >
                             <span className="reaction-emoji-fixed">{emoji}</span>
                             {arr.length > 0 && <span className="reaction-count-fixed">{arr.length}</span>}
