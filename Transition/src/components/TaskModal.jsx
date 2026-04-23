@@ -13,6 +13,9 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   const deleteTaskFeature = useMutation(api.tasks.deleteTaskFeature);
   const markTaskAsViewed = useMutation(api.tasks.markTaskAsViewed);
   const toggleNoteReaction = useMutation(api.tasks.toggleNoteReaction);
+  const deleteNotesBulk = useMutation(api.tasks.deleteTaskNotesBulk);
+  const deleteFeaturesBulk = useMutation(api.tasks.deleteTaskFeaturesBulk);
+  const deleteMilestonesBulk = useMutation(api.tasks.deleteTaskMilestonesBulk);
   const currentUserEmail = (localStorage.getItem("wf_email") || "").toLowerCase();
   const taskViewHistoryTime = useQuery(api.tasks.getTaskViewHistory, { taskId, userEmail: localStorage.getItem("wf_email") || "" });
 
@@ -27,6 +30,33 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   const [noteInputText, setNoteInputText] = useState("");
   const [notesFullscreen, setNotesFullscreen] = useState(false);
   const [noteContextMenu, setNoteContextMenu] = useState(null);
+
+  const [selectedNotes, setSelectedNotes] = useState(new Set());
+  const [selectedFeatures, setSelectedFeatures] = useState(new Set());
+  const [selectedBugs, setSelectedBugs] = useState(new Set());
+  const [selectedMilestones, setSelectedMilestones] = useState(new Set());
+
+  const handleRowClickToggle = (e, setFn, id) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      setFn(prev => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+    }
+  };
+
+  const handleCheckboxToggle = (setFn, id) => {
+    setFn(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   // Drag refs — no React state updated during drag to avoid re-render/listener issues
   const milestoneListRef = useRef(null);
@@ -245,6 +275,80 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
     });
   }
 
+  function handleBulkDelete(type) {
+    switch (type) {
+      case 'features':
+        if (selectedFeatures.size === 0) return;
+        showModal({
+          title: "Bulk Delete Features",
+          message: `Are you sure you want to permanently delete ${selectedFeatures.size} feature${selectedFeatures.size > 1 ? 's' : ''}?`,
+          type: "confirm",
+          onConfirm: () => {
+            deleteFeaturesBulk({ taskId, featureIds: Array.from(selectedFeatures) });
+            setSelectedFeatures(new Set());
+          }
+        });
+        break;
+      case 'bugs':
+        if (selectedBugs.size === 0) return;
+        showModal({
+          title: "Bulk Delete Bugs",
+          message: `Are you sure you want to permanently delete ${selectedBugs.size} bug${selectedBugs.size > 1 ? 's' : ''}?`,
+          type: "confirm",
+          onConfirm: () => {
+            deleteFeaturesBulk({ taskId, featureIds: Array.from(selectedBugs) });
+            setSelectedBugs(new Set());
+          }
+        });
+        break;
+      case 'notes':
+        if (selectedNotes.size === 0) return;
+        showModal({
+          title: "Bulk Delete Notes",
+          message: `Are you sure you want to permanently delete ${selectedNotes.size} note${selectedNotes.size > 1 ? 's' : ''}?`,
+          type: "confirm",
+          onConfirm: () => {
+            deleteNotesBulk({ taskId, indices: Array.from(selectedNotes) });
+            setSelectedNotes(new Set());
+          }
+        });
+        break;
+      case 'milestones':
+        if (selectedMilestones.size === 0) return;
+        showModal({
+          title: "Bulk Delete Milestones",
+          message: `Are you sure you want to permanently delete ${selectedMilestones.size} milestone${selectedMilestones.size > 1 ? 's' : ''}?`,
+          type: "confirm",
+          onConfirm: () => {
+            deleteMilestonesBulk({ taskId, indices: Array.from(selectedMilestones) });
+            setSelectedMilestones(new Set());
+          }
+        });
+        break;
+    }
+  }
+
+  function handleSelectAll(type, items) {
+    switch (type) {
+      case 'features':
+        if (selectedFeatures.size === items.length) setSelectedFeatures(new Set());
+        else setSelectedFeatures(new Set(items.map(f => f.id)));
+        break;
+      case 'bugs':
+        if (selectedBugs.size === items.length) setSelectedBugs(new Set());
+        else setSelectedBugs(new Set(items.map(b => b.id)));
+        break;
+      case 'notes':
+        if (selectedNotes.size === items.length) setSelectedNotes(new Set());
+        else setSelectedNotes(new Set(items.map((_, i) => i)));
+        break;
+      case 'milestones':
+        if (selectedMilestones.size === items.length) setSelectedMilestones(new Set());
+        else setSelectedMilestones(new Set(items.map((_, i) => i)));
+        break;
+    }
+  }
+
   // ── Pure DOM drag-and-drop (no React state during drag) ─────────────────────
   // We mutate DOM styles directly for visual feedback; only call setEditedMilestones
   // once on pointerup. This avoids all React re-render / listener teardown issues.
@@ -426,58 +530,95 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                   )}
                 </div>
                 {canManageFeatures && (
-                  <button
-                    className="btn-add-feature"
-                    style={{
-                      background: featureView === "bug" ? "#fef2f2" : "#f8fafc",
-                      color: featureView === "bug" ? "#dc2626" : "#475569",
-                      border: `1.5px solid ${featureView === "bug" ? "#fca5a5" : "#e2e8f0"}`,
-                      transition: "all 0.2s ease",
-                    }}
-                    onClick={() => setFeatureModalConfig({ mode: "add", type: featureView })}
-                  >
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                      <path d="M12 5v14M5 12h14" />
-                    </svg>
-                    ADD
-                  </button>
+                  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                    <button
+                      className="select-all-btn"
+                      onClick={() => handleSelectAll(featureView === "feature" ? "features" : "bugs", (task.features || []).filter(f => (f.type || "feature") === featureView))}
+                    >
+                      Select All
+                    </button>
+                    <button
+                      className="btn-add-feature"
+                      style={{
+                        background: featureView === "bug" ? "#fef2f2" : "#f8fafc",
+                        color: featureView === "bug" ? "#dc2626" : "#475569",
+                        border: `1.5px solid ${featureView === "bug" ? "#fca5a5" : "#e2e8f0"}`,
+                        transition: "all 0.2s ease",
+                      }}
+                      onClick={() => setFeatureModalConfig({ mode: "add", type: featureView })}
+                    >
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                        <path d="M12 5v14M5 12h14" />
+                      </svg>
+                      ADD
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
             <div className="features-list" style={{ flex: 1, overflowY: "auto", paddingRight: "5px" }}>
-              {(task.features || []).filter(f => (f.type || "feature") === featureView).map((f) => (
-                <div
-                  key={f.id}
-                  className={`feature-card ${f.status === "completed" ? "completed" : ""}`}
-                  onClick={() => setFeatureModalConfig({ mode: "view", feature: f, type: featureView })}
-                  onContextMenu={(e) => handleFeatureContextMenu(e, f)}
-                  style={{ cursor: "pointer", userSelect: "none", borderLeft: featureView === "bug" && f.status !== "completed" ? "3px solid #ef4444" : undefined }}
-                >
-                  <div className="feature-icon-box" style={{ background: featureView === "bug" ? "#fef2f2" : undefined, color: featureView === "bug" ? "#ef4444" : undefined }}>
-                    {featureView === "bug" ? (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="M20.9 9.1C21.7 8.3 21.7 7 20.9 6.2c-.8-.8-2.1-.8-2.9 0L17.5 6.7m-11 0L6 6.2C5.2 5.4 3.9 5.4 3.1 6.2c-.8.8-.8 2.1 0 2.9l.5.5m0 6L3.1 16.1C2.3 16.9 2.3 18.2 3.1 19c.8.8 2.1.8 2.9 0l.5-.5m11 0l.5.5c.8.8 2.1.8 2.9 0 .8-.8.8-2.1 0-2.9l-.5-.5" />
-                        <path d="M12 2v2m0 16v2m7-9h2M3 12h2M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" />
-                      </svg>
-                    ) : (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-                      </svg>
-                    )}
-                  </div>
-                  <div className="feature-info">
-                    <h4>{f.name}</h4>
-                    <p>{f.description}</p>
-                    <div style={{ display: "flex", gap: "8px", fontSize: "0.65rem", color: "#64748b", marginBottom: "4px" }}>
-                      <span>Created: {f.createdAt || "N/A"}</span>
-                      {f.completedAt && <span>Completed: {f.completedAt}</span>}
-                    </div>
-                    <span className={`feature-badge ${f.status}`} style={{ background: featureView === "bug" && f.status === "pending" ? "#fee2e2" : undefined, color: featureView === "bug" && f.status === "pending" ? "#ef4444" : undefined }}>
-                      {f.status === "completed" ? "COMPLETED" : "PENDING"}
-                    </span>
-                  </div>
+              {featureView === "feature" && selectedFeatures.size > 0 && (
+                <div className="bulk-action-bar">
+                  <span>{selectedFeatures.size} selected</span>
+                  <button className="btn-bulk-delete" onClick={() => handleBulkDelete('features')}>
+                    Delete Selected
+                  </button>
                 </div>
-              ))}
+              )}
+              {featureView === "bug" && selectedBugs.size > 0 && (
+                <div className="bulk-action-bar">
+                  <span>{selectedBugs.size} selected</span>
+                  <button className="btn-bulk-delete" onClick={() => handleBulkDelete('bugs')}>
+                    Delete Selected
+                  </button>
+                </div>
+              )}
+              {(task.features || []).filter(f => (f.type || "feature") === featureView).map((f) => {
+                const isSelected = featureView === "feature" ? selectedFeatures.has(f.id) : selectedBugs.has(f.id);
+                const setFn = featureView === "feature" ? setSelectedFeatures : setSelectedBugs;
+                return (
+                  <div
+                    key={f.id}
+                    className={`feature-card ${f.status === "completed" ? "completed" : ""}`}
+                    onClick={(e) => handleRowClickToggle(e, setFn, f.id)}
+                    onContextMenu={(e) => handleFeatureContextMenu(e, f)}
+                    style={{ cursor: "pointer", userSelect: "none", borderLeft: featureView === "bug" && f.status !== "completed" ? "3px solid #ef4444" : undefined, display: "flex", alignItems: "center" }}
+                  >
+                    <input 
+                      type="checkbox" 
+                      className="multi-select-checkbox" 
+                      checked={isSelected}
+                      onChange={() => handleCheckboxToggle(setFn, f.id)}
+                      onClick={e => e.stopPropagation()}
+                    />
+                    <div style={{ flex: 1, display: "flex", gap: "12px", alignItems: "flex-start" }} onClick={() => setFeatureModalConfig({ mode: "view", feature: f, type: featureView })}>
+                      <div className="feature-icon-box" style={{ background: featureView === "bug" ? "#fef2f2" : undefined, color: featureView === "bug" ? "#ef4444" : undefined }}>
+                        {featureView === "bug" ? (
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <path d="M20.9 9.1C21.7 8.3 21.7 7 20.9 6.2c-.8-.8-2.1-.8-2.9 0L17.5 6.7m-11 0L6 6.2C5.2 5.4 3.9 5.4 3.1 6.2c-.8.8-.8 2.1 0 2.9l.5.5m0 6L3.1 16.1C2.3 16.9 2.3 18.2 3.1 19c.8.8 2.1.8 2.9 0l.5-.5m11 0l.5.5c.8.8 2.1.8 2.9 0 .8-.8.8-2.1 0-2.9l-.5-.5" />
+                            <path d="M12 2v2m0 16v2m7-9h2M3 12h2M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" />
+                          </svg>
+                        ) : (
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                          </svg>
+                        )}
+                      </div>
+                      <div className="feature-info" style={{ flex: 1 }}>
+                        <h4>{f.name}</h4>
+                        <p>{f.description}</p>
+                        <div style={{ display: "flex", gap: "8px", fontSize: "0.65rem", color: "#64748b", marginBottom: "4px" }}>
+                          <span>Created: {f.createdAt || "N/A"}</span>
+                          {f.completedAt && <span>Completed: {f.completedAt}</span>}
+                        </div>
+                        <span className={`feature-badge ${f.status}`} style={{ background: featureView === "bug" && f.status === "pending" ? "#fee2e2" : undefined, color: featureView === "bug" && f.status === "pending" ? "#ef4444" : undefined }}>
+                          {f.status === "completed" ? "COMPLETED" : "PENDING"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
               {(task.features || []).filter(f => (f.type || "feature") === featureView).length === 0 && (
                 <div style={{ textAlign: "center", color: "#94a3b8", fontStyle: "italic", fontSize: "0.8rem", marginTop: 20 }}>
                   No {featureView === "bug" ? "bugs" : "features"} added yet.
@@ -581,6 +722,24 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
 
             {/* ── Milestone list ── */}
             <div className="milestone-scroll-area" style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingRight: "5px", marginTop: "10px" }}>
+              {!isEditMode && canEditMilestone && (
+                <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "8px" }}>
+                  <button
+                    className="select-all-btn"
+                    onClick={() => handleSelectAll("milestones", task.milestones || [])}
+                  >
+                    Select All
+                  </button>
+                </div>
+              )}
+              {!isEditMode && selectedMilestones.size > 0 && (
+                <div className="bulk-action-bar">
+                  <span>{selectedMilestones.size} selected</span>
+                  <button className="btn-bulk-delete" onClick={() => handleBulkDelete('milestones')}>
+                    Delete Selected
+                  </button>
+                </div>
+              )}
               <div className="milestone-vertical-list" style={{ marginTop: 10 }} ref={milestoneListRef}>
                 {isEditMode ? (
                   <>
@@ -666,7 +825,21 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                     }
 
                     return (
-                      <div key={idx} className={`milestone-list-item ${status}`}>
+                      <div
+                        key={idx}
+                        className={`milestone-list-item ${status}`}
+                        onClick={(e) => canEditMilestone && handleRowClickToggle(e, setSelectedMilestones, idx)}
+                        style={{ display: "flex", alignItems: "center", cursor: canEditMilestone ? "pointer" : "default" }}
+                      >
+                        {canEditMilestone && (
+                          <input 
+                            type="checkbox" 
+                            className="multi-select-checkbox" 
+                            checked={selectedMilestones.has(idx)}
+                            onChange={() => handleCheckboxToggle(setSelectedMilestones, idx)}
+                            onClick={e => e.stopPropagation()}
+                          />
+                        )}
                         <div className="drag-handle">⋮⋮</div>
                         <div className="milestone-list-content">
                           <div className="milestone-name-row">
@@ -738,8 +911,24 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                   {newNotes}
                 </span>
               )}
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <button
+                  className="select-all-btn"
+                  onClick={() => handleSelectAll("notes", task.notes || [])}
+                >
+                  Select All
+                </button>
+              </div>
             </div>
             <div className="notes-list" onClick={() => setNoteContextMenu(null)} style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingRight: "5px", marginBottom: 10 }}>
+              {selectedNotes.size > 0 && (
+                <div className="bulk-action-bar">
+                  <span>{selectedNotes.size} selected</span>
+                  <button className="btn-bulk-delete" onClick={() => handleBulkDelete('notes')}>
+                    Delete Selected
+                  </button>
+                </div>
+              )}
               {(task.notes || []).map((n, i) => {
                 const reactions = n.reactions || {};
                 const reactionTypes = [
@@ -752,15 +941,25 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                   <div
                     key={i}
                     className="note-item"
+                    onClick={(e) => handleRowClickToggle(e, setSelectedNotes, i)}
                     onContextMenu={(e) => {
                       e.preventDefault();
                       setNoteContextMenu(i);
                     }}
-                    style={{ background: "white", padding: 12, borderRadius: "var(--radius-md)", border: "1px solid #f1f5f9", marginBottom: 8, boxShadow: "var(--shadow-sm)" }}
+                    style={{ background: "white", padding: 12, borderRadius: "var(--radius-md)", border: "1px solid #f1f5f9", marginBottom: 8, boxShadow: "var(--shadow-sm)", display: "flex", gap: "10px", alignItems: "flex-start", cursor: "pointer" }}
                   >
-                    <div className="note-date" style={{ color: "#10b981", marginBottom: 4, fontSize: "0.65rem", fontWeight: 700 }}>
-                      {n.date} {n.writer && <span style={{ color: "#065f46", fontWeight: 900 }}>- {n.writer}</span>}
-                    </div>
+                    <input 
+                      type="checkbox" 
+                      className="multi-select-checkbox" 
+                      checked={selectedNotes.has(i)}
+                      onChange={() => handleCheckboxToggle(setSelectedNotes, i)}
+                      onClick={e => e.stopPropagation()}
+                      style={{ marginTop: "4px" }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <div className="note-date" style={{ color: "#10b981", marginBottom: 4, fontSize: "0.65rem", fontWeight: 700 }}>
+                        {n.date} {n.writer && <span style={{ color: "#065f46", fontWeight: 900 }}>- {n.writer}</span>}
+                      </div>
                     <div className="note-text" style={{ fontSize: "0.8rem", lineHeight: 1.4, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{n.text}</div>
                     <div className="note-reactions-fixed">
                       {reactionTypes.map(({ key, emoji, label }) => {
@@ -786,6 +985,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                           </button>
                         );
                       })}
+                    </div>
                     </div>
                   </div>
                 );

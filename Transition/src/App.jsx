@@ -508,7 +508,7 @@ export default function App() {
         />
       )}
       {currentView === "notebook" && (
-        <Notebook userRole={userRole} userName={userName} />
+        <Notebook userRole={userRole} userName={userName} showModal={showModal} />
       )}
       {currentView === "admin" && <AdminPanel showModal={showModal} />}
       {currentView === "announcements" && actualRole === "Admin+" && (

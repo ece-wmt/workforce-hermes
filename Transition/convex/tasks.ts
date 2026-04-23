@@ -441,3 +441,61 @@ export const toggleNoteReaction = mutation({
   },
 });
 
+// ==========================================
+// BULK DELETIONS
+// ==========================================
+
+export const deleteTaskNotesBulk = mutation({
+  args: {
+    taskId: v.id("tasks"),
+    indices: v.array(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const task = await ctx.db.get(args.taskId);
+    if (!task) throw new Error("Task not found");
+    const currentNotes = task.notes || [];
+    const indicesSet = new Set(args.indices);
+    const updatedNotes = currentNotes.filter((_, i) => !indicesSet.has(i));
+    await ctx.db.patch(args.taskId, {
+      notes: updatedNotes,
+      lastUpdated: Date.now(),
+    });
+  },
+});
+
+export const deleteTaskFeaturesBulk = mutation({
+  args: {
+    taskId: v.id("tasks"),
+    featureIds: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const task = await ctx.db.get(args.taskId);
+    if (!task) throw new Error("Task not found");
+    const idSet = new Set(args.featureIds);
+    const updatedFeatures = (task.features || []).filter((f) => !idSet.has(f.id));
+    await ctx.db.patch(args.taskId, {
+      features: updatedFeatures,
+      lastUpdated: Date.now(),
+    });
+  },
+});
+
+export const deleteTaskMilestonesBulk = mutation({
+  args: {
+    taskId: v.id("tasks"),
+    indices: v.array(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const task = await ctx.db.get(args.taskId);
+    if (!task) throw new Error("Task not found");
+    const indicesSet = new Set(args.indices);
+    const updatedMilestones = (task.milestones || []).filter((_, i) => !indicesSet.has(i));
+    
+    const completedCount = updatedMilestones.filter(m => m.completed).length;
+    await ctx.db.patch(args.taskId, {
+      milestones: updatedMilestones,
+      completedMilestones: completedCount,
+      lastUpdated: Date.now(),
+    });
+  },
+});

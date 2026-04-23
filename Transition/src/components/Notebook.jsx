@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
-export default function Notebook({ userRole, userName }) {
+export default function Notebook({ userRole, userName, showModal }) {
   const ideas = useQuery(api.notebook.getIdeas);
   const addIdea = useMutation(api.notebook.addIdea);
   const deleteIdeaMut = useMutation(api.notebook.deleteIdea);
@@ -20,21 +20,37 @@ export default function Notebook({ userRole, userName }) {
       details: document.getElementById("idea-details").value,
       date: estDate,
     });
-    alert("Concept Saved to Notebook");
+    showModal({
+      title: "Success",
+      message: "Concept Saved to Notebook",
+      type: "success"
+    });
     e.target.reset();
   }
 
   function handleDelete(id) {
-    if (confirm("Are you sure you want to delete this idea?")) {
-      deleteIdeaMut({ ideaId: id });
-    }
+    showModal({
+      title: "Delete Idea",
+      message: "Are you sure you want to delete this idea?",
+      type: "confirm",
+      onConfirm: () => deleteIdeaMut({ ideaId: id })
+    });
   }
 
   function handleTake(id) {
-    if (confirm("Are you sure you want to take this idea?")) {
-      takeIdeaMut({ ideaId: id, takerName: userName });
-      alert("You have successfully taken this idea!");
-    }
+    showModal({
+      title: "Take Idea",
+      message: "Are you sure you want to take this idea?",
+      type: "confirm",
+      onConfirm: () => {
+        takeIdeaMut({ ideaId: id, takerName: userName });
+        showModal({
+          title: "Success",
+          message: "You have successfully taken this idea!",
+          type: "success"
+        });
+      }
+    });
   }
 
   return (
