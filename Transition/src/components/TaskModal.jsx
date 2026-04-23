@@ -579,18 +579,11 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                 return (
                   <div
                     key={f.id}
-                    className={`feature-card ${f.status === "completed" ? "completed" : ""}`}
+                    className={`feature-card ${f.status === "completed" ? "completed" : ""} ${isSelected ? "bulk-selected-item" : ""}`}
                     onClick={(e) => handleRowClickToggle(e, setFn, f.id)}
                     onContextMenu={(e) => handleFeatureContextMenu(e, f)}
                     style={{ cursor: "pointer", userSelect: "none", borderLeft: featureView === "bug" && f.status !== "completed" ? "3px solid #ef4444" : undefined, display: "flex", alignItems: "center" }}
                   >
-                    <input 
-                      type="checkbox" 
-                      className="multi-select-checkbox" 
-                      checked={isSelected}
-                      onChange={() => handleCheckboxToggle(setFn, f.id)}
-                      onClick={e => e.stopPropagation()}
-                    />
                     <div style={{ flex: 1, display: "flex", gap: "12px", alignItems: "flex-start" }} onClick={() => setFeatureModalConfig({ mode: "view", feature: f, type: featureView })}>
                       <div className="feature-icon-box" style={{ background: featureView === "bug" ? "#fef2f2" : undefined, color: featureView === "bug" ? "#ef4444" : undefined }}>
                         {featureView === "bug" ? (
@@ -827,19 +820,14 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                     return (
                       <div
                         key={idx}
-                        className={`milestone-list-item ${status}`}
-                        onClick={(e) => canEditMilestone && handleRowClickToggle(e, setSelectedMilestones, idx)}
-                        style={{ display: "flex", alignItems: "center", cursor: canEditMilestone ? "pointer" : "default" }}
+                        className={`milestone-list-item ${status} ${selectedMilestones.has(idx) ? "bulk-selected-item" : ""}`}
+                        onClick={(e) => {
+                          if (userRole === "Admin" || userRole === "Admin+") {
+                            handleRowClickToggle(e, setSelectedMilestones, idx);
+                          }
+                        }}
+                        style={{ display: "flex", alignItems: "center", cursor: (userRole === "Admin" || userRole === "Admin+") ? "pointer" : "default" }}
                       >
-                        {canEditMilestone && (
-                          <input 
-                            type="checkbox" 
-                            className="multi-select-checkbox" 
-                            checked={selectedMilestones.has(idx)}
-                            onChange={() => handleCheckboxToggle(setSelectedMilestones, idx)}
-                            onClick={e => e.stopPropagation()}
-                          />
-                        )}
                         <div className="drag-handle">⋮⋮</div>
                         <div className="milestone-list-content">
                           <div className="milestone-name-row">
@@ -940,7 +928,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                 return (
                   <div
                     key={i}
-                    className="note-item"
+                    className={`note-item ${selectedNotes.has(i) ? "bulk-selected-item" : ""}`}
                     onClick={(e) => handleRowClickToggle(e, setSelectedNotes, i)}
                     onContextMenu={(e) => {
                       e.preventDefault();
@@ -948,14 +936,6 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                     }}
                     style={{ background: "white", padding: 12, borderRadius: "var(--radius-md)", border: "1px solid #f1f5f9", marginBottom: 8, boxShadow: "var(--shadow-sm)", display: "flex", gap: "10px", alignItems: "flex-start", cursor: "pointer" }}
                   >
-                    <input 
-                      type="checkbox" 
-                      className="multi-select-checkbox" 
-                      checked={selectedNotes.has(i)}
-                      onChange={() => handleCheckboxToggle(setSelectedNotes, i)}
-                      onClick={e => e.stopPropagation()}
-                      style={{ marginTop: "4px" }}
-                    />
                     <div style={{ flex: 1 }}>
                       <div className="note-date" style={{ color: "#10b981", marginBottom: 4, fontSize: "0.65rem", fontWeight: 700 }}>
                         {n.date} {n.writer && <span style={{ color: "#065f46", fontWeight: 900 }}>- {n.writer}</span>}

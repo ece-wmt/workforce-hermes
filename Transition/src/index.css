@@ -2243,18 +2243,13 @@ body.role-programmer .kanban-col.col-scrap {
    MULTI-SELECT & BULK ACTIONS
    ============================================================ */
 
-.multi-select-checkbox {
-  width: 16px;
-  height: 16px;
-  cursor: pointer;
-  accent-color: var(--color-accent);
-  margin-right: 12px;
-  flex-shrink: 0;
-  transition: transform 0.15s ease;
-}
-
-.multi-select-checkbox:hover {
-  transform: scale(1.1);
+.bulk-selected-item {
+  transform: scale(1.02);
+  box-shadow: 0 0 0 2px var(--color-accent) !important;
+  background: #f0fdf4 !important;
+  z-index: 10;
+  position: relative;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .bulk-action-bar {
