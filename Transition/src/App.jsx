@@ -92,16 +92,17 @@ export default function App() {
     }
 
     const mainAdmin = email === "wmt@ececontactcenters.com";
+    const user = staff.find((s) => (s.email || "").toLowerCase() === email);
+
     if (mainAdmin) {
       setUserName("Main Admin");
       setIsMainAdmin(true);
-      setActualRole("Admin");
-      setUserRole("Admin");
+      const dbRole = user?.role || "Admin";
+      setActualRole(dbRole);
+      setUserRole(dbRole === "Admin+" ? "Admin" : dbRole);
       setLoading(false);
       return;
     }
-
-    const user = staff.find((s) => (s.email || "").toLowerCase() === email);
     if (user) {
       if (user.role === "Revoked") {
         logout();
