@@ -456,10 +456,20 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
       {/* Full View Modal */}
       {fullViewColumn && (
         <div className="modal-overlay" onClick={() => setFullViewColumn(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 1200 }}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 1400 }}>
             <button className="modal-close" onClick={() => setFullViewColumn(null)}>×</button>
-            <h2 style={{ fontWeight: 900, textTransform: "uppercase", marginBottom: 30, color: "var(--color-text-primary)" }}>
-              All Tasks: {columnLabels[fullViewColumn]} ({totals[fullViewColumn]})
+            <h2 style={{ 
+              fontWeight: 900, 
+              textTransform: "uppercase", 
+              marginBottom: 25, 
+              paddingBottom: 15,
+              borderBottom: "1px solid #f1f5f9",
+              color: "var(--color-text-primary)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between"
+            }}>
+              <span>All Tasks: {columnLabels[fullViewColumn]} ({totals[fullViewColumn]})</span>
             </h2>
             <div className="full-kanban-grid">
               {filtered
