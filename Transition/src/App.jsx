@@ -43,6 +43,7 @@ export default function App() {
   const [userName, setUserName] = useState("");
   const [isMainAdmin, setIsMainAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [userAvatar, setUserAvatar] = useState("");
   const [modalTaskId, setModalTaskId] = useState(null);
   const [modalEditMode, setModalEditMode] = useState(false);
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, task: null });
@@ -137,9 +138,11 @@ export default function App() {
       if (needsSync) {
         saveSettings(updatedSettings);
         applySettings(updatedSettings);
+        setUserAvatar(updatedSettings.avatarUrl || "");
         setUserName(updatedSettings.username);
       } else {
         setUserName(settings.username || user.name);
+        setUserAvatar(settings.avatarUrl || user.avatarUrl || "");
       }
 
       setActualRole(user.role);
@@ -439,7 +442,37 @@ export default function App() {
       {/* Header */}
       <header>
         <div className="header-container">
-          <div style={{ minWidth: 180 }}></div>
+          <div className="user-profile" style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "12px", width: "auto", minWidth: 200 }}>
+            <div 
+              className="header-avatar-container"
+              onClick={() => {
+                const settings = loadSettings();
+                const user = staff?.find(s => s.email.toLowerCase() === (localStorage.getItem("wf_email") || "").toLowerCase());
+                setViewingStaff(user || {
+                  name: userName,
+                  email: localStorage.getItem("wf_email"),
+                  role: actualRole,
+                  avatarUrl: userAvatar,
+                  bio: settings.bio,
+                  country: settings.country,
+                  status: settings.status
+                });
+              }}
+              style={{ cursor: "pointer", position: "relative" }}
+            >
+              {userAvatar ? (
+                <img src={userAvatar} alt="Profile" style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", border: "2px solid var(--color-accent)" }} />
+              ) : (
+                <div style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--color-bg-primary)", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid var(--color-accent)" }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+                </div>
+              )}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "2px", alignItems: "flex-start" }}>
+              <div style={{ fontSize: "0.85rem", fontWeight: 900, color: "var(--color-text-primary)" }}>{userName}</div>
+              <div className="role-badge" style={{ padding: "2px 8px", borderRadius: "6px", fontSize: "0.6rem", letterSpacing: "0.5px" }}>{actualRole === "Admin+" ? "Admin+" : userRole}</div>
+            </div>
+          </div>
           <div className="header-box" style={{ padding: "10px 30px", borderRadius: "20px", border: "1px solid var(--glass-border)", background: "var(--glass-bg)", boxShadow: "var(--shadow-md)" }}>
             <img src="https://i.imgur.com/BRd5lrB.png" alt="ECE Logo" className="header-logo" style={{ height: "45px" }} />
             <div className="header-text-content">
@@ -448,13 +481,12 @@ export default function App() {
             </div>
             <img src="https://i.imgur.com/ycmU6oP.png" alt="WFM Logo" className="header-logo" style={{ height: "45px" }} />
           </div>
-          <div className="user-profile" style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "20px", width: "auto" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px", alignItems: "flex-end" }}>
-              <div className="role-badge" style={{ padding: "4px 12px", borderRadius: "10px", letterSpacing: "0.5px" }}>{actualRole === "Admin+" ? "Admin+" : userRole}</div>
+          <div className="header-actions" style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px", alignItems: "flex-end" }}>
               {!isMainAdmin && (actualRole === "Admin" || actualRole === "Admin+") && (
                 <select
                   className="role-switcher"
-                  style={{ padding: "6px 12px", borderRadius: "10px", border: "1px solid #e2e8f0", fontSize: "0.75rem" }}
+                  style={{ padding: "6px 12px", borderRadius: "10px", border: "1px solid var(--glass-border)", background: "var(--glass-bg)", color: "var(--color-text-primary)", fontSize: "0.75rem" }}
                   value={userRole}
                   onChange={(e) => changeRole(e.target.value)}
                 >
@@ -477,8 +509,7 @@ export default function App() {
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
-                  gap: "6px",
-                  marginTop: "4px"
+                  gap: "6px"
                 }}
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
@@ -488,6 +519,7 @@ export default function App() {
                 PROJECTS
               </button>
             </div>
+
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {actualRole === "Admin+" && (
                 <button
@@ -499,26 +531,6 @@ export default function App() {
                 </button>
               )}
               <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                <button
-                  className="btn-settings-header"
-                  onClick={() => {
-                    const settings = loadSettings();
-                    const user = staff?.find(s => s.email.toLowerCase() === (localStorage.getItem("wf_email") || "").toLowerCase());
-                    setViewingStaff(user || {
-                      name: userName,
-                      email: localStorage.getItem("wf_email"),
-                      role: actualRole,
-                      avatarUrl: settings.avatarUrl,
-                      bio: settings.bio,
-                      country: settings.country,
-                      status: settings.status
-                    });
-                  }}
-                  title="My Profile"
-                  style={{ background: "var(--color-bg-primary)", color: "var(--color-text-primary)" }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
-                </button>
                 <button
                   className="btn-settings-header"
                   onClick={() => setShowSettings(true)}
@@ -605,6 +617,7 @@ export default function App() {
           openTaskModal={openTaskModal}
           onContextMenu={handleContextMenu}
           showModal={showModal}
+          staff={staff || []}
         />
       )}
       {currentView === "entry" && (
@@ -634,6 +647,7 @@ export default function App() {
           staff={staff || []}
           onClose={closeTaskModal}
           showModal={showModal}
+          onViewProfile={(s) => setViewingStaff(s)}
         />
       )}
 

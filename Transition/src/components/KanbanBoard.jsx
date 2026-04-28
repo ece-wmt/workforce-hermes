@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { notifyTaskUpdated, notifyMilestoneCompleted, notifyNoteAdded } from "../utils/notifications";
 
-export default function KanbanBoard({ userRole, actualRole, userName, openTaskModal, onContextMenu, showModal }) {
+export default function KanbanBoard({ userRole, actualRole, userName, openTaskModal, onContextMenu, showModal, staff }) {
   const tasks = useQuery(api.tasks.getTasks);
   const updateTaskStatus = useMutation(api.tasks.updateTaskStatus).withOptimisticUpdate(
     (localStore, { taskId, newStatus }) => {
@@ -296,11 +296,21 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
           </div>
         )}
 
-        <div className="card-assignee" style={{ marginBottom: 12, fontSize: "0.7rem", color: "var(--color-text-secondary)" }}>
-          <svg className="assignee-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: 14, height: 14 }}>
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-            <circle cx="12" cy="7" r="4" />
-          </svg>
+        <div className="card-assignee" style={{ marginBottom: 12, fontSize: "0.7rem", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6 }}>
+          {(() => {
+            const assigneeName = t.assignee || "";
+            const found = (staff || []).find(s => s.name === assigneeName);
+            const avatarUrl = found?.avatarUrl;
+            if (avatarUrl) {
+              return <img src={avatarUrl} alt={assigneeName} style={{ width: 16, height: 16, borderRadius: "50%", objectFit: "cover" }} />;
+            }
+            return (
+              <svg className="assignee-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: 14, height: 14 }}>
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            );
+          })()}
           {t.assignee || "Unassigned"}
         </div>
 
