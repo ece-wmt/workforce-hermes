@@ -993,10 +993,10 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                 );
               })}
               {(task.notes || []).length === 0 && (
-                <div style={{ textAlign: "center", color: "#94a3b8", fontStyle: "italic", marginTop: 40, fontSize: "0.8rem" }}>No updates yet.</div>
+                <div style={{ textAlign: "center", color: "var(--color-text-secondary)", fontStyle: "italic", marginTop: 40, fontSize: "0.8rem" }}>No updates yet.</div>
               )}
             </div>
-            <div className="note-input-group" style={{ display: "flex", gap: 8, paddingTop: 10, borderTop: "1px solid #e2e8f0", flexShrink: 0 }}>
+            <div className="note-input-group" style={{ display: "flex", gap: 8, paddingTop: 10, borderTop: "1px solid var(--glass-border)", flexShrink: 0 }}>
               <input
                 type="text"
                 className="note-input"

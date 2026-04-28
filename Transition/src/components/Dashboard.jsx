@@ -67,15 +67,15 @@ export default function Dashboard() {
                     border: "1px solid var(--glass-border)",
                   }}
                 >
-                  <div style={{ fontWeight: 800, color: "var(--color-text-primary)", fontSize: "0.9rem" }}>{w.name}</div>
+                  <div style={{ fontWeight: 900, color: "var(--color-text-primary)", fontSize: "0.9rem" }}>{w.name}</div>
                   <div style={{ display: "flex", gap: 10 }}>
                     {w.active > 0 && (
-                      <span style={{ background: "linear-gradient(135deg,var(--color-accent),var(--color-accent-light))", color: "white", padding: "3px 10px", borderRadius: 12, fontSize: "0.75rem", fontWeight: 700 }}>
+                      <span style={{ background: "linear-gradient(135deg, var(--color-nav-bg), var(--color-accent))", color: "white", padding: "3px 10px", borderRadius: 12, fontSize: "0.75rem", fontWeight: 900 }}>
                         Active: {w.active}
                       </span>
                     )}
                     {w.pending > 0 && (
-                      <span style={{ background: "linear-gradient(135deg,var(--color-text-secondary),var(--color-border))", color: "white", padding: "3px 10px", borderRadius: 12, fontSize: "0.75rem", fontWeight: 700 }}>
+                      <span style={{ background: "linear-gradient(135deg, var(--color-nav-bg), #475569)", color: "white", padding: "3px 10px", borderRadius: 12, fontSize: "0.75rem", fontWeight: 900 }}>
                         Pending: {w.pending}
                       </span>
                     )}

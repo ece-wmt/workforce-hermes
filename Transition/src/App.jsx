@@ -440,7 +440,7 @@ export default function App() {
       <header>
         <div className="header-container">
           <div style={{ minWidth: 180 }}></div>
-          <div className="header-box" style={{ padding: "10px 30px", borderRadius: "20px", border: "1px solid #f1f5f9", boxShadow: "var(--shadow-md)" }}>
+          <div className="header-box" style={{ padding: "10px 30px", borderRadius: "20px", border: "1px solid var(--glass-border)", background: "var(--glass-bg)", boxShadow: "var(--shadow-md)" }}>
             <img src="https://i.imgur.com/BRd5lrB.png" alt="ECE Logo" className="header-logo" style={{ height: "45px" }} />
             <div className="header-text-content">
               <h1 style={{ fontSize: "1.6rem", letterSpacing: "-1.2px" }}>WORKFORCE HERMES</h1>
