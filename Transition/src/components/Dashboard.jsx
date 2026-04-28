@@ -62,20 +62,20 @@ export default function Dashboard() {
                     alignItems: "center",
                     padding: "12px 15px",
                     borderRadius: 12,
-                    background: "#f8fafc",
+                    background: "var(--color-bg-subtle)",
                     marginBottom: 10,
-                    border: "1px solid #e2e8f0",
+                    border: "1px solid var(--glass-border)",
                   }}
                 >
-                  <div style={{ fontWeight: 800, color: "#1e293b", fontSize: "0.9rem" }}>{w.name}</div>
+                  <div style={{ fontWeight: 800, color: "var(--color-text-primary)", fontSize: "0.9rem" }}>{w.name}</div>
                   <div style={{ display: "flex", gap: 10 }}>
                     {w.active > 0 && (
-                      <span style={{ background: "linear-gradient(135deg,var(--color-accent),#5eead4)", color: "white", padding: "3px 10px", borderRadius: 12, fontSize: "0.75rem", fontWeight: 700 }}>
+                      <span style={{ background: "linear-gradient(135deg,var(--color-accent),var(--color-accent-light))", color: "white", padding: "3px 10px", borderRadius: 12, fontSize: "0.75rem", fontWeight: 700 }}>
                         Active: {w.active}
                       </span>
                     )}
                     {w.pending > 0 && (
-                      <span style={{ background: "linear-gradient(135deg,#94a3b8,#cbd5e1)", color: "white", padding: "3px 10px", borderRadius: 12, fontSize: "0.75rem", fontWeight: 700 }}>
+                      <span style={{ background: "linear-gradient(135deg,var(--color-text-secondary),var(--color-border))", color: "white", padding: "3px 10px", borderRadius: 12, fontSize: "0.75rem", fontWeight: 700 }}>
                         Pending: {w.pending}
                       </span>
                     )}

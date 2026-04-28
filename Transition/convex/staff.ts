@@ -164,3 +164,65 @@ export const deleteStaff = mutation({
     }
   },
 });
+
+export const updateProfile = mutation({
+  args: {
+    email: v.string(),
+    name: v.optional(v.string()),
+    bio: v.optional(v.union(v.string(), v.null())),
+    avatarUrl: v.optional(v.union(v.string(), v.null())),
+    country: v.optional(v.union(v.string(), v.null())),
+    status: v.optional(v.union(v.string(), v.null())),
+  },
+  handler: async (ctx, args) => {
+    const lowerEmail = args.email.toLowerCase();
+    const existing = await ctx.db
+      .query("staff")
+      .withIndex("by_email", (q) => q.eq("email", lowerEmail))
+      .first();
+
+    const updates: any = {};
+    if (args.name !== undefined) updates.name = args.name;
+    if (args.bio !== undefined) updates.bio = args.bio;
+    if (args.avatarUrl !== undefined) updates.avatarUrl = args.avatarUrl;
+    if (args.country !== undefined) updates.country = args.country;
+    if (args.status !== undefined) updates.status = args.status;
+
+    if (existing) {
+      await ctx.db.patch(existing._id, updates);
+    } else {
+      const initial = INITIAL_STAFF.find(s => s.email.toLowerCase() === lowerEmail);
+      await ctx.db.insert("staff", {
+        name: args.name || initial?.name || "User",
+        email: lowerEmail,
+        role: initial?.role || "Programmer",
+        ...updates,
+      });
+    }
+  },
+});
+
+export const heartbeat = mutation({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    const lowerEmail = args.email.toLowerCase();
+    const existing = await ctx.db
+      .query("staff")
+      .withIndex("by_email", (q) => q.eq("email", lowerEmail))
+      .first();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, { lastSeen: Date.now() });
+    } else {
+      const initial = INITIAL_STAFF.find(s => s.email.toLowerCase() === lowerEmail);
+      if (initial) {
+        await ctx.db.insert("staff", {
+          name: initial.name,
+          email: lowerEmail,
+          role: initial.role,
+          lastSeen: Date.now(),
+        });
+      }
+    }
+  },
+});

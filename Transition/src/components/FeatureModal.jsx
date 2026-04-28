@@ -249,7 +249,7 @@ export default function FeatureModal({ mode, feature, taskId, onClose, canEdit, 
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
                 <div>
-                  <h3 style={{ margin: "0 0 5px 0", fontSize: "1.2rem", color: "#1e293b", fontWeight: 800 }}>{feature.name}</h3>
+                  <h3 style={{ margin: "0 0 5px 0", fontSize: "1.2rem", color: "var(--color-text-primary)", fontWeight: 800 }}>{feature.name}</h3>
                   <span className={`feature-badge ${feature.status}`} style={{ fontSize: "0.65rem", padding: "4px 8px" }}>
                     {feature.status === "completed" ? "COMPLETED" : "PENDING"}
                   </span>
@@ -266,14 +266,14 @@ export default function FeatureModal({ mode, feature, taskId, onClose, canEdit, 
                 )}
               </div>
 
-              <div style={{ background: "#f8fafc", padding: 20, borderRadius: 12, border: "1px solid #f1f5f9", marginBottom: 20 }}>
-                <h4 style={{ margin: "0 0 10px 0", fontSize: "0.75rem", textTransform: "uppercase", color: "#64748b", fontWeight: 800 }}>Description</h4>
-                <p style={{ margin: 0, fontSize: "0.9rem", color: "#334155", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{feature.description}</p>
+              <div style={{ background: "var(--color-bg-subtle)", padding: 20, borderRadius: 12, border: "1px solid var(--glass-border)", marginBottom: 20 }}>
+                <h4 style={{ margin: "0 0 10px 0", fontSize: "0.75rem", textTransform: "uppercase", color: "var(--color-text-secondary)", fontWeight: 800 }}>Description</h4>
+                <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--color-text-primary)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{feature.description}</p>
               </div>
 
               <div style={{ marginBottom: 20 }}>
                 <span style={{ fontSize: "0.7rem", fontWeight: 800, color: "var(--color-accent)", textTransform: "uppercase", letterSpacing: "0.5px" }}>{type === "bug" ? "Reported By" : "Suggested By"}</span>
-                <div style={{ fontSize: "0.9rem", color: "#1e293b", fontWeight: 700, marginTop: "4px" }}>{feature.suggestedBy || "System"}</div>
+                <div style={{ fontSize: "0.9rem", color: "var(--color-text-primary)", fontWeight: 700, marginTop: "4px" }}>{feature.suggestedBy || "System"}</div>
               </div>
 
               {initialStorageIds.length > 0 && (

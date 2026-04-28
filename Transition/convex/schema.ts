@@ -61,6 +61,11 @@ export default defineSchema({
     email: v.string(),
     role: v.string(),
     password: v.optional(v.string()),
+    avatarUrl: v.optional(v.union(v.string(), v.null())),
+    bio: v.optional(v.union(v.string(), v.null())),
+    country: v.optional(v.union(v.string(), v.null())),
+    status: v.optional(v.union(v.string(), v.null())),
+    lastSeen: v.optional(v.number()),
   }).index("by_email", ["email"]),
 
   notebook: defineTable({

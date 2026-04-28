@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
-export default function AdminPanel({ showModal }) {
+export default function AdminPanel({ showModal, onViewProfile }) {
   const staff = useQuery(api.staff.getStaff);
   const addStaffMut = useMutation(api.staff.addStaff);
   const updateStaffRole = useMutation(api.staff.updateStaffRole);
@@ -53,9 +53,10 @@ export default function AdminPanel({ showModal }) {
             <div style={{ marginBottom: 40 }}>
               <h3 style={{ color: "var(--color-accent)", borderBottom: "2px solid var(--color-accent)", paddingBottom: 15, marginBottom: 25, fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "1px" }}>Pending Access Requests</h3>
               {pendingRequests.length > 0 ? (
-                <table className="table" style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "var(--radius-md)", overflow: "hidden" }}>
+                <table className="table" style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--glass-border)", borderRadius: "var(--radius-md)", overflow: "hidden" }}>
                   <thead>
                     <tr>
+                      <th style={{ width: 40 }}></th>
                       <th>Name</th>
                       <th>Email</th>
                       <th style={{ textAlign: "right" }}>Action</th>
@@ -64,6 +65,11 @@ export default function AdminPanel({ showModal }) {
                   <tbody>
                     {pendingRequests.map((s) => (
                       <tr key={s.email}>
+                        <td>
+                          <div className="staff-avatar-small" style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--color-bg-subtle)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", border: "1px solid var(--glass-border)" }}>
+                            {s.avatarUrl ? <img src={s.avatarUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>}
+                          </div>
+                        </td>
                         <td><strong>{s.name}</strong></td>
                         <td style={{ color: "#64748b" }}>{s.email}</td>
                         <td>
@@ -119,7 +125,7 @@ export default function AdminPanel({ showModal }) {
                   </tbody>
                 </table>
               ) : (
-                <div style={{ padding: "20px", background: "#f8fafc", borderRadius: "8px", color: "#64748b", textAlign: "center", border: "1px dashed #e2e8f0" }}>
+                <div style={{ textAlign: "center", color: "var(--color-text-secondary)", fontStyle: "italic", padding: 40, background: "var(--color-bg-subtle)", borderRadius: "var(--radius-md)", border: "1px solid var(--glass-border)" }}>
                   No pending access requests at the moment.
                 </div>
               )}
@@ -129,6 +135,7 @@ export default function AdminPanel({ showModal }) {
             <table className="table">
               <thead>
                 <tr>
+                  <th style={{ width: 40 }}></th>
                   <th>Name</th>
                   <th>Role</th>
                   <th>Email</th>
@@ -138,7 +145,24 @@ export default function AdminPanel({ showModal }) {
               <tbody>
                 {activeStaff.map((s) => (
                   <tr key={s.email}>
-                    <td><strong>{s.name}</strong></td>
+                    <td>
+                      <div 
+                        className="staff-avatar-small clickable" 
+                        onClick={() => onViewProfile(s)}
+                        style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--color-bg-subtle)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", cursor: "pointer", border: "1px solid var(--glass-border)" }}
+                      >
+                        {s.avatarUrl ? <img src={s.avatarUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>}
+                      </div>
+                    </td>
+                    <td>
+                      <strong 
+                        className="clickable-name" 
+                        onClick={() => onViewProfile(s)}
+                        style={{ cursor: "pointer", color: "var(--color-text-primary)" }}
+                      >
+                        {s.name}
+                      </strong>
+                    </td>
                     <td>
                       <select
                         className="role-switcher"

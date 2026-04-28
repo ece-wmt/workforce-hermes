@@ -306,7 +306,7 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
 
         {(isProgrammerView && !isFullView) ? (
           <>
-            <div style={{ background: "white", border: "1px solid #dcfce7", borderRadius: 12, padding: 15, marginBottom: 20 }}>
+            <div style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--glass-border)", borderRadius: 12, padding: 15, marginBottom: 20 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontWeight: 800, color: "#1e293b", marginBottom: 10 }}>
                 <span style={{ fontSize: "0.75rem", color: "#64748b" }}>
                   Milestones: {doneM} / {totalM} ({progressPercent}%)

@@ -654,7 +654,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                   <h1 className="modal-title" style={{ marginBottom: 0, fontSize: "1.3rem", letterSpacing: "-0.5px" }}>{task.title}</h1>
                 )}
                 {isEditMode ? (
-                  <button className="btn-primary" style={{ background: "#3b82f6", color: "white", padding: "8px 16px", fontSize: "0.65rem", borderRadius: 8, width: "auto", fontWeight: 800 }} onClick={handleSaveEdits}>
+                  <button className="btn-primary" style={{ background: "var(--color-accent)", color: "white", padding: "8px 16px", fontSize: "0.65rem", borderRadius: 8, width: "auto", fontWeight: 800 }} onClick={handleSaveEdits}>
                     SAVE CHANGES
                   </button>
                 ) : (
@@ -719,7 +719,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                 )}
               </div>
 
-              <div style={{ background: "white", border: "1px solid #f1f5f9", borderRadius: "10px", padding: "15px 20px", boxShadow: "var(--shadow-sm)", marginTop: 15 }}>
+              <div style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--glass-border)", borderRadius: "10px", padding: "15px 20px", boxShadow: "var(--shadow-sm)", marginTop: 15 }}>
                 <div style={{ marginBottom: 12 }}>
                   <span style={{ fontSize: "0.8rem", color: "var(--color-text-secondary)", letterSpacing: "0.5px", fontWeight: 800 }}>
                     Milestones: {doneM} / {milestones.length} ({progressPercent}%)
@@ -813,7 +813,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                     <button
                       type="button"
                       className="btn-primary"
-                      style={{ marginTop: 10, alignSelf: "flex-start", width: "auto", padding: "6px 12px", fontSize: "0.75rem", background: "white", color: "var(--color-nav-bg)", border: "2px dashed #cbd5e1" }}
+                      style={{ marginTop: 10, alignSelf: "flex-start", width: "auto", padding: "6px 12px", fontSize: "0.75rem", background: "var(--color-bg-subtle)", color: "var(--color-nav-bg)", border: "2px dashed var(--color-accent-lighter)" }}
                       onClick={appendEditableMilestone}
                     >
                       + ADD MILESTONE
@@ -873,19 +873,19 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
             </div>
 
             {(userRole === "Admin" || userRole === "Admin+") && (
-              <div className="admin-creds-box" style={{ flexShrink: 0, marginTop: 10, background: "#ecfdf5", border: "2px solid #10b981", borderRadius: "8px", overflow: "hidden", boxShadow: "var(--shadow-sm)" }}>
-                <div className="creds-header" style={{ background: "#10b981", padding: "6px 12px", color: "white", fontSize: "0.6rem", fontWeight: 900, display: "flex", alignItems: "center", gap: "8px", letterSpacing: "1px" }}>
+              <div className="admin-creds-box" style={{ flexShrink: 0, marginTop: 10, background: "var(--color-bg-subtle)", border: "2px solid var(--color-accent)", borderRadius: "8px", overflow: "hidden", boxShadow: "var(--shadow-sm)" }}>
+                <div className="creds-header" style={{ background: "var(--color-accent)", padding: "6px 12px", color: "white", fontSize: "0.6rem", fontWeight: 900, display: "flex", alignItems: "center", gap: "8px", letterSpacing: "1px" }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                     <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                   </svg>
                   ADMIN CREDENTIALS (SENSITIVE)
                 </div>
-                <div className="creds-content" style={{ padding: "8px 12px", color: "#064e3b" }}>
+                <div className="creds-content" style={{ padding: "8px 12px", color: "var(--color-nav-bg)" }}>
                   <div style={{ display: "grid", gridTemplateColumns: "80px 1fr", gap: "2px 10px", alignItems: "center" }}>
-                    <span style={{ fontSize: "0.6rem", fontWeight: 900, textTransform: "uppercase", color: "#059669" }}>Email:</span>
+                    <span style={{ fontSize: "0.6rem", fontWeight: 900, textTransform: "uppercase", color: "var(--color-accent)" }}>Email:</span>
                     <span style={{ fontWeight: 700, fontSize: "0.8rem", fontFamily: "monospace" }}>{task.adminCredentials?.email || "—"}</span>
-                    <span style={{ fontSize: "0.6rem", fontWeight: 900, textTransform: "uppercase", color: "#059669" }}>Pass:</span>
+                    <span style={{ fontSize: "0.6rem", fontWeight: 900, textTransform: "uppercase", color: "var(--color-accent)" }}>Pass:</span>
                     <span style={{ fontWeight: 700, fontSize: "0.8rem", fontFamily: "monospace" }}>{task.adminCredentials?.password || "—"}</span>
                   </div>
                 </div>
@@ -896,7 +896,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
           {/* ── Notes column ── */}
           <div 
             onClick={() => clearBadge("notes")}
-            style={{ background: "rgba(241, 245, 249, 0.5)", border: "1px solid #f1f5f9", padding: "15px 20px", borderRadius: "var(--radius-lg)", alignSelf: "stretch", display: "flex", flexDirection: "column", height: "100%", minHeight: 0, overflow: "hidden" }}
+            style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--glass-border)", padding: "15px 20px", borderRadius: "var(--radius-lg)", alignSelf: "stretch", display: "flex", flexDirection: "column", height: "100%", minHeight: 0, overflow: "hidden" }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: 10, position: "relative", flexShrink: 0 }}>
               <h3 style={{ fontWeight: 900, textTransform: "uppercase", fontSize: "0.7rem", color: "var(--color-text-secondary)", letterSpacing: "1px", margin: 0 }}>Notes & Updates</h3>
@@ -956,11 +956,11 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                       e.preventDefault();
                       setNoteContextMenu(i);
                     }}
-                    style={{ background: "white", padding: 12, borderRadius: "var(--radius-md)", border: "1px solid #f1f5f9", marginBottom: 8, boxShadow: "var(--shadow-sm)", display: "flex", gap: "10px", alignItems: "flex-start", cursor: "pointer" }}
+                    style={{ background: "var(--color-card-bg)", padding: 12, borderRadius: "var(--radius-md)", border: "1px solid var(--glass-border)", marginBottom: 8, boxShadow: "var(--shadow-sm)", display: "flex", gap: "10px", alignItems: "flex-start", cursor: "pointer" }}
                   >
                     <div style={{ flex: 1 }}>
-                      <div className="note-date" style={{ color: "#10b981", marginBottom: 4, fontSize: "0.65rem", fontWeight: 700 }}>
-                        {n.date} {n.writer && <span style={{ color: "#065f46", fontWeight: 900 }}>- {n.writer}</span>}
+                      <div className="note-date" style={{ color: "var(--color-accent)", marginBottom: 4, fontSize: "0.65rem", fontWeight: 700 }}>
+                        {n.date} {n.writer && <span style={{ color: "var(--color-nav-bg)", fontWeight: 900 }}>- {n.writer}</span>}
                       </div>
                     <div className="note-text" style={{ fontSize: "0.8rem", lineHeight: 1.4, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{n.text}</div>
                     <div className="note-reactions-fixed">
@@ -1083,25 +1083,25 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
               position: "fixed",
               top: featureContextMenu.y,
               left: featureContextMenu.x,
-              background: "white",
+              background: "var(--color-card-bg)",
               padding: "4px 0",
               borderRadius: 10,
-              boxShadow: "0 8px 30px rgba(0,0,0,0.18)",
+              boxShadow: "var(--shadow-lg)",
               zIndex: 9999,
-              border: "1px solid #e2e8f0",
+              border: "1px solid var(--glass-border)",
               minWidth: 160,
               overflow: "hidden",
             }}
           >
             <button
-              style={{ width: "100%", padding: "9px 16px", textAlign: "left", background: "none", border: "none", fontSize: "0.82rem", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, color: "#1e293b", fontWeight: 700 }}
-              onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"}
+              style={{ width: "100%", padding: "9px 16px", textAlign: "left", background: "none", border: "none", fontSize: "0.82rem", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, color: "var(--color-text-primary)", fontWeight: 700 }}
+              onMouseEnter={e => e.currentTarget.style.background = "var(--color-bg-subtle)"}
               onMouseLeave={e => e.currentTarget.style.background = "none"}
               onClick={() => handleFeatureEdit(featureContextMenu.feature)}
             >
               ✏️ {featureContextMenu.feature?.type === "bug" ? "Edit Bug" : "Edit Feature"}
             </button>
-            <div style={{ height: 1, background: "#f1f5f9", margin: "2px 0" }} />
+            <div style={{ height: 1, background: "var(--glass-border)", margin: "2px 0" }} />
             <button
               style={{ width: "100%", padding: "9px 16px", textAlign: "left", background: "none", border: "none", fontSize: "0.82rem", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, color: "#ef4444", fontWeight: 700 }}
               onMouseEnter={e => e.currentTarget.style.background = "#fef2f2"}

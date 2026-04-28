@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { applySettings, loadSettings, saveSettings } from "./utils/settingsManager";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { initNotifications } from "./utils/notifications";
@@ -16,6 +17,7 @@ import IntroAnimation from "./components/IntroAnimation";
 import AnnouncementPopup from "./components/AnnouncementPopup";
 import AnnouncementComposer from "./components/AnnouncementComposer";
 import TaskNotificationPopup from "./components/TaskNotificationPopup";
+import Settings from "./components/Settings";
 
 export default function App() {
   // --- Auth state ---
@@ -48,31 +50,42 @@ export default function App() {
     // Show intro on auto-login (user didn't log out)
     return localStorage.getItem("wf_authenticated") === "true";
   });
+  const [showSettings, setShowSettings] = useState(false);
+  const [viewingStaff, setViewingStaff] = useState(null);
+
   const [showLoginNotifications, setShowLoginNotifications] = useState(false);
+  const [showAllProjects, setShowAllProjects] = useState(false);
   const [modalConfig, setModalConfig] = useState({
     isOpen: false,
     title: "",
     message: "",
     type: "alert",
-    onConfirm: () => {},
-    onCancel: () => {},
+    onConfirm: () => { },
+    onCancel: () => { },
   });
   const [inputModal, setInputModal] = useState({
     isOpen: false,
     title: "",
     message: "",
     fields: [],
-    onConfirm: () => {},
+    onConfirm: () => { },
   });
 
   // --- Convex ---
   const staff = useQuery(api.staff.getStaff);
+  const tasks = useQuery(api.tasks.getTasks);
   const addStaffMutation = useMutation(api.staff.addStaff);
   const setPasswordMutation = useMutation(api.staff.setPassword);
   const deleteStaffMutation = useMutation(api.staff.deleteStaff);
   const deleteTask = useMutation(api.tasks.deleteTask);
   const updateProjectLink = useMutation(api.tasks.updateProjectLink);
   const updateAdminCredentials = useMutation(api.tasks.updateAdminCredentials);
+  const heartbeatMutation = useMutation(api.staff.heartbeat);
+
+  const activeProfile = useMemo(() => {
+    if (!viewingStaff) return null;
+    return staff?.find(s => s.email.toLowerCase() === viewingStaff.email.toLowerCase()) || viewingStaff;
+  }, [viewingStaff, staff]);
 
   // --- Resolve user once authenticated and staff loaded ---
   useEffect(() => {
@@ -91,11 +104,12 @@ export default function App() {
       return;
     }
 
+    const settings = loadSettings();
     const mainAdmin = email === "wmt@ececontactcenters.com";
     const user = staff.find((s) => (s.email || "").toLowerCase() === email);
 
     if (mainAdmin) {
-      setUserName("Main Admin");
+      setUserName(settings.username || "Main Admin");
       setIsMainAdmin(true);
       const dbRole = user?.role || "Admin";
       setActualRole(dbRole);
@@ -108,33 +122,69 @@ export default function App() {
         logout();
         return;
       }
-      setUserName(user.name);
+
+      // --- Sync DB Profile to Local Settings ---
+      // This is the "recognizing system" — if DB has newer/cloud data, pull it down
+      let needsSync = false;
+      const updatedSettings = { ...settings };
+
+      if (user.name && user.name !== settings.username) { updatedSettings.username = user.name; needsSync = true; }
+      if (user.bio !== undefined && user.bio !== settings.bio) { updatedSettings.bio = user.bio; needsSync = true; }
+      if (user.avatarUrl !== undefined && user.avatarUrl !== settings.avatarUrl) { updatedSettings.avatarUrl = user.avatarUrl; needsSync = true; }
+      if (user.country !== undefined && user.country !== settings.country) { updatedSettings.country = user.country; needsSync = true; }
+      if (user.status !== undefined && user.status !== settings.status) { updatedSettings.status = user.status; needsSync = true; }
+
+      if (needsSync) {
+        saveSettings(updatedSettings);
+        applySettings(updatedSettings);
+        setUserName(updatedSettings.username);
+      } else {
+        setUserName(settings.username || user.name);
+      }
+
       setActualRole(user.role);
       // Admin+ users see the Admin view by default (they have all Admin privileges)
       setUserRole(user.role === "Admin+" ? "Admin" : user.role);
       if (user.role === "Programmer") setCurrentView("kanban");
     }
     setLoading(false);
-  }, [staff, authStage]);
+  }, [staff, authStage, showSettings]);
 
-  // --- Initialize notifications on authentication ---
+  // --- Initialize notifications and activity tracking on authentication ---
   useEffect(() => {
-    if (authStage === "authenticated") {
-      initNotifications();
-    }
+    if (authStage !== "authenticated") return;
+
+    initNotifications();
+
+    // Heartbeat for "Last Seen"
+    const email = localStorage.getItem("wf_email");
+    if (!email) return;
+
+    const interval = setInterval(() => {
+      heartbeatMutation({ email });
+    }, 120000); // 2 minutes heartbeat
+
+    heartbeatMutation({ email }); // Initial beat
+
+    return () => clearInterval(interval);
   }, [authStage]);
+
+  // --- Apply saved settings on mount ---
+  useEffect(() => {
+    applySettings();
+  }, []);
 
   // --- Body scroll lock (Unified) ---
   useEffect(() => {
     const isModalOpen = !!modalTaskId || modalConfig.isOpen || inputModal.isOpen;
     const authRestricted = authStage !== "authenticated";
-    
+
     if (isModalOpen || authRestricted) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
     }
-    
+
     return () => { document.body.style.overflow = ""; };
   }, [authStage, modalTaskId, modalConfig.isOpen, inputModal.isOpen]);
 
@@ -353,7 +403,7 @@ export default function App() {
           </svg>
           <h2 style={{ color: "var(--color-text-primary)", marginBottom: 10 }}>Access Restricted</h2>
           <p style={{ color: "#64748b", lineHeight: 1.6 }}>
-            {staff?.find(s => s.email.toLowerCase() === localStorage.getItem("wf_email")?.toLowerCase())?.role === "Revoked" 
+            {staff?.find(s => s.email.toLowerCase() === localStorage.getItem("wf_email")?.toLowerCase())?.role === "Revoked"
               ? "Your access has been revoked. Please contact an administrator if you believe this is an error."
               : "Your email has been registered. Please wait for an administrator to approve your access."}
           </p>
@@ -412,6 +462,31 @@ export default function App() {
                   <option value="Programmer">Programmer View</option>
                 </select>
               )}
+              <button 
+                className="btn-project-consolidation"
+                onClick={() => setShowAllProjects(true)}
+                title="View All Project Links"
+                style={{ 
+                  padding: "6px 12px", 
+                  borderRadius: "10px", 
+                  border: "1px solid var(--color-accent)", 
+                  background: "var(--color-bg-subtle)",
+                  color: "var(--color-accent)",
+                  fontSize: "0.75rem",
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  marginTop: "4px"
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                </svg>
+                PROJECTS
+              </button>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {actualRole === "Admin+" && (
@@ -423,13 +498,45 @@ export default function App() {
                   📢 Announce
                 </button>
               )}
-              <button
-                className="btn-secondary"
-                style={{ padding: "8px 16px", fontSize: "0.65rem", background: "var(--color-logout)", borderRadius: "8px", fontWeight: 800 }}
-                onClick={logout}
-              >
-                LOGOUT
-              </button>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <button
+                  className="btn-settings-header"
+                  onClick={() => {
+                    const settings = loadSettings();
+                    const user = staff?.find(s => s.email.toLowerCase() === (localStorage.getItem("wf_email") || "").toLowerCase());
+                    setViewingStaff(user || {
+                      name: userName,
+                      email: localStorage.getItem("wf_email"),
+                      role: actualRole,
+                      avatarUrl: settings.avatarUrl,
+                      bio: settings.bio,
+                      country: settings.country,
+                      status: settings.status
+                    });
+                  }}
+                  title="My Profile"
+                  style={{ background: "var(--color-bg-primary)", color: "var(--color-text-primary)" }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+                </button>
+                <button
+                  className="btn-settings-header"
+                  onClick={() => setShowSettings(true)}
+                  title="Settings"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1-2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                  </svg>
+                </button>
+                <button
+                  className="btn-secondary"
+                  style={{ padding: "8px 16px", fontSize: "0.65rem", background: "var(--color-logout)", borderRadius: "8px", fontWeight: 800 }}
+                  onClick={logout}
+                >
+                  LOGOUT
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -483,6 +590,7 @@ export default function App() {
                 ANNOUNCEMENTS
               </div>
             )}
+
           </div>
         </div>
       </header>
@@ -510,7 +618,7 @@ export default function App() {
       {currentView === "notebook" && (
         <Notebook userRole={userRole} userName={userName} showModal={showModal} />
       )}
-      {currentView === "admin" && <AdminPanel showModal={showModal} />}
+      {currentView === "admin" && <AdminPanel showModal={showModal} onViewProfile={(s) => setViewingStaff(s)} />}
       {currentView === "announcements" && actualRole === "Admin+" && (
         <AnnouncementComposer userName={userName} showModal={showModal} />
       )}
@@ -656,6 +764,141 @@ export default function App() {
             setShowLoginNotifications(false);
           }}
         />
+      )}
+
+      {/* Settings Panel */}
+      {showSettings && (
+        <Settings
+          userName={userName}
+          userEmail={localStorage.getItem("wf_email") || ""}
+          onClose={() => setShowSettings(false)}
+          showModal={showModal}
+        />
+      )}
+
+      {/* Profile Popover */}
+      {activeProfile && (
+        <div className="profile-popover-overlay" onClick={() => setViewingStaff(null)}>
+          <div className="profile-popover-content" onClick={(e) => e.stopPropagation()}>
+            <div className="profile-popover-header" style={{ backgroundImage: activeProfile.avatarUrl ? `url(${activeProfile.avatarUrl})` : "none" }}>
+              <div className="profile-popover-avatar-large">
+                {activeProfile.avatarUrl ? (
+                  <img src={activeProfile.avatarUrl} alt={activeProfile.name} />
+                ) : (
+                  <div className="avatar-placeholder-large">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  </div>
+                )}
+              </div>
+              <button className="profile-popover-close" onClick={() => setViewingStaff(null)}>×</button>
+            </div>
+            <div className="profile-popover-body">
+              <div className="profile-popover-main">
+                <div className="profile-popover-name-row">
+                  <div className={`status-indicator ${(Date.now() - (activeProfile.lastSeen || 0)) < 3600000 ? "active" : ""}`} />
+                  <h3>{activeProfile.name}</h3>
+                </div>
+                <div className="profile-popover-email">
+                  {activeProfile.email}
+                </div>
+                <div className="profile-popover-status">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                    <circle cx="12" cy="10" r="3" />
+                  </svg>
+                  {activeProfile.status || "At work"}
+                </div>
+
+                <div className="profile-popover-meta">
+                  <div className="meta-item">
+                    <span className="meta-label">Country:</span>
+                    <span className="meta-value">{activeProfile.country || "Philippines"}</span>
+                  </div>
+                  <div className="meta-item">
+                    <span className="meta-label">Last seen:</span>
+                    <span className="meta-value">
+                      {activeProfile.lastSeen ? (
+                        (Date.now() - activeProfile.lastSeen < 60000) ? "Just now" :
+                          (Date.now() - activeProfile.lastSeen < 86400000) ?
+                            new Date(activeProfile.lastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) :
+                            new Date(activeProfile.lastSeen).toLocaleDateString()
+                      ) : "Never"}
+                    </span>
+                  </div>
+                </div>
+
+                {activeProfile.bio && (
+                  <div className="profile-popover-bio">
+                    {activeProfile.bio}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* All Projects Modal */}
+      {showAllProjects && (
+        <div className="modal-overlay" onClick={() => setShowAllProjects(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 1200, height: "auto", maxHeight: "80vh" }}>
+            <button className="modal-close" onClick={() => setShowAllProjects(false)}>×</button>
+            <h2 style={{ 
+              fontWeight: 900, 
+              textTransform: "uppercase", 
+              marginBottom: 25, 
+              paddingBottom: 15,
+              borderBottom: "1px solid #f1f5f9",
+              color: "var(--color-text-primary)",
+              display: "flex",
+              alignItems: "center",
+              gap: "12px"
+            }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+              </svg>
+              <span>Consolidated Project Links</span>
+            </h2>
+            
+            <div className="full-kanban-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "20px" }}>
+              {tasks?.filter(t => t.projectLink).map(t => (
+                <div 
+                  key={t._id} 
+                  className="programmer-card" 
+                  onClick={() => window.open(t.projectLink.startsWith("http") ? t.projectLink : `https://${t.projectLink}`, "_blank")}
+                  style={{ 
+                    borderTop: "6px solid var(--color-accent)",
+                    transition: "transform 0.2s, box-shadow 0.2s"
+                  }}
+                >
+                  <div className="card-header">
+                    <h4 style={{ color: "var(--color-text-primary)" }}>{t.title}</h4>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" strokeWidth="3">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                      <polyline points="15 3 21 3 21 9" />
+                      <line x1="10" y1="14" x2="21" y2="3" />
+                    </svg>
+                  </div>
+                  <p style={{ fontSize: "0.75rem", color: "#64748b", margin: "5px 0 15px 0", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                    {t.description || "No description provided."}
+                  </p>
+                  <div style={{ fontSize: "0.7rem", fontWeight: 800, color: "var(--color-accent)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Open Project Link →
+                  </div>
+                </div>
+              ))}
+              {tasks?.filter(t => t.projectLink).length === 0 && (
+                <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "40px", color: "#94a3b8" }}>
+                  No projects with links found.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Intro Animation Overlay */}
