@@ -529,13 +529,13 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
               {/* ── Row: title + pending badge + add button ── */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
-                  <h3 style={{ margin: 0, fontSize: "0.82rem", fontWeight: 800, color: "#0f172a", letterSpacing: "-0.2px" }}>
+                  <h3 style={{ margin: 0, fontSize: "0.82rem", fontWeight: 800, color: "var(--color-text-primary)", letterSpacing: "-0.2px" }}>
                     {featureView === "feature" ? "Features" : "Bug Reports"}
                   </h3>
                   {(task.features || []).filter(f => (f.type || "feature") === featureView && f.status === "pending").length > 0 && (
                     <span style={{
-                      background: featureView === "bug" ? "#fee2e2" : "#e2e8f0",
-                      color: featureView === "bug" ? "#dc2626" : "#475569",
+                      background: featureView === "bug" ? "rgba(239, 68, 68, 0.15)" : "var(--color-bg-subtle)",
+                      color: featureView === "bug" ? "#ef4444" : "var(--color-text-secondary)",
                       fontSize: "0.58rem", padding: "2px 7px", borderRadius: "20px", fontWeight: 800, letterSpacing: "0.4px",
                     }}>
                       {(task.features || []).filter(f => (f.type || "feature") === featureView && f.status === "pending").length} OPEN

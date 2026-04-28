@@ -38,13 +38,13 @@ export default function Dashboard() {
           <h2 style={{ fontWeight: 900, marginTop: 0, textTransform: "uppercase", fontSize: "1.2rem", letterSpacing: "-0.5px" }}>
             System Overview
           </h2>
-          <p style={{ color: "#64748b" }}>
+          <p style={{ color: "var(--color-text-secondary)" }}>
             Welcome to Workforce Hermes. Use the navigation above to manage tasks, staff, and project concepts.
           </p>
         </div>
 
         <div className="section-card" style={{ marginTop: 20 }}>
-          <h2 style={{ fontWeight: 900, marginTop: 0, textTransform: "uppercase", fontSize: "1rem", color: "#1e293b", marginBottom: 20 }}>
+          <h2 style={{ fontWeight: 900, marginTop: 0, textTransform: "uppercase", fontSize: "1rem", color: "var(--color-text-primary)", marginBottom: 20 }}>
             👥 Programmer Workload — Active & Pending
           </h2>
           <div>
@@ -67,7 +67,7 @@ export default function Dashboard() {
                     border: "1px solid var(--glass-border)",
                   }}
                 >
-                  <div style={{ fontWeight: 900, color: "var(--color-text-primary)", fontSize: "0.9rem" }}>{w.name}</div>
+                  <div style={{ fontWeight: 900, color: "var(--color-text-primary) !important", fontSize: "0.9rem" }}>{w.name}</div>
                   <div style={{ display: "flex", gap: 10 }}>
                     {w.active > 0 && (
                       <span style={{ background: "linear-gradient(135deg, var(--color-nav-bg), var(--color-accent))", color: "white", padding: "3px 10px", borderRadius: 12, fontSize: "0.75rem", fontWeight: 900 }}>

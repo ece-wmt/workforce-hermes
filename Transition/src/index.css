@@ -3536,7 +3536,17 @@ body.role-programmer .kanban-col.col-scrap {
 [data-theme="dark"] .milestone-list,
 [data-theme="dark"] .card-actions,
 [data-theme="dark"] .taskmodal-tabs {
-  border-color: #334155;
+  border-color: var(--glass-border);
+}
+
+[data-theme="dark"] .taskmodal-tab {
+  color: var(--color-text-secondary);
+}
+
+[data-theme="dark"] .taskmodal-tab:hover,
+[data-theme="dark"] .taskmodal-tab.active {
+  color: var(--color-text-primary) !important;
+  border-color: var(--color-accent);
 }
 
 [data-theme="dark"] .progress-container {
