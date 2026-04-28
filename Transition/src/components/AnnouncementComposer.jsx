@@ -8,6 +8,7 @@ import { api } from "../../convex/_generated/api";
  */
 export default function AnnouncementComposer({ userName, showModal }) {
   const [title, setTitle] = useState("");
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
   const editorRef = useRef(null);
   const announcements = useQuery(api.announcements.getAnnouncements);
   const postAnnouncement = useMutation(api.announcements.postAnnouncement);
@@ -129,10 +130,10 @@ export default function AnnouncementComposer({ userName, showModal }) {
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 12, maxHeight: "60vh", overflowY: "auto", paddingRight: 5 }}>
                 {announcements.map((a) => (
-                  <div key={a._id} className="announcement-history-card">
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                      <div>
-                        <h4 style={{ margin: "0 0 4px 0", fontWeight: 800, fontSize: "0.85rem", color: "#0f172a" }}>{a.title}</h4>
+                <div key={a._id} className="announcement-history-card" onClick={() => setSelectedAnnouncement(a)} style={{ cursor: "pointer", transition: "all 0.2s ease" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div>
+                      <h4 style={{ margin: "0 0 4px 0", fontWeight: 800, fontSize: "0.85rem", color: "var(--color-text-primary)" }}>{a.title}</h4>
                         <span style={{ fontSize: "0.6rem", color: "#94a3b8", fontWeight: 700 }}>
                           {a.postedBy} · {new Date(a.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                           {" · "}
@@ -153,6 +154,7 @@ export default function AnnouncementComposer({ userName, showModal }) {
                     </div>
                     <div
                       className="announcement-history-body"
+                      style={{ color: "var(--color-text-secondary)" }}
                       dangerouslySetInnerHTML={{ __html: a.body }}
                     />
                   </div>
@@ -160,6 +162,41 @@ export default function AnnouncementComposer({ userName, showModal }) {
               </div>
             )}
           </div>
+
+          {/* Detailed Announcement Modal */}
+          {selectedAnnouncement && (
+            <div className="announcement-overlay" onClick={() => setSelectedAnnouncement(null)} style={{ zIndex: 9999 }}>
+              <div className="announcement-popup" onClick={(e) => e.stopPropagation()} style={{ width: "90%", maxWidth: "800px" }}>
+                <div className="announcement-popup-header">
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                    </svg>
+                    <span>ANNOUNCEMENT DETAILS</span>
+                  </div>
+                  <button className="announcement-close-btn" onClick={() => setSelectedAnnouncement(null)}>×</button>
+                </div>
+
+                <h2 className="announcement-popup-title" style={{ color: "var(--color-text-primary)" }}>{selectedAnnouncement.title}</h2>
+
+                <div
+                  className="announcement-popup-body"
+                  style={{ color: "var(--color-text-secondary)", minHeight: "200px" }}
+                  dangerouslySetInnerHTML={{ __html: selectedAnnouncement.body }}
+                />
+
+                <div className="announcement-popup-footer">
+                  <span className="announcement-popup-meta">
+                    Posted by <strong>{selectedAnnouncement.postedBy}</strong> · {new Date(selectedAnnouncement.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                  <button className="announcement-dismiss-btn" onClick={() => setSelectedAnnouncement(null)}>
+                    Close View
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

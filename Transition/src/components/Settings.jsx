@@ -36,7 +36,7 @@ function SectionIcon({ icon, size = 18 }) {
   }
 }
 
-export default function Settings({ userName, userEmail, onClose, showModal }) {
+export default function Settings({ userName, userEmail, onClose, showModal, onLogout }) {
   const [activeSection, setActiveSection] = useState("appearance");
   const [hasChanges, setHasChanges] = useState(false);
   const contentRef = useRef(null);
@@ -336,8 +336,18 @@ export default function Settings({ userName, userEmail, onClose, showModal }) {
 
               <div className="settings-card danger-zone">
                 <label className="settings-field-label danger"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>Danger Zone</label>
-                <p className="danger-text">Permanently delete your account and all associated data. <strong>This action cannot be undone.</strong></p>
-                <button className="settings-btn-danger" onClick={handleDeleteAccount}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>Delete Account</button>
+                <p className="danger-text">Permanently delete your account or sign out of the current session.</p>
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <button className="settings-btn-danger" onClick={handleDeleteAccount}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>Delete Account</button>
+                  <button 
+                    className="settings-btn-outline" 
+                    onClick={onLogout}
+                    style={{ borderColor: "var(--color-logout)", color: "var(--color-logout)" }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
+                    LOGOUT
+                  </button>
+                </div>
               </div>
             </section>
 

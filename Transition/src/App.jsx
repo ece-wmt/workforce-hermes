@@ -470,8 +470,32 @@ export default function App() {
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "2px", alignItems: "flex-start" }}>
               <div style={{ fontSize: "0.85rem", fontWeight: 900, color: "var(--color-text-primary)" }}>{userName}</div>
-              <div className="role-badge" style={{ padding: "2px 8px", borderRadius: "6px", fontSize: "0.6rem", letterSpacing: "0.5px" }}>{actualRole === "Admin+" ? "Admin+" : userRole}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <div className="role-badge" style={{ padding: "2px 8px", borderRadius: "6px", fontSize: "0.6rem", letterSpacing: "0.5px" }}>{actualRole === "Admin+" ? "Admin+" : userRole}</div>
+                {!isMainAdmin && (actualRole === "Admin" || actualRole === "Admin+") && (
+                  <select
+                    className="role-switcher"
+                    style={{ padding: "1px 6px", borderRadius: "4px", border: "1px solid var(--glass-border)", background: "var(--glass-bg)", color: "var(--color-text-primary)", fontSize: "0.6rem", height: "18px", cursor: "pointer" }}
+                    value={userRole}
+                    onChange={(e) => changeRole(e.target.value)}
+                  >
+                    <option value="Admin">Admin</option>
+                    <option value="Programmer">Prog</option>
+                  </select>
+                )}
+              </div>
             </div>
+            <button
+              className="btn-settings-header"
+              onClick={() => setShowSettings(true)}
+              title="Settings"
+              style={{ padding: "8px", borderRadius: "10px", marginLeft: "4px" }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1-2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+            </button>
           </div>
           <div className="header-box" style={{ padding: "10px 30px", borderRadius: "20px", border: "1px solid var(--glass-border)", background: "var(--glass-bg)", boxShadow: "var(--shadow-md)" }}>
             <img src="https://i.imgur.com/BRd5lrB.png" alt="ECE Logo" className="header-logo" style={{ height: "45px" }} />
@@ -480,78 +504,35 @@ export default function App() {
               <p style={{ fontSize: "0.75rem", letterSpacing: "0.8px", color: "var(--color-text-secondary)", fontWeight: 700 }}>Workforce Programming Project Database</p>
             </div>
             <img src="https://i.imgur.com/ycmU6oP.png" alt="WFM Logo" className="header-logo" style={{ height: "45px" }} />
-          </div>
-          <div className="header-actions" style={{ display: "flex", alignItems: "center", gap: "15px" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px", alignItems: "flex-end" }}>
-              {!isMainAdmin && (actualRole === "Admin" || actualRole === "Admin+") && (
-                <select
-                  className="role-switcher"
-                  style={{ padding: "6px 12px", borderRadius: "10px", border: "1px solid var(--glass-border)", background: "var(--glass-bg)", color: "var(--color-text-primary)", fontSize: "0.75rem" }}
-                  value={userRole}
-                  onChange={(e) => changeRole(e.target.value)}
-                >
-                  <option value="Admin">Admin View</option>
-                  <option value="Programmer">Programmer View</option>
-                </select>
-              )}
-              <button 
-                className="btn-project-consolidation"
-                onClick={() => setShowAllProjects(true)}
-                title="View All Project Links"
-                style={{ 
-                  padding: "6px 12px", 
-                  borderRadius: "10px", 
-                  border: "1px solid var(--color-accent)", 
-                  background: "var(--color-bg-subtle)",
-                  color: "var(--color-accent)",
-                  fontSize: "0.75rem",
-                  fontWeight: 800,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px"
-                }}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                </svg>
-                PROJECTS
-              </button>
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {actualRole === "Admin+" && (
-                <button
-                  className="btn-announce-header"
-                  onClick={() => switchView("announcements")}
-                  title="Post Announcement"
-                >
-                  📢 Announce
-                </button>
-              )}
-              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                <button
-                  className="btn-settings-header"
-                  onClick={() => setShowSettings(true)}
-                  title="Settings"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <circle cx="12" cy="12" r="3" />
-                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1-2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                  </svg>
-                </button>
-                <button
-                  className="btn-secondary"
-                  style={{ padding: "8px 16px", fontSize: "0.65rem", background: "var(--color-logout)", borderRadius: "8px", fontWeight: 800 }}
-                  onClick={logout}
-                >
-                  LOGOUT
-                </button>
-              </div>
-            </div>
+            <div style={{ width: "1px", height: "30px", background: "var(--glass-border)", margin: "0 10px" }}></div>
+            <button 
+              className="btn-project-consolidation"
+              onClick={() => setShowAllProjects(true)}
+              title="View All Project Links"
+              style={{ 
+                padding: "8px 16px", 
+                borderRadius: "12px", 
+                border: "1px solid var(--color-accent)", 
+                background: "linear-gradient(135deg, var(--color-accent), var(--color-nav-bg))",
+                color: "white",
+                fontSize: "0.7rem",
+                fontWeight: 900,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+              </svg>
+              PROJECT LINKS
+            </button>
           </div>
         </div>
+
         <div className="nav-bar" style={{ padding: "12px 0 20px 0" }}>
           <div className="nav-label" style={{ marginBottom: "12px", fontSize: "0.65rem", letterSpacing: "3px", opacity: 0.6 }}>NAVIGATION &amp; QUICK ACTIONS</div>
           <div className="nav-links">
@@ -787,6 +768,7 @@ export default function App() {
           userEmail={localStorage.getItem("wf_email") || ""}
           onClose={() => setShowSettings(false)}
           showModal={showModal}
+          onLogout={logout}
         />
       )}
 
