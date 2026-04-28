@@ -56,6 +56,7 @@ export default function App() {
 
   const [showLoginNotifications, setShowLoginNotifications] = useState(false);
   const [showAllProjects, setShowAllProjects] = useState(false);
+  const [showRoleSwitcherPopup, setShowRoleSwitcherPopup] = useState(false);
   const [modalConfig, setModalConfig] = useState({
     isOpen: false,
     title: "",
@@ -169,7 +170,44 @@ export default function App() {
 
     heartbeatMutation({ email }); // Initial beat
 
-    return () => clearInterval(interval);
+    // --- Inactivity Auto-Logout (7 Hours) ---
+    const INACTIVITY_LIMIT_MS = 7 * 60 * 60 * 1000; // 7 hours
+    let inactivityTimeout;
+
+    const resetInactivityTimer = () => {
+      clearTimeout(inactivityTimeout);
+      inactivityTimeout = setTimeout(() => {
+        logout();
+        showModal({
+          title: "Session Expired",
+          message: "You have been automatically logged out due to 7 hours of inactivity for security reasons.",
+          type: "alert",
+        });
+      }, INACTIVITY_LIMIT_MS);
+    };
+
+    // Listeners for user activity
+    const activityEvents = ["mousemove", "keydown", "click", "scroll"];
+    
+    // Throttle the timer resets to max once every 5 seconds for performance
+    let throttleTimer;
+    const handleActivity = () => {
+      if (throttleTimer) return;
+      throttleTimer = setTimeout(() => {
+        resetInactivityTimer();
+        throttleTimer = null;
+      }, 5000);
+    };
+
+    activityEvents.forEach(evt => window.addEventListener(evt, handleActivity));
+    resetInactivityTimer(); // Start the timer initially
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(inactivityTimeout);
+      clearTimeout(throttleTimer);
+      activityEvents.forEach(evt => window.removeEventListener(evt, handleActivity));
+    };
   }, [authStage]);
 
   // --- Apply saved settings on mount ---
@@ -470,18 +508,56 @@ export default function App() {
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "2px", alignItems: "flex-start" }}>
               <div style={{ fontSize: "0.85rem", fontWeight: 900, color: "var(--color-text-primary)" }}>{userName}</div>
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <div className="role-badge" style={{ padding: "2px 8px", borderRadius: "6px", fontSize: "0.6rem", letterSpacing: "0.5px" }}>{actualRole === "Admin+" ? "Admin+" : userRole}</div>
-                {!isMainAdmin && (actualRole === "Admin" || actualRole === "Admin+") && (
-                  <select
-                    className="role-switcher"
-                    style={{ padding: "1px 6px", borderRadius: "4px", border: "1px solid var(--glass-border)", background: "var(--glass-bg)", color: "var(--color-text-primary)", fontSize: "0.6rem", height: "18px", cursor: "pointer" }}
-                    value={userRole}
-                    onChange={(e) => changeRole(e.target.value)}
-                  >
-                    <option value="Admin">Admin</option>
-                    <option value="Programmer">Prog</option>
-                  </select>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", position: "relative" }}>
+                <div 
+                  className="role-badge" 
+                  style={{ 
+                    padding: "2px 8px", 
+                    borderRadius: "6px", 
+                    fontSize: "0.6rem", 
+                    letterSpacing: "0.5px",
+                    cursor: (!isMainAdmin && (actualRole === "Admin" || actualRole === "Admin+")) ? "pointer" : "default",
+                    display: "flex",
+                    alignItems: "center"
+                  }}
+                  onClick={() => {
+                    if (!isMainAdmin && (actualRole === "Admin" || actualRole === "Admin+")) {
+                      setShowRoleSwitcherPopup(!showRoleSwitcherPopup);
+                    }
+                  }}
+                  title={(!isMainAdmin && (actualRole === "Admin" || actualRole === "Admin+")) ? "Click to switch view" : ""}
+                >
+                  {actualRole === "Admin+" ? "Admin+" : userRole}
+                  {(!isMainAdmin && (actualRole === "Admin" || actualRole === "Admin+")) && (
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" style={{ marginLeft: 4 }}><path d="M6 9l6 6 6-6"/></svg>
+                  )}
+                </div>
+                
+                {showRoleSwitcherPopup && (
+                  <>
+                    <div 
+                      style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 90 }} 
+                      onClick={() => setShowRoleSwitcherPopup(false)} 
+                    />
+                    <div style={{ position: "absolute", top: "100%", left: 0, marginTop: "6px", background: "var(--color-bg-primary)", border: "1px solid var(--glass-border)", borderRadius: "8px", boxShadow: "var(--shadow-md)", zIndex: 100, minWidth: "140px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                      <div 
+                        style={{ padding: "8px 12px", fontSize: "0.75rem", cursor: "pointer", background: userRole === "Admin" ? "var(--color-bg-subtle)" : "transparent", color: userRole === "Admin" ? "var(--color-accent)" : "var(--color-text-primary)", fontWeight: userRole === "Admin" ? 800 : 500, transition: "background 0.2s" }}
+                        onClick={() => { changeRole("Admin"); setShowRoleSwitcherPopup(false); }}
+                        onMouseEnter={(e) => { if(userRole !== "Admin") e.currentTarget.style.background = "var(--glass-bg)" }}
+                        onMouseLeave={(e) => { if(userRole !== "Admin") e.currentTarget.style.background = "transparent" }}
+                      >
+                        Admin View
+                      </div>
+                      <div 
+                        style={{ padding: "8px 12px", fontSize: "0.75rem", cursor: "pointer", background: userRole === "Programmer" ? "var(--color-bg-subtle)" : "transparent", color: userRole === "Programmer" ? "var(--color-accent)" : "var(--color-text-primary)", fontWeight: userRole === "Programmer" ? 800 : 500, transition: "background 0.2s" }}
+                        onClick={() => { changeRole("Programmer"); setShowRoleSwitcherPopup(false); }}
+                        onMouseEnter={(e) => { if(userRole !== "Programmer") e.currentTarget.style.background = "var(--glass-bg)" }}
+                        onMouseLeave={(e) => { if(userRole !== "Programmer") e.currentTarget.style.background = "transparent" }}
+                      >
+                        Programmer View
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
             </div>
