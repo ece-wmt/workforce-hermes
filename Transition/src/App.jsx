@@ -565,7 +565,7 @@ export default function App() {
               className="btn-settings-header"
               onClick={() => setShowSettings(true)}
               title="Settings"
-              style={{ padding: "8px", borderRadius: "10px", marginLeft: "4px" }}
+              style={{ padding: "8px", borderRadius: "50%", marginLeft: "4px" }}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <circle cx="12" cy="12" r="3" />

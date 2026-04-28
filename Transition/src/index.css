@@ -3370,7 +3370,7 @@ body.role-programmer .kanban-col.col-scrap {
 .btn-settings-header {
   width: 34px;
   height: 34px;
-  border-radius: 8px;
+  border-radius: 50%;
   border: 1px solid #e2e8f0;
   background: #f8fafc;
   color: #64748b;
