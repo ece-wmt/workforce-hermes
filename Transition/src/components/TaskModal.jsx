@@ -16,6 +16,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   const deleteNotesBulk = useMutation(api.tasks.deleteTaskNotesBulk);
   const deleteFeaturesBulk = useMutation(api.tasks.deleteTaskFeaturesBulk);
   const deleteMilestonesBulk = useMutation(api.tasks.deleteTaskMilestonesBulk);
+  const addNoteReply = useMutation(api.tasks.addNoteReply);
   const currentUserEmail = (localStorage.getItem("wf_email") || "").toLowerCase();
   const taskViewHistoryTime = useQuery(api.tasks.getTaskViewHistory, { taskId, userEmail: localStorage.getItem("wf_email") || "" });
 
@@ -29,7 +30,9 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   const [featureView, setFeatureView] = useState("feature"); // 'feature' or 'bug'
   const [noteInputText, setNoteInputText] = useState("");
   const [notesFullscreen, setNotesFullscreen] = useState(false);
-  const [noteContextMenu, setNoteContextMenu] = useState(null);
+  const [noteContextMenu, setNoteContextMenu] = useState(null); // { x, y, index }
+  const [threadModal, setThreadModal] = useState(null); // { index, note }
+  const [replyInputText, setReplyInputText] = useState("");
 
   const [selectedNotes, setSelectedNotes] = useState(new Set());
   const [selectedFeatures, setSelectedFeatures] = useState(new Set());
@@ -236,6 +239,51 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
     setNotesFullscreen(false);
   }
 
+  function handleAddReply() {
+    if (!threadModal) return;
+    const text = replyInputText.trim();
+    if (!text) return;
+    const estDate = new Date().toLocaleString("en-US", {
+      timeZone: "America/New_York",
+      year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
+    });
+    addNoteReply({
+      taskId,
+      noteIndex: threadModal.index,
+      replyText: text,
+      writer: userName,
+      date: estDate
+    });
+    setReplyInputText("");
+  }
+
+  function getStaffByName(writerName) {
+    if (!staff || !writerName) return null;
+    return staff.find(s => (s.name || "").toLowerCase() === writerName.toLowerCase());
+  }
+
+  function renderAvatar(writerName, size = 32) {
+    const member = getStaffByName(writerName);
+    if (member?.avatarUrl) {
+      return (
+        <img
+          src={member.avatarUrl}
+          alt={writerName}
+          style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0, cursor: "pointer" }}
+          onClick={(e) => { e.stopPropagation(); if (member && onViewProfile) onViewProfile(member); }}
+        />
+      );
+    }
+    return (
+      <div
+        style={{ width: size, height: size, borderRadius: "50%", background: "var(--color-accent)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: `${size * 0.4}px`, fontWeight: 900, flexShrink: 0, cursor: "pointer" }}
+        onClick={(e) => { e.stopPropagation(); if (member && onViewProfile) onViewProfile(member); }}
+      >
+        {writerName?.charAt(0).toUpperCase()}
+      </div>
+    );
+  }
+
   function handleDelete() {
     showModal({
       title: "Delete Project",
@@ -440,7 +488,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <button className="modal-close" onClick={onClose}>×</button>
 
@@ -969,11 +1017,16 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
               {(task.notes || []).map((n, i) => {
                 const reactions = n.reactions || {};
                 const reactionTypes = [
-                  { key: "like", emoji: "👍", label: "Like" },
-                  { key: "wow", emoji: "😮", label: "Wow" },
                   { key: "heart", emoji: "❤️", label: "Heart" },
-                  { key: "haha", emoji: "😂", label: "Haha" },
+                  { key: "haha", emoji: "😆", label: "Haha" },
+                  { key: "wow", emoji: "😮", label: "Wow" },
+                  { key: "sad", emoji: "😢", label: "Sad" },
+                  { key: "angry", emoji: "😡", label: "Angry" },
+                  { key: "like", emoji: "👍", label: "Like" },
                 ];
+                
+                const replyCount = (n.replies || []).length;
+
                 return (
                   <div
                     key={i}
@@ -981,7 +1034,8 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                     onClick={(e) => handleRowClickToggle(e, setSelectedNotes, i)}
                     onContextMenu={(e) => {
                       e.preventDefault();
-                      setNoteContextMenu(i);
+                      e.stopPropagation();
+                      setNoteContextMenu({ x: e.clientX, y: e.clientY, index: i });
                     }}
                     style={{ background: "var(--color-card-bg)", padding: 12, borderRadius: "var(--radius-md)", border: "1px solid var(--glass-border)", marginBottom: 8, boxShadow: "var(--shadow-sm)", display: "flex", gap: "10px", alignItems: "flex-start", cursor: "pointer" }}
                   >
@@ -989,32 +1043,70 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                       <div className="note-date" style={{ color: "var(--color-accent)", marginBottom: 4, fontSize: "0.65rem", fontWeight: 700 }}>
                         {n.date} {n.writer && <span style={{ color: "var(--color-nav-bg)", fontWeight: 900 }}>- {n.writer}</span>}
                       </div>
-                    <div className="note-text" style={{ fontSize: "0.8rem", lineHeight: 1.4, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{n.text}</div>
-                    <div className="note-reactions-fixed">
-                      {reactionTypes.map(({ key, emoji, label }) => {
-                        const arr = reactions[key] || [];
-                        const isActive = arr.includes(currentUserEmail);
-                        const isVisible = arr.length > 0 || noteContextMenu === i;
-                        
-                        if (!isVisible) return null;
+                      <div className="note-text" style={{ fontSize: "0.8rem", lineHeight: 1.4, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{n.text}</div>
+                      
+                      {/* Active Reactions Only */}
+                      <div className="note-reactions-display" style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginTop: "8px" }}>
+                        {reactionTypes.map(({ key, emoji, label }) => {
+                          const arr = reactions[key] || [];
+                          if (arr.length === 0) return null;
+                          const isActive = arr.includes(currentUserEmail);
+                          return (
+                            <div 
+                              key={key} 
+                              className={`reaction-pill-display ${isActive ? 'active' : ''}`}
+                              title={`${label}: ${arr.join(', ')}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleNoteReaction({ taskId, noteIndex: i, reactionType: key, userEmail: currentUserEmail });
+                              }}
+                              style={{ 
+                                display: "flex", 
+                                alignItems: "center", 
+                                gap: "4px", 
+                                background: isActive ? "var(--color-accent-lighter)" : "rgba(0,0,0,0.05)", 
+                                padding: "2px 6px", 
+                                borderRadius: "12px", 
+                                fontSize: "0.65rem",
+                                border: isActive ? "1px solid var(--color-accent)" : "1px solid transparent"
+                              }}
+                            >
+                              <span>{emoji}</span>
+                              <span style={{ fontWeight: 800 }}>{arr.length}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
 
-                        return (
-                          <button
-                            key={key}
-                            className={`reaction-pill ${isActive ? "active" : ""} ${arr.length > 0 ? "has-count" : ""}`}
-                            title={arr.length > 0 ? `${label}: ${arr.join(', ')}` : label}
+                      {/* Reply Button / Thread Link */}
+                      { (replyCount > 0 || noteContextMenu?.index === i) && (
+                        <div style={{ marginTop: 8 }}>
+                          <button 
+                            className="btn-thread-link"
                             onClick={(e) => {
                               e.stopPropagation();
-                              toggleNoteReaction({ taskId, noteIndex: i, reactionType: key, userEmail: currentUserEmail });
-                              setNoteContextMenu(null);
+                              setThreadModal({ index: i, note: n });
+                            }}
+                            style={{ 
+                              background: "none", 
+                              border: "none", 
+                              color: "var(--color-accent)", 
+                              fontSize: "0.7rem", 
+                              fontWeight: 800, 
+                              cursor: "pointer", 
+                              padding: 0,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "4px"
                             }}
                           >
-                            <span className="reaction-emoji-fixed">{emoji}</span>
-                            {arr.length > 0 && <span className="reaction-count-fixed">{arr.length}</span>}
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                            </svg>
+                            {replyCount === 0 ? "Reply" : `${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}`}
                           </button>
-                        );
-                      })}
-                    </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -1083,6 +1175,208 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
         </div>
       </div>
 
+      {/* Note Context Menu with Emoji Picker */}
+      {noteContextMenu && (
+        <>
+          <div
+            style={{ position: "fixed", inset: 0, zIndex: 9998 }}
+            onClick={() => setNoteContextMenu(null)}
+            onContextMenu={(e) => { e.preventDefault(); setNoteContextMenu(null); }}
+          />
+          <div
+            className="note-context-menu"
+            style={{
+              position: "fixed",
+              top: noteContextMenu.y,
+              left: Math.min(noteContextMenu.x, window.innerWidth - 220),
+              background: "#1a1a1a",
+              padding: "8px",
+              borderRadius: "16px",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+              zIndex: 9999,
+              border: "1px solid rgba(255,255,255,0.1)",
+              minWidth: 200,
+            }}
+          >
+            {/* Emoji Row */}
+            <div style={{ display: "flex", gap: "4px", marginBottom: "8px", background: "rgba(255,255,255,0.05)", padding: "4px", borderRadius: "12px" }}>
+              {[
+                { key: "heart", emoji: "❤️" },
+                { key: "haha", emoji: "😆" },
+                { key: "wow", emoji: "😮" },
+                { key: "sad", emoji: "😢" },
+                { key: "angry", emoji: "😡" },
+                { key: "like", emoji: "👍" },
+              ].map(({ key, emoji }) => (
+                <button
+                  key={key}
+                  onClick={() => {
+                    toggleNoteReaction({ taskId, noteIndex: noteContextMenu.index, reactionType: key, userEmail: currentUserEmail });
+                    setNoteContextMenu(null);
+                  }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    fontSize: "1.2rem",
+                    padding: "6px",
+                    cursor: "pointer",
+                    borderRadius: "8px",
+                    transition: "background 0.2s",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center"
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
+                  onMouseLeave={e => e.currentTarget.style.background = "none"}
+                >
+                  {emoji}
+                </button>
+              ))}
+              <button style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "white", width: 32, height: 32, borderRadius: "50%", fontSize: "1rem", cursor: "pointer" }}>+</button>
+            </div>
+
+            <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "4px 0" }} />
+            
+            <button
+              style={{ width: "100%", padding: "10px 16px", textAlign: "left", background: "none", border: "none", fontSize: "0.85rem", cursor: "pointer", display: "flex", alignItems: "center", gap: 10, color: "white", fontWeight: 700, borderRadius: "8px" }}
+              onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
+              onMouseLeave={e => e.currentTarget.style.background = "none"}
+              onClick={() => {
+                setThreadModal({ index: noteContextMenu.index, note: task.notes[noteContextMenu.index] });
+                setNoteContextMenu(null);
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+              Reply in Thread
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Thread Modal */}
+      {threadModal && (
+        <div className="modal-overlay" style={{ zIndex: 10001 }} onClick={() => setThreadModal(null)}>
+          <div 
+            className="thread-modal-content" 
+            onClick={(e) => e.stopPropagation()}
+            style={{ 
+              width: "100%", 
+              maxWidth: "500px", 
+              background: "var(--color-bg-primary)", 
+              borderRadius: "24px", 
+              display: "flex", 
+              flexDirection: "column", 
+              maxHeight: "85vh",
+              boxShadow: "0 20px 50px rgba(0,0,0,0.3)",
+              overflow: "hidden",
+              border: "1px solid var(--glass-border)"
+            }}
+          >
+            <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--glass-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 900 }}>Thread</h2>
+              <button onClick={() => setThreadModal(null)} style={{ background: "none", border: "none", fontSize: "1.5rem", cursor: "pointer", color: "var(--color-text-secondary)" }}>×</button>
+            </div>
+
+            <div style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
+              {/* Parent Note */}
+              <div style={{ background: "var(--color-bg-subtle)", padding: "16px", borderRadius: "16px", marginBottom: "24px", borderLeft: "4px solid var(--color-accent)", display: "flex", gap: "12px" }}>
+                {renderAvatar(threadModal.note.writer, 36)}
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+                    <span
+                      style={{ fontSize: "0.85rem", fontWeight: 900, cursor: "pointer", color: "var(--color-text-primary)" }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const member = getStaffByName(threadModal.note.writer);
+                        if (member && onViewProfile) onViewProfile(member);
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.textDecoration = "underline"}
+                      onMouseLeave={(e) => e.currentTarget.style.textDecoration = "none"}
+                    >
+                      {threadModal.note.writer}
+                    </span>
+                    <span style={{ fontSize: "0.65rem", color: "var(--color-text-secondary)" }}>{threadModal.note.date}</span>
+                  </div>
+                  <div style={{ fontSize: "0.9rem", lineHeight: 1.5 }}>{threadModal.note.text}</div>
+                </div>
+              </div>
+
+              <div style={{ height: "1px", background: "var(--glass-border)", marginBottom: "24px" }} />
+
+              {/* Replies */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                {(task.notes[threadModal.index].replies || []).map((reply, ridx) => (
+                  <div key={ridx} style={{ display: "flex", gap: "12px" }}>
+                    {renderAvatar(reply.writer, 32)}
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                        <span
+                          style={{ fontSize: "0.8rem", fontWeight: 900, cursor: "pointer" }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const member = getStaffByName(reply.writer);
+                            if (member && onViewProfile) onViewProfile(member);
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.textDecoration = "underline"}
+                          onMouseLeave={(e) => e.currentTarget.style.textDecoration = "none"}
+                        >
+                          {reply.writer}
+                        </span>
+                        <span style={{ fontSize: "0.65rem", color: "var(--color-text-secondary)" }}>{reply.date}</span>
+                      </div>
+                      <div style={{ fontSize: "0.85rem", lineHeight: 1.4, color: "var(--color-text-primary)" }}>{reply.text}</div>
+                    </div>
+                  </div>
+                ))}
+                {(task.notes[threadModal.index].replies || []).length === 0 && (
+                  <div style={{ textAlign: "center", padding: "20px", color: "var(--color-text-secondary)", fontStyle: "italic", fontSize: "0.85rem" }}>
+                    No replies yet. Start the conversation!
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Reply Input */}
+            <div style={{ padding: "20px 24px", borderTop: "1px solid var(--glass-border)", background: "var(--color-bg-subtle)" }}>
+              <div style={{ display: "flex", gap: "12px" }}>
+                <textarea 
+                  placeholder="Reply..."
+                  value={replyInputText}
+                  onChange={(e) => setReplyInputText(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAddReply(); } }}
+                  style={{ 
+                    flex: 1, 
+                    background: "var(--color-bg-primary)", 
+                    border: "1px solid var(--glass-border)", 
+                    borderRadius: "12px", 
+                    padding: "10px 12px", 
+                    fontSize: "0.85rem", 
+                    resize: "none",
+                    height: "40px"
+                  }}
+                />
+                <button 
+                  onClick={handleAddReply}
+                  style={{ 
+                    background: "var(--color-accent)", 
+                    color: "white", 
+                    border: "none", 
+                    borderRadius: "12px", 
+                    padding: "0 16px", 
+                    fontWeight: 900, 
+                    fontSize: "0.75rem",
+                    cursor: "pointer"
+                  }}
+                >
+                  Reply
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Feature Modal */}
       {featureModalConfig && (
         <FeatureModal
@@ -1094,6 +1388,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
           userName={userName}
           type={featureModalConfig.type || featureModalConfig.feature?.type || "feature"}
           taskTitle={task.title}
+          showModal={showModal}
         />
       )}
 

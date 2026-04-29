@@ -3,7 +3,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { notifyFeatureAdded, notifyFeatureCompleted } from "../utils/notifications";
 
-export default function FeatureModal({ mode, feature, taskId, onClose, canEdit, userName, type, taskTitle }) {
+export default function FeatureModal({ mode, feature, taskId, onClose, canEdit, userName, type, taskTitle, showModal }) {
   const [name, setName] = useState(feature?.name || "");
   const [description, setDescription] = useState(feature?.description || "");
   const [files, setFiles] = useState([]);
@@ -36,7 +36,11 @@ export default function FeatureModal({ mode, feature, taskId, onClose, canEdit, 
     const selectedFiles = Array.from(e.target.files);
     const existingCount = initialStorageIds.length - removedExistingIndexes.size;
     if (selectedFiles.length + files.length + existingCount > 3) {
-      alert("You can only attach up to 3 images total.");
+      showModal({
+        title: "Too Many Files",
+        message: "You can only attach up to 3 images total.",
+        type: "alert"
+      });
       return;
     }
     setFiles(prev => [...prev, ...selectedFiles]);
@@ -62,7 +66,11 @@ export default function FeatureModal({ mode, feature, taskId, onClose, canEdit, 
 
   async function handleAddOrUpdateSubmit() {
     if (!name.trim() || !description.trim()) {
-      alert("Please provide a name and description.");
+      showModal({
+        title: "Incomplete Details",
+        message: "Please provide a name and description.",
+        type: "alert"
+      });
       return;
     }
     setIsSubmitting(true);
@@ -112,7 +120,11 @@ export default function FeatureModal({ mode, feature, taskId, onClose, canEdit, 
       onClose();
     } catch (err) {
       console.error("Feature submit error:", err);
-      alert(`Failed to save feature: ${err.message || err.toString()}`);
+      showModal({
+        title: "Save Failed",
+        message: `Failed to save feature: ${err.message || err.toString()}`,
+        type: "alert"
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -131,7 +143,11 @@ export default function FeatureModal({ mode, feature, taskId, onClose, canEdit, 
       onClose();
     } catch (err) {
       console.error(err);
-      alert("Failed to update status.");
+      showModal({
+        title: "Update Failed",
+        message: "Failed to update status.",
+        type: "alert"
+      });
     } finally {
       setIsSubmitting(false);
     }

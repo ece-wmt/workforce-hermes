@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { applySettings, loadSettings, saveSettings } from "./utils/settingsManager";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../convex/_generated/api";
@@ -19,8 +19,14 @@ import AnnouncementComposer from "./components/AnnouncementComposer";
 import TaskNotificationPopup from "./components/TaskNotificationPopup";
 import Settings from "./components/Settings";
 
+const ACTIVITY_EVENTS = ["mousemove", "keydown", "click", "scroll"];
+
 export default function App() {
+  // --- Refs ---
+  const hasSetInitialView = useRef(false);
+
   // --- Auth state ---
+  const [sessionExpiredPending, setSessionExpiredPending] = useState(false);
   const [authStage, setAuthStage] = useState(() => {
     // "login" | "set-password" | "authenticated" | "denied"
     if (localStorage.getItem("wf_authenticated") === "true") {
@@ -28,6 +34,13 @@ export default function App() {
       if (!email) {
         localStorage.clear();
         return "login";
+      }
+      // Check if session has expired (7 hours of inactivity)
+      const INACTIVITY_LIMIT_MS = 7 * 60 * 60 * 1000;
+      const lastActivity = parseInt(localStorage.getItem("wf_last_activity") || "0", 10);
+      if (lastActivity > 0 && (Date.now() - lastActivity) > INACTIVITY_LIMIT_MS) {
+        // Flag for the useEffect to handle
+        localStorage.setItem("wf_session_expired_on_load", "true");
       }
       return "authenticated";
     }
@@ -110,12 +123,20 @@ export default function App() {
     const mainAdmin = email === "wmt@ececontactcenters.com";
     const user = staff.find((s) => (s.email || "").toLowerCase() === email);
 
+    // --- Apply default view from settings ---
+    const viewMap = { "Dashboard": "dashboard", "Projects": "kanban", "Activity Feed": "entry", "Notebook": "notebook" };
+    const mappedView = viewMap[settings.defaultView] || "dashboard";
+
     if (mainAdmin) {
       setUserName(settings.username || "Main Admin");
       setIsMainAdmin(true);
       const dbRole = user?.role || "Admin";
       setActualRole(dbRole);
       setUserRole(dbRole === "Admin+" ? "Admin" : dbRole);
+      if (!hasSetInitialView.current) {
+        setCurrentView(mappedView);
+        hasSetInitialView.current = true;
+      }
       setLoading(false);
       return;
     }
@@ -149,7 +170,14 @@ export default function App() {
       setActualRole(user.role);
       // Admin+ users see the Admin view by default (they have all Admin privileges)
       setUserRole(user.role === "Admin+" ? "Admin" : user.role);
-      if (user.role === "Programmer") setCurrentView("kanban");
+      if (!hasSetInitialView.current) {
+        if (user.role === "Programmer") {
+          setCurrentView("kanban");
+        } else {
+          setCurrentView(mappedView);
+        }
+        hasSetInitialView.current = true;
+      }
     }
     setLoading(false);
   }, [staff, authStage, showSettings]);
@@ -164,49 +192,52 @@ export default function App() {
     const email = localStorage.getItem("wf_email");
     if (!email) return;
 
+    let throttleTimer;
+
     const interval = setInterval(() => {
       heartbeatMutation({ email });
     }, 120000); // 2 minutes heartbeat
 
     heartbeatMutation({ email }); // Initial beat
 
-    // --- Inactivity Auto-Logout (7 Hours) ---
-    const INACTIVITY_LIMIT_MS = 7 * 60 * 60 * 1000; // 7 hours
-    let inactivityTimeout;
+    // --- Session Expiry check on load ---
+    if (localStorage.getItem("wf_session_expired_on_load") === "true") {
+      localStorage.removeItem("wf_session_expired_on_load");
+      showModal({
+        title: "Session Expired",
+        message: "Your session has expired. Please log in again.",
+        type: "alert",
+        onConfirm: () => {
+          logout();
+        }
+      });
+      return; 
+    }
 
-    const resetInactivityTimer = () => {
-      clearTimeout(inactivityTimeout);
-      inactivityTimeout = setTimeout(() => {
-        logout();
-        showModal({
-          title: "Session Expired",
-          message: "You have been automatically logged out due to 7 hours of inactivity for security reasons.",
-          type: "alert",
-        });
-      }, INACTIVITY_LIMIT_MS);
-    };
-
-    // Listeners for user activity
-    const activityEvents = ["mousemove", "keydown", "click", "scroll"];
-    
-    // Throttle the timer resets to max once every 5 seconds for performance
-    let throttleTimer;
+    // --- Track last activity ---
     const handleActivity = () => {
       if (throttleTimer) return;
       throttleTimer = setTimeout(() => {
-        resetInactivityTimer();
+        localStorage.setItem("wf_last_activity", Date.now().toString());
         throttleTimer = null;
       }, 5000);
     };
 
-    activityEvents.forEach(evt => window.addEventListener(evt, handleActivity));
-    resetInactivityTimer(); // Start the timer initially
+    // Record initial activity
+    localStorage.setItem("wf_last_activity", Date.now().toString());
+    ACTIVITY_EVENTS.forEach(evt => window.addEventListener(evt, handleActivity));
+
+    // Show session expired modal if flagged from a previous expired session
+    if (localStorage.getItem("wf_session_expired") === "true") {
+      // Don't show immediately — wait until after intro animation
+      setSessionExpiredPending(true);
+      localStorage.removeItem("wf_session_expired");
+    }
 
     return () => {
       clearInterval(interval);
-      clearTimeout(inactivityTimeout);
       clearTimeout(throttleTimer);
-      activityEvents.forEach(evt => window.removeEventListener(evt, handleActivity));
+      ACTIVITY_EVENTS.forEach(evt => window.removeEventListener(evt, handleActivity));
     };
   }, [authStage]);
 
@@ -262,6 +293,7 @@ export default function App() {
       if (password === "admin") {
         localStorage.setItem("wf_authenticated", "true");
         localStorage.setItem("wf_email", lowerEmail);
+        localStorage.setItem("wf_last_activity", Date.now().toString());
         setLoading(true);
         setShowIntro(true);
         setAuthStage("authenticated");
@@ -317,6 +349,7 @@ export default function App() {
     if (password === user.password) {
       localStorage.setItem("wf_authenticated", "true");
       localStorage.setItem("wf_email", lowerEmail);
+      localStorage.setItem("wf_last_activity", Date.now().toString());
       setLoading(true);
       setShowIntro(true);
       setAuthStage("authenticated");
@@ -974,7 +1007,17 @@ export default function App() {
       )}
 
       {/* Intro Animation Overlay */}
-      {showIntro && <IntroAnimation onDone={() => setShowIntro(false)} />}
+      {showIntro && <IntroAnimation onDone={() => {
+        setShowIntro(false);
+        if (sessionExpiredPending) {
+          setSessionExpiredPending(false);
+          showModal({
+            title: "Session Expired",
+            message: "Your session has expired. Please log in again.",
+            type: "alert",
+          });
+        }
+      }} />}
     </>
   );
 }

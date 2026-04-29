@@ -441,6 +441,39 @@ export const toggleNoteReaction = mutation({
   },
 });
 
+export const addNoteReply = mutation({
+  args: {
+    taskId: v.id("tasks"),
+    noteIndex: v.number(),
+    replyText: v.string(),
+    writer: v.string(),
+    date: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const task = await ctx.db.get(args.taskId);
+    if (!task) throw new Error("Task not found");
+
+    const notes = [...(task.notes || [])];
+    if (args.noteIndex < 0 || args.noteIndex >= notes.length) return;
+
+    const note = { ...notes[args.noteIndex] };
+    const replies = [...(note.replies || [])];
+
+    replies.push({
+      text: args.replyText,
+      writer: args.writer,
+      date: args.date,
+      timestamp: Date.now(),
+    });
+
+    note.replies = replies;
+    notes[args.noteIndex] = note;
+
+    await ctx.db.patch(args.taskId, { notes });
+    return replies;
+  },
+});
+
 // ==========================================
 // BULK DELETIONS
 // ==========================================

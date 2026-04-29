@@ -1,0 +1,1145 @@
+﻿import { useState, useEffect, useRef } from "react";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { notifyNoteAdded, notifyMilestoneCompleted } from "../utils/notifications";
+import FeatureModal from "./FeatureModal";
+
+export default function TaskModal({ taskId, isEditMode, userRole, actualRole, userName, staff, onClose, showModal, onViewProfile }) {
+  const tasks = useQuery(api.tasks.getTasks);
+  const updateTaskMilestones = useMutation(api.tasks.updateTaskMilestones);
+  const addNoteToTask = useMutation(api.tasks.addNoteToTask);
+  const deleteTask = useMutation(api.tasks.deleteTask);
+  const updateTaskDetails = useMutation(api.tasks.updateTaskDetails);
+  const deleteTaskFeature = useMutation(api.tasks.deleteTaskFeature);
+  const markTaskAsViewed = useMutation(api.tasks.markTaskAsViewed);
+  const toggleNoteReaction = useMutation(api.tasks.toggleNoteReaction);
+  const deleteNotesBulk = useMutation(api.tasks.deleteTaskNotesBulk);
+  const deleteFeaturesBulk = useMutation(api.tasks.deleteTaskFeaturesBulk);
+  const deleteMilestonesBulk = useMutation(api.tasks.deleteTaskMilestonesBulk);
+  const currentUserEmail = (localStorage.getItem("wf_email") || "").toLowerCase();
+  const taskViewHistoryTime = useQuery(api.tasks.getTaskViewHistory, { taskId, userEmail: localStorage.getItem("wf_email") || "" });
+
+  const [selectedAssignees, setSelectedAssignees] = useState(new Set());
+  const [showOptions, setShowOptions] = useState(false);
+  const [editedTitle, setEditedTitle] = useState("");
+  const [editedDesc, setEditedDesc] = useState("");
+  const [featureModalConfig, setFeatureModalConfig] = useState(null);
+  const [featureContextMenu, setFeatureContextMenu] = useState(null);
+  const [editedMilestones, setEditedMilestones] = useState([]);
+  const [featureView, setFeatureView] = useState("feature"); // 'feature' or 'bug'
+  const [noteInputText, setNoteInputText] = useState("");
+  const [notesFullscreen, setNotesFullscreen] = useState(false);
+  const [noteContextMenu, setNoteContextMenu] = useState(null);
+
+  const [selectedNotes, setSelectedNotes] = useState(new Set());
+  const [selectedFeatures, setSelectedFeatures] = useState(new Set());
+  const [selectedBugs, setSelectedBugs] = useState(new Set());
+  const [selectedMilestones, setSelectedMilestones] = useState(new Set());
+
+  const handleRowClickToggle = (e, setFn, id) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      setFn(prev => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+    }
+  };
+
+  const handleCheckboxToggle = (setFn, id) => {
+    setFn(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === "Escape") {
+        setSelectedNotes(new Set());
+        setSelectedFeatures(new Set());
+        setSelectedBugs(new Set());
+        setSelectedMilestones(new Set());
+      }
+    };
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, []);
+
+  // Drag refs ΓÇö no React state updated during drag to avoid re-render/listener issues
+  const milestoneListRef = useRef(null);
+  const dragFromRef = useRef(null);
+  const dragOverRef = useRef(null);
+
+  const task = tasks?.find((t) => t._id === taskId);
+
+  useEffect(() => {
+    if (task) {
+      setEditedTitle(task.title || "");
+      setEditedDesc(task.description || "");
+      const initialAssignees = (task.assignee || "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s);
+      setSelectedAssignees(new Set(initialAssignees));
+      if (isEditMode) {
+        setEditedMilestones(task.milestones ? JSON.parse(JSON.stringify(task.milestones)) : []);
+      }
+    }
+  }, [task?._id, isEditMode]);
+
+  const [refreshBadges, setRefreshBadges] = useState(0);
+
+  useEffect(() => {
+    const markViewed = () => {
+      if (taskId) {
+        const userEmail = localStorage.getItem("wf_email") || "";
+        const nowStr = Date.now().toString();
+        // Clear global and specific so everything is clean on exit
+        localStorage.setItem(`task_viewed_${taskId}`, nowStr);
+        localStorage.setItem(`task_viewed_features_${taskId}`, nowStr);
+        localStorage.setItem(`task_viewed_bugs_${taskId}`, nowStr);
+        localStorage.setItem(`task_viewed_notes_${taskId}`, nowStr);
+        localStorage.setItem(`task_viewed_milestones_${taskId}`, nowStr);
+        window.dispatchEvent(new Event("task-viewed"));
+        markTaskAsViewed({ taskId, userEmail });
+      }
+    };
+
+    // ONLY mark tasks globally viewed when the modal CLOSES, so badges stay active while looking around!
+    return () => markViewed();
+  }, [taskId, markTaskAsViewed]);
+
+  const clearBadge = (type) => {
+    if (actualRole === "Programmer" || userRole === "Programmer") {
+      localStorage.setItem(`task_viewed_${type}_${taskId}`, Date.now().toString());
+      setRefreshBadges(r => r + 1);
+      window.dispatchEvent(new Event("task-viewed"));
+    }
+  };
+
+  if (!tasks || !task) return null;
+
+  const milestones = task.milestones || [];
+  const doneM = task.completedMilestones || 0;
+  const progressPercent = milestones.length > 0 ? Math.round((doneM / milestones.length) * 100) : 0;
+
+  const isAdminPlus = actualRole === "Admin+";
+  const isAdminLevel = actualRole === "Admin" || isAdminPlus;
+
+  let canEditMilestone = true;
+  if (isAdminLevel) {
+    const assigneeVal = (task.assignee || "").toLowerCase();
+    const userNameVal = (userName || "").toLowerCase();
+    if (!assigneeVal.includes(userNameVal)) canEditMilestone = false;
+  }
+
+  const canManageFeatures = isAdminLevel || canEditMilestone;
+  const isProgrammer = actualRole === "Programmer" || userRole === "Programmer";
+
+  // Use localStorage specific times (immediate), then fallback to query result / global time
+  const globalLS = parseInt(localStorage.getItem(`task_viewed_${taskId}`) || "0", 10);
+  const globalDB = typeof taskViewHistoryTime === 'number' ? taskViewHistoryTime : 0;
+  const globalTime = Math.max(globalLS, globalDB);
+
+  const lastViewedFeatures = isProgrammer ? Math.max(parseInt(localStorage.getItem(`task_viewed_features_${taskId}`) || "0", 10), globalTime) : 0;
+  const lastViewedBugs = isProgrammer ? Math.max(parseInt(localStorage.getItem(`task_viewed_bugs_${taskId}`) || "0", 10), globalTime) : 0;
+  const lastViewedNotes = isProgrammer ? Math.max(parseInt(localStorage.getItem(`task_viewed_notes_${taskId}`) || "0", 10), globalTime) : 0;
+  const lastViewedMilestones = isProgrammer ? Math.max(parseInt(localStorage.getItem(`task_viewed_milestones_${taskId}`) || "0", 10), globalTime) : 0;
+  
+  const newNotes = isProgrammer ? (task.notes || []).filter((n) => {
+    const noteTime = n.timestamp || 0;
+    return noteTime > 0 && noteTime > lastViewedNotes;
+  }).length : 0;
+
+  const newFeatures = isProgrammer ? (task.features || []).filter((f) => {
+    if ((f.type || "feature") !== "feature") return false;
+    const featureTime = f.createdAtTime || 0;
+    return featureTime > 0 && featureTime > lastViewedFeatures;
+  }).length : 0;
+
+  const newBugs = isProgrammer ? (task.features || []).filter((f) => {
+    if ((f.type || "feature") !== "bug") return false;
+    const featureTime = f.createdAtTime || 0;
+    return featureTime > 0 && featureTime > lastViewedBugs;
+  }).length : 0;
+
+  const newMilestones = isProgrammer ? (task.milestones || []).filter((m) => {
+    const milestoneTime = m.createdAtTime || 0;
+    return milestoneTime > 0 && milestoneTime > lastViewedMilestones;
+  }).length : 0;
+
+  // Debug logging
+  useEffect(() => {
+    console.log("≡ƒæñ ROLE CHECK:", { userEmail: localStorage.getItem("wf_email"), actualRole, isProgrammer, userRole });
+    if (isProgrammer) {
+      console.log("≡ƒôè BADGE DEBUG:", {
+        isProgrammer,
+        globalTime,
+        lastViewedFeatures,
+        taskNotesCount: (task.notes || []).length,
+        taskFeaturesCount: (task.features || []).filter(f => (f.type || "feature") === "feature").length,
+        taskBugsCount: (task.features || []).filter(f => (f.type || "feature") === "bug").length,
+        newNotes,
+        newFeatures,
+        newBugs,
+        newMilestones,
+        notes: (task.notes || []).slice(0, 3).map((n, i) => ({ i, timestamp: n.timestamp, text: n.text?.slice(0, 20) })),
+        features: (task.features || []).slice(0, 3).map((f, i) => ({ i, type: f.type, createdAtTime: f.createdAtTime, name: f.name })),
+      });
+    }
+  }, [task, isProgrammer, globalTime, newNotes, newFeatures, newBugs, newMilestones, actualRole, userRole]);
+
+  function toggleAssignee(name) {
+    setSelectedAssignees((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  }
+
+  function handleToggleMilestone(idx) {
+    const updated = JSON.parse(JSON.stringify(milestones));
+    const isNowCompleted = !updated[idx].completed;
+    updated[idx].completed = isNowCompleted;
+    if (isNowCompleted) {
+      updated[idx].completedAt = new Date().toLocaleString("en-US", {
+        timeZone: "America/New_York",
+        year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
+      });
+      notifyMilestoneCompleted(task.title, updated[idx].name);
+    } else {
+      delete updated[idx].completedAt;
+    }
+    const completedCount = updated.filter((m) => m.completed).length;
+    updateTaskMilestones({ taskId, milestones: updated, completedCount });
+  }
+
+  function handleAddNote() {
+    const text = noteInputText.trim();
+    if (!text) return;
+    const estDate = new Date().toLocaleString("en-US", {
+      timeZone: "America/New_York",
+      year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
+    });
+    console.log("≡ƒô¥ Adding note:", { taskId, text: text.substring(0, 30), writer: userName });
+    addNoteToTask({ taskId, noteText: text, writer: userName, date: estDate });
+    console.log("≡ƒöö Calling notifyNoteAdded:", { taskTitle: task.title, notePreview: text.substring(0, 30) });
+    notifyNoteAdded(task.title, text);
+    setNoteInputText("");
+    setNotesFullscreen(false);
+  }
+
+  function handleDelete() {
+    showModal({
+      title: "Delete Project",
+      message: "Are you sure you want to permanently delete this project? This action cannot be undone.",
+      type: "confirm",
+      onConfirm: () => { deleteTask({ taskId }); onClose(); }
+    });
+  }
+
+  function handleSaveEdits() {
+    const newMilestones = editedMilestones.map((m) => ({
+      name: (m.name || "").trim() || "Unnamed",
+      days: parseInt(m.days) || 0,
+      completed: m.completed || false,
+      completedAt: m.completedAt,
+    }));
+    updateTaskDetails({
+      taskId,
+      newTitle: editedTitle,
+      newDescription: editedDesc,
+      newAssignee: Array.from(selectedAssignees).join(", "),
+      newMilestones,
+    });
+    onClose();
+  }
+
+  function appendEditableMilestone() {
+    setEditedMilestones(prev => [...prev, { name: "", days: 0 }]);
+  }
+
+  function handleFeatureContextMenu(e, f) {
+    if (!canManageFeatures) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setFeatureContextMenu({ x: e.clientX, y: e.clientY, feature: f });
+  }
+
+  function handleFeatureEdit(f) {
+    setFeatureModalConfig({ mode: "edit", feature: f });
+    setFeatureContextMenu(null);
+  }
+
+  function handleFeatureDelete(f) {
+    setFeatureContextMenu(null);
+    showModal({
+      title: `Delete ${f.type === "bug" ? "Bug" : "Feature"}`,
+      message: `Are you sure you want to permanently delete the ${f.type === "bug" ? "bug" : "feature"} "${f.name}"?`,
+      type: "confirm",
+      onConfirm: () => { deleteTaskFeature({ taskId, featureId: f.id }); }
+    });
+  }
+
+  function handleBulkDelete(type) {
+    switch (type) {
+      case 'features':
+        if (selectedFeatures.size === 0) return;
+        showModal({
+          title: "Bulk Delete Features",
+          message: `Are you sure you want to permanently delete ${selectedFeatures.size} feature${selectedFeatures.size > 1 ? 's' : ''}?`,
+          type: "confirm",
+          onConfirm: () => {
+            deleteFeaturesBulk({ taskId, featureIds: Array.from(selectedFeatures) });
+            setSelectedFeatures(new Set());
+          }
+        });
+        break;
+      case 'bugs':
+        if (selectedBugs.size === 0) return;
+        showModal({
+          title: "Bulk Delete Bugs",
+          message: `Are you sure you want to permanently delete ${selectedBugs.size} bug${selectedBugs.size > 1 ? 's' : ''}?`,
+          type: "confirm",
+          onConfirm: () => {
+            deleteFeaturesBulk({ taskId, featureIds: Array.from(selectedBugs) });
+            setSelectedBugs(new Set());
+          }
+        });
+        break;
+      case 'notes':
+        if (selectedNotes.size === 0) return;
+        showModal({
+          title: "Bulk Delete Notes",
+          message: `Are you sure you want to permanently delete ${selectedNotes.size} note${selectedNotes.size > 1 ? 's' : ''}?`,
+          type: "confirm",
+          onConfirm: () => {
+            deleteNotesBulk({ taskId, indices: Array.from(selectedNotes) });
+            setSelectedNotes(new Set());
+          }
+        });
+        break;
+      case 'milestones':
+        if (selectedMilestones.size === 0) return;
+        showModal({
+          title: "Bulk Delete Milestones",
+          message: `Are you sure you want to permanently delete ${selectedMilestones.size} milestone${selectedMilestones.size > 1 ? 's' : ''}?`,
+          type: "confirm",
+          onConfirm: () => {
+            deleteMilestonesBulk({ taskId, indices: Array.from(selectedMilestones) });
+            setSelectedMilestones(new Set());
+          }
+        });
+        break;
+    }
+  }
+
+  function handleSelectAll(type, items) {
+    switch (type) {
+      case 'features':
+        if (selectedFeatures.size === items.length) setSelectedFeatures(new Set());
+        else setSelectedFeatures(new Set(items.map(f => f.id)));
+        break;
+      case 'bugs':
+        if (selectedBugs.size === items.length) setSelectedBugs(new Set());
+        else setSelectedBugs(new Set(items.map(b => b.id)));
+        break;
+      case 'notes':
+        if (selectedNotes.size === items.length) setSelectedNotes(new Set());
+        else setSelectedNotes(new Set(items.map((_, i) => i)));
+        break;
+      case 'milestones':
+        if (selectedMilestones.size === items.length) setSelectedMilestones(new Set());
+        else setSelectedMilestones(new Set(items.map((_, i) => i)));
+        break;
+    }
+  }
+
+  // ΓöÇΓöÇ Pure DOM drag-and-drop (no React state during drag) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // We mutate DOM styles directly for visual feedback; only call setEditedMilestones
+  // once on pointerup. This avoids all React re-render / listener teardown issues.
+  function startMilestoneDrag(fromIdx) {
+    dragFromRef.current = fromIdx;
+    dragOverRef.current = fromIdx;
+
+    function getRows() {
+      return milestoneListRef.current
+        ? [...milestoneListRef.current.querySelectorAll(".ms-drag-row")]
+        : [];
+    }
+
+    function applyVisuals(overIdx) {
+      getRows().forEach((r, i) => {
+        r.style.opacity = i === fromIdx ? "0.35" : "1";
+        r.style.borderTop = "";
+        r.style.borderBottom = "";
+      });
+      const rows = getRows();
+      if (overIdx !== fromIdx && rows[overIdx]) {
+        if (overIdx < fromIdx) {
+          rows[overIdx].style.borderTop = "3px solid #3b82f6";
+        } else {
+          rows[overIdx].style.borderBottom = "3px solid #3b82f6";
+        }
+      }
+    }
+
+    function clearVisuals() {
+      getRows().forEach(r => {
+        r.style.opacity = "";
+        r.style.borderTop = "";
+        r.style.borderBottom = "";
+      });
+    }
+
+    applyVisuals(fromIdx);
+
+    function onMove(e) {
+      const rows = getRows();
+      let found = dragOverRef.current;
+      for (let i = 0; i < rows.length; i++) {
+        const rect = rows[i].getBoundingClientRect();
+        if (e.clientY >= rect.top && e.clientY <= rect.bottom) {
+          found = i;
+          break;
+        }
+      }
+      if (found !== dragOverRef.current) {
+        dragOverRef.current = found;
+        applyVisuals(found);
+      }
+    }
+
+    function onUp() {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      clearVisuals();
+      const from = dragFromRef.current;
+      const to = dragOverRef.current;
+      dragFromRef.current = null;
+      dragOverRef.current = null;
+      if (from !== null && to !== null && from !== to) {
+        setEditedMilestones(prev => {
+          const next = [...prev];
+          const [moved] = next.splice(from, 1);
+          next.splice(to, 0, moved);
+          return next;
+        });
+      }
+    }
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <button className="modal-close" onClick={onClose}>├ù</button>
+
+        <div className="modal-grid-3">
+
+          {/* ΓöÇΓöÇ Features & Bugs sidebar ΓöÇΓöÇ */}
+          <div className="features-sidebar" style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+            <div className="features-header" style={{ flexShrink: 0, paddingBottom: 12, borderBottom: "1px solid #f1f5f9", marginBottom: 14 }}>
+
+              {/* ΓöÇΓöÇ View Tabs ΓöÇΓöÇ */}
+              <div className="taskmodal-tabs" role="tablist" aria-label="Feature view tabs">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={featureView === "feature"}
+                  className={`taskmodal-tab ${featureView === "feature" ? "active" : ""}`}
+                  onClick={() => {
+                    setFeatureView("feature");
+                    clearBadge("features");
+                  }}
+                  style={{ position: "relative" }}
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                  </svg>
+                  Features
+                  {isProgrammer && newFeatures > 0 && (
+                    <span style={{
+                      position: "absolute",
+                      top: "-6px",
+                      right: "-8px",
+                      background: "radial-gradient(circle, #ef4444 0%, #dc2626 100%)",
+                      color: "white",
+                      fontSize: "0.55rem",
+                      fontWeight: 900,
+                      padding: "1px 5px",
+                      borderRadius: "10px",
+                      minWidth: "16px",
+                      textAlign: "center",
+                      boxShadow: "0 0 8px 2px rgba(239, 68, 68, 0.4)",
+                      zIndex: 10,
+                    }}>
+                      {newFeatures}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={featureView === "bug"}
+                  className={`taskmodal-tab ${featureView === "bug" ? "active" : ""}`}
+                  onClick={() => {
+                    setFeatureView("bug");
+                    clearBadge("bugs");
+                  }}
+                  style={{ position: "relative" }}
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+                    <circle cx="12" cy="12" r="4" />
+                    <path d="M12 2v2m0 16v2m7-7h2M3 12h2M16.95 7.05l1.41-1.41M5.64 18.36l1.41-1.41M16.95 16.95l1.41 1.41M5.64 5.64l1.41 1.41" />
+                  </svg>
+                  Bugs
+                  {isProgrammer && newBugs > 0 && (
+                    <span style={{
+                      position: "absolute",
+                      top: "-6px",
+                      right: "-8px",
+                      background: "radial-gradient(circle, #ef4444 0%, #dc2626 100%)",
+                      color: "white",
+                      fontSize: "0.55rem",
+                      fontWeight: 900,
+                      padding: "1px 5px",
+                      borderRadius: "10px",
+                      minWidth: "16px",
+                      textAlign: "center",
+                      boxShadow: "0 0 8px 2px rgba(239, 68, 68, 0.4)",
+                      zIndex: 10,
+                    }}>
+                      {newBugs}
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              {/* ΓöÇΓöÇ Row: title + pending badge + add button ΓöÇΓöÇ */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
+                  <h3 style={{ margin: 0, fontSize: "0.82rem", fontWeight: 800, color: "var(--color-text-primary)", letterSpacing: "-0.2px" }}>
+                    {featureView === "feature" ? "Features" : "Bug Reports"}
+                  </h3>
+                  {(task.features || []).filter(f => (f.type || "feature") === featureView && f.status === "pending").length > 0 && (
+                    <span style={{
+                      background: featureView === "bug" ? "rgba(239, 68, 68, 0.15)" : "var(--color-bg-subtle)",
+                      color: featureView === "bug" ? "#ef4444" : "var(--color-text-secondary)",
+                      fontSize: "0.58rem", padding: "2px 7px", borderRadius: "20px", fontWeight: 800, letterSpacing: "0.4px",
+                    }}>
+                      {(task.features || []).filter(f => (f.type || "feature") === featureView && f.status === "pending").length} OPEN
+                    </span>
+                  )}
+                </div>
+                {canManageFeatures && (
+                  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                    {(featureView === "feature" ? selectedFeatures.size : selectedBugs.size) > 0 && (
+                      <button
+                        className="select-all-btn"
+                        onClick={() => handleSelectAll(featureView === "feature" ? "features" : "bugs", (task.features || []).filter(f => (f.type || "feature") === featureView))}
+                      >
+                        Select All
+                      </button>
+                    )}
+                    <button
+                      className="btn-add-feature"
+                      style={{
+                        background: featureView === "bug" ? "#fef2f2" : "#f8fafc",
+                        color: featureView === "bug" ? "#dc2626" : "#475569",
+                        border: `1.5px solid ${featureView === "bug" ? "#fca5a5" : "#e2e8f0"}`,
+                        transition: "all 0.2s ease",
+                      }}
+                      onClick={() => setFeatureModalConfig({ mode: "add", type: featureView })}
+                    >
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                        <path d="M12 5v14M5 12h14" />
+                      </svg>
+                      ADD
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="features-list" style={{ flex: 1, overflowY: "auto", padding: "5px" }}>
+              {featureView === "feature" && selectedFeatures.size > 0 && (
+                <div className="bulk-action-bar">
+                  <span>{selectedFeatures.size} selected</span>
+                  <button className="btn-bulk-delete" onClick={() => handleBulkDelete('features')}>
+                    Delete Selected
+                  </button>
+                </div>
+              )}
+              {featureView === "bug" && selectedBugs.size > 0 && (
+                <div className="bulk-action-bar">
+                  <span>{selectedBugs.size} selected</span>
+                  <button className="btn-bulk-delete" onClick={() => handleBulkDelete('bugs')}>
+                    Delete Selected
+                  </button>
+                </div>
+              )}
+              {(task.features || []).filter(f => (f.type || "feature") === featureView).map((f) => {
+                const isSelected = featureView === "feature" ? selectedFeatures.has(f.id) : selectedBugs.has(f.id);
+                const setFn = featureView === "feature" ? setSelectedFeatures : setSelectedBugs;
+                return (
+                  <div
+                    key={f.id}
+                    className={`feature-card ${f.status === "completed" ? "completed" : ""} ${isSelected ? "bulk-selected-item" : ""}`}
+                    onClick={(e) => handleRowClickToggle(e, setFn, f.id)}
+                    onContextMenu={(e) => handleFeatureContextMenu(e, f)}
+                    style={{ cursor: "pointer", userSelect: "none", borderLeft: featureView === "bug" && f.status !== "completed" ? "3px solid #ef4444" : undefined, display: "flex", alignItems: "center" }}
+                  >
+                    <div style={{ flex: 1, display: "flex", gap: "12px", alignItems: "flex-start" }} onClick={(e) => {
+                      if (e.ctrlKey || e.metaKey) return;
+                      setFeatureModalConfig({ mode: "view", feature: f, type: featureView });
+                    }}>
+                      <div className="feature-icon-box" style={{ background: featureView === "bug" ? "#fef2f2" : undefined, color: featureView === "bug" ? "#ef4444" : undefined }}>
+                        {featureView === "bug" ? (
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <path d="M20.9 9.1C21.7 8.3 21.7 7 20.9 6.2c-.8-.8-2.1-.8-2.9 0L17.5 6.7m-11 0L6 6.2C5.2 5.4 3.9 5.4 3.1 6.2c-.8.8-.8 2.1 0 2.9l.5.5m0 6L3.1 16.1C2.3 16.9 2.3 18.2 3.1 19c.8.8 2.1.8 2.9 0l.5-.5m11 0l.5.5c.8.8 2.1.8 2.9 0 .8-.8.8-2.1 0-2.9l-.5-.5" />
+                            <path d="M12 2v2m0 16v2m7-9h2M3 12h2M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" />
+                          </svg>
+                        ) : (
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                          </svg>
+                        )}
+                      </div>
+                      <div className="feature-info" style={{ flex: 1 }}>
+                        <h4>{f.name}</h4>
+                        <p>{f.description}</p>
+                        <div style={{ display: "flex", gap: "8px", fontSize: "0.65rem", color: "#64748b", marginBottom: "4px" }}>
+                          <span>Created: {f.createdAt || "N/A"}</span>
+                          {f.completedAt && <span>Completed: {f.completedAt}</span>}
+                        </div>
+                        <span className={`feature-badge ${f.status}`} style={{ background: featureView === "bug" && f.status === "pending" ? "#fee2e2" : undefined, color: featureView === "bug" && f.status === "pending" ? "#ef4444" : undefined }}>
+                          {f.status === "completed" ? "COMPLETED" : "PENDING"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {(task.features || []).filter(f => (f.type || "feature") === featureView).length === 0 && (
+                <div style={{ textAlign: "center", color: "#94a3b8", fontStyle: "italic", fontSize: "0.8rem", marginTop: 20 }}>
+                  No {featureView === "bug" ? "bugs" : "features"} added yet.
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ΓöÇΓöÇ Main column ΓöÇΓöÇ */}
+          <div className="modal-main-column" style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+            <div className="modal-fixed-top" style={{ paddingBottom: 15, borderBottom: "1px solid #f1f5f9" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 15 }}>
+                {isEditMode ? (
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={editedTitle}
+                    onChange={(e) => setEditedTitle(e.target.value)}
+                    style={{ fontSize: "1.2rem", fontWeight: 900, padding: "6px 10px", width: "100%", marginRight: 15, borderRadius: "var(--radius-md)" }}
+                  />
+                ) : (
+                  <h1 className="modal-title" style={{ marginBottom: 0, fontSize: "1.3rem", letterSpacing: "-0.5px" }}>{task.title}</h1>
+                )}
+                {isEditMode ? (
+                  <button className="btn-primary" style={{ background: "var(--color-accent)", color: "white", padding: "8px 16px", fontSize: "0.65rem", borderRadius: 8, width: "auto", fontWeight: 800 }} onClick={handleSaveEdits}>
+                    SAVE CHANGES
+                  </button>
+                ) : (
+                  <div style={{ display: "flex", gap: 10 }}>
+                    {task.projectLink && (
+                      <a
+                        href={task.projectLink.startsWith("http") ? task.projectLink : `https://${task.projectLink}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="btn-primary"
+                        style={{ background: "var(--color-accent)", color: "white", padding: "8px 16px", fontSize: "0.65rem", borderRadius: 8, textDecoration: "none", fontWeight: 800, textAlign: "center", display: "inline-flex", alignItems: "center" }}
+                      >
+                        VIEW PROJECT
+                      </a>
+                    )}
+                    {userRole === "Admin" && (
+                      <button className="btn-danger" onClick={handleDelete}>DELETE TASK</button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div 
+                className="modal-assignee" 
+                style={{ 
+                  marginBottom: 0, 
+                  display: "flex", 
+                  alignItems: "center", 
+                  gap: 8,
+                  cursor: "pointer",
+                  transition: "opacity 0.2s"
+                }}
+                onClick={() => {
+                  if (isEditMode) return;
+                  const found = (staff || []).find(s => s.name === task.assignee);
+                  if (found) onViewProfile(found);
+                }}
+                onMouseEnter={(e) => { if (!isEditMode) e.currentTarget.style.opacity = 0.7; }}
+                onMouseLeave={(e) => { e.currentTarget.style.opacity = 1; }}
+              >
+                {(() => {
+                  const assigneeName = task.assignee || "";
+                  const found = (staff || []).find(s => s.name === assigneeName);
+                  const avatarUrl = found?.avatarUrl;
+                  if (avatarUrl) {
+                    return <img src={avatarUrl} alt={assigneeName} style={{ width: 22, height: 22, borderRadius: "50%", objectFit: "cover", border: "1px solid var(--color-accent)" }} />;
+                  }
+                  return (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  );
+                })()}
+                {isEditMode ? (
+                  <div style={{ flex: 1, marginLeft: 8 }}>
+                    <div className="custom-multiselect">
+                      <div className="multiselect-trigger" onClick={() => setShowOptions(!showOptions)} style={{ color: selectedAssignees.size > 0 ? "#1e293b" : "#64748b", padding: "4px 8px", fontSize: "0.8rem" }}>
+                        {selectedAssignees.size > 0 ? Array.from(selectedAssignees).join(", ") : "Select Assignees..."}
+                      </div>
+                      <div className={`multiselect-options ${showOptions ? "show" : ""}`} style={{ fontSize: "0.8rem" }}>
+                        {(staff || []).map((s) => (
+                          <div key={s.email} className="multiselect-option" onClick={(e) => e.stopPropagation()}>
+                            <input type="checkbox" id={`modal-staff-${s.email}`} checked={selectedAssignees.has(s.name)} onChange={() => toggleAssignee(s.name)} />
+                            <label htmlFor={`modal-staff-${s.email}`}>{s.name}</label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <span style={{ fontSize: "0.8rem", fontWeight: 700 }}>Assigned to: {task.assignee || "Unassigned"}</span>
+                )}
+              </div>
+
+              <div className="modal-desc" style={{ marginTop: 20 }}>
+                <h3 style={{ fontWeight: 900, textTransform: "uppercase", fontSize: "0.65rem", color: "var(--color-text-secondary)", marginBottom: 8, letterSpacing: "1px" }}>Project Description</h3>
+                {isEditMode ? (
+                  <textarea
+                    className="form-input"
+                    value={editedDesc}
+                    onChange={(e) => setEditedDesc(e.target.value)}
+                    style={{ width: "100%", height: 80, fontSize: "0.85rem", padding: 12, borderRadius: "var(--radius-md)" }}
+                    placeholder="Enter project description..."
+                  />
+                ) : (
+                  <div style={{ fontSize: "0.85rem", color: "var(--color-text-primary)", lineHeight: 1.5 }}>
+                    {task.description || "No description provided."}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--glass-border)", borderRadius: "10px", padding: "15px 20px", boxShadow: "var(--shadow-sm)", marginTop: 15 }}>
+                <div style={{ marginBottom: 12 }}>
+                  <span style={{ fontSize: "0.8rem", color: "var(--color-text-secondary)", letterSpacing: "0.5px", fontWeight: 800 }}>
+                    Milestones: {doneM} / {milestones.length} ({progressPercent}%)
+                  </span>
+                </div>
+                <div className="progress-container" style={{ height: 10, marginBottom: 0, borderRadius: 10 }}>
+                  <div className="progress-fill" style={{ width: `${progressPercent}%`, borderRadius: 10 }}></div>
+                </div>
+              </div>
+            </div>
+
+            {/* ΓöÇΓöÇ Milestone list ΓöÇΓöÇ */}
+            <div className="milestone-scroll-area" style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingRight: "5px", marginTop: "10px" }}>
+              {!isEditMode && canEditMilestone && (
+                <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "8px" }}>
+                  {selectedMilestones.size > 0 && (
+                    <button
+                      className="select-all-btn"
+                      onClick={() => handleSelectAll("milestones", task.milestones || [])}
+                    >
+                      Select All
+                    </button>
+                  )}
+                </div>
+              )}
+              {!isEditMode && selectedMilestones.size > 0 && (
+                <div className="bulk-action-bar">
+                  <span>{selectedMilestones.size} selected</span>
+                  <button className="btn-bulk-delete" onClick={() => handleBulkDelete('milestones')}>
+                    Delete Selected
+                  </button>
+                </div>
+              )}
+              <div className="milestone-vertical-list" style={{ marginTop: 10, padding: "5px" }} ref={milestoneListRef}>
+                {isEditMode ? (
+                  <>
+                    {editedMilestones.map((m, idx) => (
+                      <div
+                        key={idx}
+                        className="milestone-list-item edit-mode-item ms-drag-row"
+                        style={{ padding: 10, gap: 10, userSelect: "none" }}
+                      >
+                        {/* Γï«Γï« handle: pointerdown triggers pure-DOM drag */}
+                        <div
+                          className="drag-handle"
+                          style={{ fontSize: "1.1rem", color: "#94a3b8", cursor: "grab", padding: "0 6px", flexShrink: 0, userSelect: "none", touchAction: "none" }}
+                          onPointerDown={(e) => {
+                            e.preventDefault();
+                            // Release implicit pointer capture so pointermove fires
+                            // on whatever element the cursor is over (and bubbles to window)
+                            e.currentTarget.releasePointerCapture(e.pointerId);
+                            startMilestoneDrag(idx);
+                          }}
+                        >Γï«Γï«</div>
+                        <div className="milestone-list-content">
+                          <div className="milestone-name-row" style={{ gap: 10 }}>
+                            <input
+                              type="text"
+                              className="form-input edit-m-name"
+                              value={m.name}
+                              onChange={(e) => {
+                                const next = [...editedMilestones];
+                                next[idx] = { ...next[idx], name: e.target.value };
+                                setEditedMilestones(next);
+                              }}
+                              placeholder="Milestone Name"
+                              style={{ flex: 2, padding: "4px 8px", fontSize: "0.8rem" }}
+                            />
+                            <input
+                              type="number"
+                              className="form-input edit-m-days"
+                              value={m.days}
+                              onChange={(e) => {
+                                const next = [...editedMilestones];
+                                next[idx] = { ...next[idx], days: e.target.value };
+                                setEditedMilestones(next);
+                              }}
+                              placeholder="Days"
+                              style={{ flex: 1, padding: "4px 8px", fontSize: "0.8rem" }}
+                            />
+                            <button
+                              type="button"
+                              className="btn-remove-milestone"
+                              style={{ padding: "4px 8px", fontSize: "0.8rem" }}
+                              onClick={() => setEditedMilestones(prev => prev.filter((_, i) => i !== idx))}
+                            >├ù</button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      style={{ marginTop: 10, alignSelf: "flex-start", width: "auto", padding: "6px 12px", fontSize: "0.75rem", background: "var(--color-bg-subtle)", color: "var(--color-nav-bg)", border: "2px dashed var(--color-accent-lighter)" }}
+                      onClick={appendEditableMilestone}
+                    >
+                      + ADD MILESTONE
+                    </button>
+                  </>
+                ) : (
+                  milestones.map((m, idx) => {
+                    let status = "waiting";
+                    const firstIncompleteIdx = milestones.findIndex((ms) => !ms.completed);
+                    if (m.completed) status = "completed";
+                    else if (idx === firstIncompleteIdx) status = "active";
+
+                    let actionBtn;
+                    if (canEditMilestone) {
+                      if (status === "completed") actionBtn = <button className="btn-milestone-undo" onClick={() => handleToggleMilestone(idx)}>Undo</button>;
+                      else if (status === "active") actionBtn = <button className="btn-milestone-complete" onClick={() => handleToggleMilestone(idx)}>Complete</button>;
+                      else actionBtn = <span className="badge-waiting">Waiting</span>;
+                    } else {
+                      if (status === "completed") actionBtn = <span className="badge-completed">Completed</span>;
+                      else if (status === "active") actionBtn = <span className="badge-active">Active</span>;
+                      else actionBtn = <span className="badge-waiting">Waiting</span>;
+                    }
+
+                    return (
+                      <div
+                        key={idx}
+                        className={`milestone-list-item ${status} ${selectedMilestones.has(idx) ? "bulk-selected-item" : ""}`}
+                        onClick={(e) => {
+                          if (userRole === "Admin" || userRole === "Admin+") {
+                            handleRowClickToggle(e, setSelectedMilestones, idx);
+                          }
+                        }}
+                        style={{ display: "flex", alignItems: "center", cursor: (userRole === "Admin" || userRole === "Admin+") ? "pointer" : "default" }}
+                      >
+                        <div className="drag-handle">Γï«Γï«</div>
+                        <div className="milestone-list-content">
+                          <div className="milestone-name-row">
+                            <span className={`m-name ${m.completed ? "strike" : ""}`}>
+                              {m.name} <span style={{ fontWeight: "normal", color: "#94a3b8" }}>({m.days} days)</span>
+                            </span>
+                            {actionBtn}
+                          </div>
+                          {m.completed && m.completedAt && (
+                            <div className="milestone-date">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                <path d="M20 6L9 17l-5-5" />
+                              </svg>
+                              Completed {m.completedAt}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {(userRole === "Admin" || userRole === "Admin+") && (
+              <div className="admin-creds-box" style={{ flexShrink: 0, marginTop: 10, background: "var(--color-bg-subtle)", border: "2px solid var(--color-accent)", borderRadius: "8px", overflow: "hidden", boxShadow: "var(--shadow-sm)" }}>
+                <div className="creds-header" style={{ background: "var(--color-accent)", padding: "6px 12px", color: "white", fontSize: "0.6rem", fontWeight: 900, display: "flex", alignItems: "center", gap: "8px", letterSpacing: "1px" }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                  ADMIN CREDENTIALS (SENSITIVE)
+                </div>
+                <div className="creds-content" style={{ padding: "8px 12px", color: "var(--color-nav-bg)" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "80px 1fr", gap: "2px 10px", alignItems: "center" }}>
+                    <span style={{ fontSize: "0.6rem", fontWeight: 900, textTransform: "uppercase", color: "var(--color-accent)" }}>Email:</span>
+                    <span style={{ fontWeight: 700, fontSize: "0.8rem", fontFamily: "monospace" }}>{task.adminCredentials?.email || "ΓÇö"}</span>
+                    <span style={{ fontSize: "0.6rem", fontWeight: 900, textTransform: "uppercase", color: "var(--color-accent)" }}>Pass:</span>
+                    <span style={{ fontWeight: 700, fontSize: "0.8rem", fontFamily: "monospace" }}>{task.adminCredentials?.password || "ΓÇö"}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ΓöÇΓöÇ Notes column ΓöÇΓöÇ */}
+          <div 
+            onClick={() => clearBadge("notes")}
+            style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--glass-border)", padding: "15px 20px", borderRadius: "var(--radius-lg)", alignSelf: "stretch", display: "flex", flexDirection: "column", height: "100%", minHeight: 0, overflow: "hidden" }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: 10, position: "relative", flexShrink: 0 }}>
+              <h3 style={{ fontWeight: 900, textTransform: "uppercase", fontSize: "0.7rem", color: "var(--color-text-secondary)", letterSpacing: "1px", margin: 0 }}>Notes & Updates</h3>
+              {isProgrammer && newNotes > 0 && (
+                <span style={{
+                  position: "absolute",
+                  left: "135px",
+                  top: "-5px",
+                  background: "radial-gradient(circle, #ef4444 0%, #dc2626 100%)",
+                  color: "white",
+                  fontSize: "0.55rem",
+                  fontWeight: 900,
+                  padding: "1px 5px",
+                  borderRadius: "10px",
+                  minWidth: "16px",
+                  textAlign: "center",
+                  boxShadow: "0 0 8px 2px rgba(239, 68, 68, 0.4)",
+                  zIndex: 10,
+                }}>
+                  {newNotes}
+                </span>
+              )}
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                {selectedNotes.size > 0 && (
+                  <button
+                    className="select-all-btn"
+                    onClick={() => handleSelectAll("notes", task.notes || [])}
+                  >
+                    Select All
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="notes-list" onClick={() => setNoteContextMenu(null)} style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "0 5px", marginBottom: 10 }}>
+              {selectedNotes.size > 0 && (
+                <div className="bulk-action-bar">
+                  <span>{selectedNotes.size} selected</span>
+                  <button className="btn-bulk-delete" onClick={() => handleBulkDelete('notes')}>
+                    Delete Selected
+                  </button>
+                </div>
+              )}
+              {(task.notes || []).map((n, i) => {
+                const reactions = n.reactions || {};
+                const reactionTypes = [
+                  { key: "like", emoji: "≡ƒæì", label: "Like" },
+                  { key: "wow", emoji: "≡ƒÿ«", label: "Wow" },
+                  { key: "heart", emoji: "Γ¥ñ∩╕Å", label: "Heart" },
+                  { key: "haha", emoji: "≡ƒÿé", label: "Haha" },
+                ];
+                return (
+                  <div
+                    key={i}
+                    className={`note-item ${selectedNotes.has(i) ? "bulk-selected-item" : ""}`}
+                    onClick={(e) => handleRowClickToggle(e, setSelectedNotes, i)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setNoteContextMenu(i);
+                    }}
+                    style={{ background: "var(--color-card-bg)", padding: 12, borderRadius: "var(--radius-md)", border: "1px solid var(--glass-border)", marginBottom: 8, boxShadow: "var(--shadow-sm)", display: "flex", gap: "10px", alignItems: "flex-start", cursor: "pointer" }}
+                  >
+                    <div style={{ flex: 1 }}>
+                      <div className="note-date" style={{ color: "var(--color-accent)", marginBottom: 4, fontSize: "0.65rem", fontWeight: 700 }}>
+                        {n.date} {n.writer && <span style={{ color: "var(--color-nav-bg)", fontWeight: 900 }}>- {n.writer}</span>}
+                      </div>
+                    <div className="note-text" style={{ fontSize: "0.8rem", lineHeight: 1.4, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{n.text}</div>
+                    <div className="note-reactions-fixed">
+                      {reactionTypes.map(({ key, emoji, label }) => {
+                        const arr = reactions[key] || [];
+                        const isActive = arr.includes(currentUserEmail);
+                        const isVisible = arr.length > 0 || noteContextMenu === i;
+                        
+                        if (!isVisible) return null;
+
+                        return (
+                          <button
+                            key={key}
+                            className={`reaction-pill ${isActive ? "active" : ""} ${arr.length > 0 ? "has-count" : ""}`}
+                            title={arr.length > 0 ? `${label}: ${arr.join(', ')}` : label}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleNoteReaction({ taskId, noteIndex: i, reactionType: key, userEmail: currentUserEmail });
+                              setNoteContextMenu(null);
+                            }}
+                          >
+                            <span className="reaction-emoji-fixed">{emoji}</span>
+                            {arr.length > 0 && <span className="reaction-count-fixed">{arr.length}</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {(task.notes || []).length === 0 && (
+                <div style={{ textAlign: "center", color: "var(--color-text-secondary)", fontStyle: "italic", marginTop: 40, fontSize: "0.8rem" }}>No updates yet.</div>
+              )}
+            </div>
+            <div className="note-input-group" style={{ display: "flex", gap: 8, paddingTop: 10, borderTop: "1px solid var(--glass-border)", flexShrink: 0 }}>
+              <input
+                type="text"
+                className="note-input"
+                id="modal-note-input"
+                placeholder="Share an update... (click to expand)"
+                value={noteInputText}
+                onChange={(e) => setNoteInputText(e.target.value)}
+                style={{ flex: 1, padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "0.8rem", cursor: "pointer" }}
+                onClick={() => setNotesFullscreen(true)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddNote(); } }}
+                readOnly
+              />
+              <button className="btn-add-note" style={{ background: "var(--color-nav-bg)", color: "white", padding: "0 15px", borderRadius: "8px", fontWeight: 800, fontSize: "0.75rem" }} onClick={() => setNotesFullscreen(true)}>Add</button>
+            </div>
+
+            {/* Fullscreen Notes Editor Overlay */}
+            {notesFullscreen && (
+              <div className="notes-fullscreen-overlay" onClick={() => setNotesFullscreen(false)}>
+                <div className="notes-fullscreen-card" onClick={(e) => e.stopPropagation()}>
+                  <div className="notes-fullscreen-header">
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                      </svg>
+                      <span>COMPOSE UPDATE</span>
+                    </div>
+                    <button className="announcement-close-btn" onClick={() => setNotesFullscreen(false)}>├ù</button>
+                  </div>
+                  <div style={{ padding: 20, flex: 1, display: "flex", flexDirection: "column" }}>
+                    <textarea
+                      className="notes-fullscreen-textarea"
+                      placeholder="Write your update here...\n\nSupports multi-line text and paragraphs."
+                      value={noteInputText}
+                      onChange={(e) => setNoteInputText(e.target.value)}
+                      autoFocus
+                      onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); handleAddNote(); } }}
+                    />
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
+                      <span style={{ fontSize: "0.65rem", color: "#94a3b8" }}>Ctrl+Enter to send</span>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          style={{ background: "#f1f5f9", color: "#475569", border: "none", padding: "10px 20px", borderRadius: 10, fontSize: "0.75rem", fontWeight: 800, cursor: "pointer" }}
+                          onClick={() => setNotesFullscreen(false)}
+                        >Cancel</button>
+                        <button
+                          style={{ background: "var(--color-nav-bg)", color: "white", border: "none", padding: "10px 24px", borderRadius: 10, fontSize: "0.75rem", fontWeight: 800, cursor: "pointer" }}
+                          onClick={handleAddNote}
+                        >Post Update</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+        </div>
+      </div>
+
+      {/* Feature Modal */}
+      {featureModalConfig && (
+        <FeatureModal
+          mode={featureModalConfig.mode}
+          feature={featureModalConfig.feature}
+          taskId={taskId}
+          onClose={() => setFeatureModalConfig(null)}
+          canEdit={canManageFeatures}
+          userName={userName}
+          type={featureModalConfig.type || featureModalConfig.feature?.type || "feature"}
+          taskTitle={task.title}
+        />
+      )}
+
+      {/* Feature Context Menu ΓÇö backdrop closes on outside click */}
+      {featureContextMenu && (
+        <>
+          <div
+            style={{ position: "fixed", inset: 0, zIndex: 9998 }}
+            onClick={() => setFeatureContextMenu(null)}
+            onContextMenu={(e) => { e.preventDefault(); setFeatureContextMenu(null); }}
+          />
+          <div
+            style={{
+              position: "fixed",
+              top: featureContextMenu.y,
+              left: featureContextMenu.x,
+              background: "var(--color-card-bg)",
+              padding: "4px 0",
+              borderRadius: 10,
+              boxShadow: "var(--shadow-lg)",
+              zIndex: 9999,
+              border: "1px solid var(--glass-border)",
+              minWidth: 160,
+              overflow: "hidden",
+            }}
+          >
+            <button
+              style={{ width: "100%", padding: "9px 16px", textAlign: "left", background: "none", border: "none", fontSize: "0.82rem", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, color: "var(--color-text-primary)", fontWeight: 700 }}
+              onMouseEnter={e => e.currentTarget.style.background = "var(--color-bg-subtle)"}
+              onMouseLeave={e => e.currentTarget.style.background = "none"}
+              onClick={() => handleFeatureEdit(featureContextMenu.feature)}
+            >
+              Γ£Å∩╕Å {featureContextMenu.feature?.type === "bug" ? "Edit Bug" : "Edit Feature"}
+            </button>
+            <div style={{ height: 1, background: "var(--glass-border)", margin: "2px 0" }} />
+            <button
+              style={{ width: "100%", padding: "9px 16px", textAlign: "left", background: "none", border: "none", fontSize: "0.82rem", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, color: "#ef4444", fontWeight: 700 }}
+              onMouseEnter={e => e.currentTarget.style.background = "#fef2f2"}
+              onMouseLeave={e => e.currentTarget.style.background = "none"}
+              onClick={() => handleFeatureDelete(featureContextMenu.feature)}
+            >
+              ≡ƒùæ∩╕Å {featureContextMenu.feature?.type === "bug" ? "Delete Bug" : "Delete Feature"}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}

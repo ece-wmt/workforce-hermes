@@ -31,6 +31,16 @@ export default defineSchema({
             haha: v.optional(v.array(v.string())),
           })
         ),
+        replies: v.optional(
+          v.array(
+            v.object({
+              text: v.string(),
+              date: v.string(),
+              timestamp: v.number(),
+              writer: v.string(),
+            })
+          )
+        ),
       })
     ),
     startDate: v.optional(v.string()),
