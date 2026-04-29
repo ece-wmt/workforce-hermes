@@ -30,7 +30,8 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   const [featureView, setFeatureView] = useState("feature"); // 'feature' or 'bug'
   const [noteInputText, setNoteInputText] = useState("");
   const [notesFullscreen, setNotesFullscreen] = useState(false);
-  const [noteContextMenu, setNoteContextMenu] = useState(null); // { x, y, index }
+  const [noteContextMenu, setNoteContextMenu] = useState(null); // { index, noteRect }
+  const noteRefs = useRef({});
   const [threadModal, setThreadModal] = useState(null); // { index, note }
   const [replyInputText, setReplyInputText] = useState("");
 
@@ -1030,14 +1031,16 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                 return (
                   <div
                     key={i}
+                    ref={(el) => { noteRefs.current[i] = el; }}
                     className={`note-item ${selectedNotes.has(i) ? "bulk-selected-item" : ""}`}
                     onClick={(e) => handleRowClickToggle(e, setSelectedNotes, i)}
                     onContextMenu={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      setNoteContextMenu({ x: e.clientX, y: e.clientY, index: i });
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setNoteContextMenu({ index: i, noteRect: rect });
                     }}
-                    style={{ background: "var(--color-card-bg)", padding: 12, borderRadius: "var(--radius-md)", border: "1px solid var(--glass-border)", marginBottom: 8, boxShadow: "var(--shadow-sm)", display: "flex", gap: "10px", alignItems: "flex-start", cursor: "pointer" }}
+                    style={{ background: "var(--color-card-bg)", padding: 12, borderRadius: "var(--radius-md)", border: "1px solid var(--glass-border)", marginBottom: 8, boxShadow: "var(--shadow-sm)", display: "flex", gap: "10px", alignItems: "flex-start", cursor: "pointer", position: "relative" }}
                   >
                     <div style={{ flex: 1 }}>
                       <div className="note-date" style={{ color: "var(--color-accent)", marginBottom: 4, fontSize: "0.65rem", fontWeight: 700 }}>
@@ -1175,85 +1178,93 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
         </div>
       </div>
 
-      {/* Note Context Menu with Emoji Picker */}
-      {noteContextMenu && (
-        <>
-          <div
-            style={{ position: "fixed", inset: 0, zIndex: 9998 }}
-            onClick={() => setNoteContextMenu(null)}
-            onContextMenu={(e) => { e.preventDefault(); setNoteContextMenu(null); }}
-          />
-          <div
-            className="note-context-menu"
-            style={{
-              position: "fixed",
-              top: noteContextMenu.y,
-              left: Math.min(noteContextMenu.x, window.innerWidth - 220),
-              background: "#1a1a1a",
-              padding: "8px",
-              borderRadius: "16px",
-              boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
-              zIndex: 9999,
-              border: "1px solid rgba(255,255,255,0.1)",
-              minWidth: 200,
-            }}
-          >
-            {/* Emoji Row */}
-            <div style={{ display: "flex", gap: "4px", marginBottom: "8px", background: "rgba(255,255,255,0.05)", padding: "4px", borderRadius: "12px" }}>
-              {[
-                { key: "heart", emoji: "❤️" },
-                { key: "haha", emoji: "😆" },
-                { key: "wow", emoji: "😮" },
-                { key: "sad", emoji: "😢" },
-                { key: "angry", emoji: "😡" },
-                { key: "like", emoji: "👍" },
-              ].map(({ key, emoji }) => (
-                <button
-                  key={key}
-                  onClick={() => {
-                    toggleNoteReaction({ taskId, noteIndex: noteContextMenu.index, reactionType: key, userEmail: currentUserEmail });
-                    setNoteContextMenu(null);
-                  }}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    fontSize: "1.2rem",
-                    padding: "6px",
-                    cursor: "pointer",
-                    borderRadius: "8px",
-                    transition: "background 0.2s",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center"
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
-                  onMouseLeave={e => e.currentTarget.style.background = "none"}
-                >
-                  {emoji}
-                </button>
-              ))}
-              <button style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "white", width: 32, height: 32, borderRadius: "50%", fontSize: "1rem", cursor: "pointer" }}>+</button>
-            </div>
-
-            <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "4px 0" }} />
-            
-            <button
-              style={{ width: "100%", padding: "10px 16px", textAlign: "left", background: "none", border: "none", fontSize: "0.85rem", cursor: "pointer", display: "flex", alignItems: "center", gap: 10, color: "white", fontWeight: 700, borderRadius: "8px" }}
-              onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
-              onMouseLeave={e => e.currentTarget.style.background = "none"}
-              onClick={() => {
-                setThreadModal({ index: noteContextMenu.index, note: task.notes[noteContextMenu.index] });
-                setNoteContextMenu(null);
+      {/* Note Context Menu with Emoji Picker — fixed position anchored to note */}
+      {noteContextMenu && (() => {
+        const rect = noteContextMenu.noteRect;
+        // Position: centered horizontally on the note, just above it
+        const menuWidth = 280;
+        const menuLeft = Math.max(8, Math.min(rect.left + (rect.width / 2) - (menuWidth / 2), window.innerWidth - menuWidth - 8));
+        const menuTop = Math.max(8, rect.top - 8); // just above the note, with transform to shift up
+        return (
+          <>
+            <div
+              style={{ position: "fixed", inset: 0, zIndex: 9998 }}
+              onClick={() => setNoteContextMenu(null)}
+              onContextMenu={(e) => { e.preventDefault(); setNoteContextMenu(null); }}
+            />
+            <div
+              className="note-context-menu"
+              style={{
+                position: "fixed",
+                top: menuTop,
+                left: menuLeft,
+                transform: "translateY(-100%)",
+                background: "#1a1a1a",
+                padding: "8px",
+                borderRadius: "16px",
+                boxShadow: "0 10px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08)",
+                zIndex: 9999,
+                border: "1px solid rgba(255,255,255,0.1)",
+                width: menuWidth,
+                animation: "fadeInUp 0.15s ease-out",
               }}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-              </svg>
-              Reply in Thread
-            </button>
-          </div>
-        </>
-      )}
+              {/* Emoji Row */}
+              <div style={{ display: "flex", gap: "2px", marginBottom: "6px", background: "rgba(255,255,255,0.05)", padding: "6px 4px", borderRadius: "12px", justifyContent: "center" }}>
+                {[
+                  { key: "heart", emoji: "❤️" },
+                  { key: "haha", emoji: "😆" },
+                  { key: "wow", emoji: "😮" },
+                  { key: "sad", emoji: "😢" },
+                  { key: "angry", emoji: "😡" },
+                  { key: "like", emoji: "👍" },
+                ].map(({ key, emoji }) => (
+                  <button
+                    key={key}
+                    onClick={() => {
+                      toggleNoteReaction({ taskId, noteIndex: noteContextMenu.index, reactionType: key, userEmail: currentUserEmail });
+                      setNoteContextMenu(null);
+                    }}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      fontSize: "1.3rem",
+                      padding: "6px 8px",
+                      cursor: "pointer",
+                      borderRadius: "8px",
+                      transition: "all 0.15s",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center"
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.15)"; e.currentTarget.style.transform = "scale(1.25)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.transform = "scale(1)"; }}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "4px 0" }} />
+              
+              <button
+                style={{ width: "100%", padding: "10px 14px", textAlign: "left", background: "none", border: "none", fontSize: "0.82rem", cursor: "pointer", display: "flex", alignItems: "center", gap: 10, color: "white", fontWeight: 700, borderRadius: "10px" }}
+                onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
+                onMouseLeave={e => e.currentTarget.style.background = "none"}
+                onClick={() => {
+                  setThreadModal({ index: noteContextMenu.index, note: task.notes[noteContextMenu.index] });
+                  setNoteContextMenu(null);
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+                Reply in Thread
+              </button>
+            </div>
+          </>
+        );
+      })()}
 
       {/* Thread Modal */}
       {threadModal && (

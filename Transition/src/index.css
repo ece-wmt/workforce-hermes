@@ -1848,6 +1848,11 @@ body.role-programmer .kanban-col.col-scrap {
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(-90%) scale(0.95); }
+  to { opacity: 1; transform: translateY(-100%) scale(1); }
+}
+
 .announcement-popup {
   background: white;
   border-radius: 20px;
