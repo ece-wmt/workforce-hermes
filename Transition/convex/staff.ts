@@ -139,6 +139,15 @@ export const updateStaffRole = mutation({
         });
       }
     }
+
+    // Audit log
+    await ctx.db.insert("securityLogs", {
+      action: "ROLE_CHANGED",
+      userEmail: "admin", // Only admins can change roles in this app
+      targetEmail: lowerEmail,
+      details: `Role updated to: ${args.newRole}`,
+      timestamp: Date.now(),
+    });
   },
 });
 

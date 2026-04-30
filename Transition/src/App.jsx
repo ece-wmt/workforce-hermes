@@ -128,7 +128,8 @@ export default function App() {
     const mappedView = viewMap[settings.defaultView] || "dashboard";
 
     if (mainAdmin) {
-      setUserName(settings.username || "Main Admin");
+      setUserName(user?.name || "Main Admin");
+      setUserAvatar(user?.avatarUrl || "");
       setIsMainAdmin(true);
       const dbRole = user?.role || "Admin";
       setActualRole(dbRole);
@@ -146,26 +147,9 @@ export default function App() {
         return;
       }
 
-      // --- Sync DB Profile to Local Settings ---
-      // This is the "recognizing system" — if DB has newer/cloud data, pull it down
-      let needsSync = false;
-      const updatedSettings = { ...settings };
-
-      if (user.name && user.name !== settings.username) { updatedSettings.username = user.name; needsSync = true; }
-      if (user.bio !== undefined && user.bio !== settings.bio) { updatedSettings.bio = user.bio; needsSync = true; }
-      if (user.avatarUrl !== undefined && user.avatarUrl !== settings.avatarUrl) { updatedSettings.avatarUrl = user.avatarUrl; needsSync = true; }
-      if (user.country !== undefined && user.country !== settings.country) { updatedSettings.country = user.country; needsSync = true; }
-      if (user.status !== undefined && user.status !== settings.status) { updatedSettings.status = user.status; needsSync = true; }
-
-      if (needsSync) {
-        saveSettings(updatedSettings);
-        applySettings(updatedSettings);
-        setUserAvatar(updatedSettings.avatarUrl || "");
-        setUserName(updatedSettings.username);
-      } else {
-        setUserName(settings.username || user.name);
-        setUserAvatar(settings.avatarUrl || user.avatarUrl || "");
-      }
+      // Always use the database as the source of truth for profile data
+      setUserName(user.name || "User");
+      setUserAvatar(user.avatarUrl || "");
 
       setActualRole(user.role);
       // Admin+ users see the Admin view by default (they have all Admin privileges)
