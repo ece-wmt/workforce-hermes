@@ -74,12 +74,30 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
+  const [securityQuestion, setSecurityQuestion] = useState("");
+  const [securityAnswer, setSecurityAnswer] = useState("");
+
   const updateProfile = useMutation(api.staff.updateProfile);
   const resetPasswordMut = useMutation(api.staff.resetPassword);
   const updateStaffRole = useMutation(api.staff.updateStaffRole);
   const deleteStaffMut = useMutation(api.staff.deleteStaff);
   const addStaffMut = useMutation(api.staff.addStaff);
+  const setSecurityQuestionMut = useMutation(api.staff.setSecurityQuestion);
+
   const allStaff = useQuery(api.staff.getStaff);
+
+  const handleUpdateSecurityQuestion = async () => {
+    if (!securityQuestion.trim() || !securityAnswer.trim()) {
+      showModal({ title: "Error", message: "Both question and answer are required.", type: "alert" });
+      return;
+    }
+    try {
+      await setSecurityQuestionMut({ email, question: securityQuestion.trim(), answer: securityAnswer.trim() });
+      showModal({ title: "Success", message: "Security question updated successfully.", type: "success" });
+    } catch (err) {
+      showModal({ title: "Error", message: err.message || "Failed to update security question.", type: "alert" });
+    }
+  };
 
   // Staff management state
   const [newStaffName, setNewStaffName] = useState("");
@@ -351,6 +369,22 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
                     <div className="settings-field"><label className="settings-input-label">Confirm New Password</label><input type="password" className="settings-input" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Re-enter new password" /></div>
                   </div>
                   <button className="settings-btn-primary" onClick={handleChangePassword}>Change Password</button>
+                </div>
+              </div>
+
+              <div className="settings-card">
+                <label className="settings-field-label">Security Question</label>
+                <p className="settings-field-hint">Set a security question for password recovery.</p>
+                <div className="password-fields">
+                  <div className="settings-field">
+                    <label className="settings-input-label">Your Secret Question</label>
+                    <input type="text" className="settings-input" value={securityQuestion} onChange={(e) => setSecurityQuestion(e.target.value)} placeholder="e.g. What was the name of your first pet?" />
+                  </div>
+                  <div className="settings-field" style={{ marginTop: 10 }}>
+                    <label className="settings-input-label">Your Secret Answer</label>
+                    <input type="text" className="settings-input" value={securityAnswer} onChange={(e) => setSecurityAnswer(e.target.value)} placeholder="Type your answer here..." />
+                  </div>
+                  <button className="settings-btn-primary" onClick={handleUpdateSecurityQuestion} style={{ marginTop: 15 }}>Update Security Question</button>
                 </div>
               </div>
 

@@ -1,18 +1,18 @@
 import { useState } from "react";
-import { useMutation, useAction } from "convex/react";
+import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
 export default function Login({ onLogin, externalError = "", onResetSuccess }) {
   const [mode, setMode] = useState("login"); // "login", "forgot", "verify"
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [pin, setPin] = useState("");
+  const [securityQuestion, setSecurityQuestion] = useState("");
+  const [securityAnswer, setSecurityAnswer] = useState("");
   const [error, setError] = useState("");
-  const [successMsg, setSuccessMsg] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const requestResetAction = useAction(api.staff.requestPasswordReset);
-  const verifyPinMut = useMutation(api.staff.verifyResetPin);
+  const fetchQuestionMut = useMutation(api.staff.getSecurityQuestion);
+  const verifyAnswerMut = useMutation(api.staff.verifySecurityAnswer);
 
   const displayError = externalError || error;
 
@@ -29,7 +29,7 @@ export default function Login({ onLogin, externalError = "", onResetSuccess }) {
     onLogin(email.trim().toLowerCase(), password);
   };
 
-  const handleRequestReset = async (e) => {
+  const handleFetchQuestion = async (e) => {
     e.preventDefault();
     if (!email.trim() || !email.includes("@")) {
       setError("Please enter a valid email address.");
@@ -37,32 +37,29 @@ export default function Login({ onLogin, externalError = "", onResetSuccess }) {
     }
     setIsLoading(true);
     setError("");
-    setSuccessMsg("");
     try {
-      const res = await requestResetAction({ email: email.trim().toLowerCase() });
-      if (res.success) {
-        setSuccessMsg("A 6-digit reset PIN has been sent to your email.");
+      const res = await fetchQuestionMut({ email: email.trim().toLowerCase() });
+      if (res && res.question) {
+        setSecurityQuestion(res.question);
         setMode("verify");
-      } else {
-        throw new Error(res.message || "Failed to send reset email.");
       }
     } catch (err) {
-      setError(err.message || "Failed to request password reset.");
+      setError(err.message || "Failed to find account or question.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleVerifyPin = async (e) => {
+  const handleVerifyAnswer = async (e) => {
     e.preventDefault();
-    if (pin.trim().length !== 6) {
-      setError("Please enter the 6-digit PIN.");
+    if (!securityAnswer.trim()) {
+      setError("Please provide an answer.");
       return;
     }
     setIsLoading(true);
     setError("");
     try {
-      const res = await verifyPinMut({ email: email.trim().toLowerCase(), pin: pin.trim() });
+      const res = await verifyAnswerMut({ email: email.trim().toLowerCase(), answer: securityAnswer });
       if (res.success) {
         // Pass control to App.jsx to drop user into the set-password flow
         if (onResetSuccess) {
@@ -70,7 +67,7 @@ export default function Login({ onLogin, externalError = "", onResetSuccess }) {
         }
       }
     } catch (err) {
-      setError(err.message || "Invalid or expired PIN.");
+      setError(err.message || "Incorrect answer.");
     } finally {
       setIsLoading(false);
     }
@@ -145,10 +142,10 @@ export default function Login({ onLogin, externalError = "", onResetSuccess }) {
             </svg>
             <h2 style={{ color: "#1e293b", marginBottom: 10, fontWeight: 900 }}>Reset Password</h2>
             <p style={{ color: "#64748b", fontSize: "0.9rem", marginBottom: 25 }}>
-              Enter your email to receive a 6-digit reset PIN.
+              Enter your email to answer your security question.
             </p>
 
-            <form onSubmit={handleRequestReset} style={{ width: "100%" }}>
+            <form onSubmit={handleFetchQuestion} style={{ width: "100%" }}>
               <div className="form-group" style={{ marginBottom: "20px" }}>
                 <input
                   type="email"
@@ -162,7 +159,7 @@ export default function Login({ onLogin, externalError = "", onResetSuccess }) {
                 {error && <div className="error-text">{error}</div>}
               </div>
               <button type="submit" className="btn-primary" style={{ width: "100%", marginBottom: "15px" }} disabled={isLoading}>
-                {isLoading ? "Sending..." : "Send Reset PIN"}
+                {isLoading ? "Searching..." : "Find Account"}
               </button>
               <button
                 type="button"
@@ -182,36 +179,34 @@ export default function Login({ onLogin, externalError = "", onResetSuccess }) {
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
               <polyline points="22 4 12 14.01 9 11.01"></polyline>
             </svg>
-            <h2 style={{ color: "#1e293b", marginBottom: 10, fontWeight: 900 }}>Verify PIN</h2>
-            <p style={{ color: "#64748b", fontSize: "0.9rem", marginBottom: 20 }}>
-              Enter the 6-digit PIN sent to <strong>{email}</strong>.
+            <h2 style={{ color: "#1e293b", marginBottom: 10, fontWeight: 900 }}>Security Question</h2>
+            <p style={{ color: "#64748b", fontSize: "0.95rem", marginBottom: 20, fontWeight: 600 }}>
+              {securityQuestion}
             </p>
-            {successMsg && <p style={{ color: "#10b981", fontSize: "0.85rem", marginBottom: 20, fontWeight: 600 }}>{successMsg}</p>}
 
-            <form onSubmit={handleVerifyPin} style={{ width: "100%" }}>
+            <form onSubmit={handleVerifyAnswer} style={{ width: "100%" }}>
               <div className="form-group" style={{ marginBottom: "20px" }}>
                 <input
                   type="text"
                   className={`form-input ${error ? "input-error" : ""}`}
-                  placeholder="6-digit PIN"
-                  value={pin}
-                  onChange={(e) => { setPin(e.target.value.replace(/\D/g, "").slice(0, 6)); setError(""); }}
-                  style={{ textAlign: "center", fontSize: "1.2rem", letterSpacing: "4px", fontWeight: 800 }}
+                  placeholder="Your Answer"
+                  value={securityAnswer}
+                  onChange={(e) => { setSecurityAnswer(e.target.value); setError(""); }}
                   required
                   autoFocus
                 />
-                {error && <div className="error-text">{error}</div>}
+                {error && <div className="error-text" style={{ marginTop: 5 }}>{error}</div>}
               </div>
-              <button type="submit" className="btn-primary" style={{ width: "100%", marginBottom: "15px" }} disabled={isLoading || pin.length !== 6}>
-                {isLoading ? "Verifying..." : "Verify & Reset"}
+              <button type="submit" className="btn-primary" style={{ width: "100%", marginBottom: "15px" }} disabled={isLoading}>
+                {isLoading ? "Verifying..." : "Submit Answer"}
               </button>
               <button
                 type="button"
                 className="btn-secondary"
                 style={{ width: "100%" }}
-                onClick={() => { setMode("forgot"); setError(""); setSuccessMsg(""); setPin(""); }}
+                onClick={() => { setMode("forgot"); setError(""); setSecurityAnswer(""); }}
               >
-                Go Back
+                Back
               </button>
             </form>
           </>

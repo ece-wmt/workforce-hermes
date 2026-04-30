@@ -1,7 +1,5 @@
-import { query, mutation, internalMutation, action } from "./_generated/server";
-import { internal } from "./_generated/api";
+import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { Resend } from "resend";
 
 /**
  * Initial staff members — always present in the system.
@@ -222,101 +220,32 @@ export const resetPassword = mutation({
   },
 });
 
-export const generateResetPin = internalMutation({
-  args: {
-    email: v.string(),
-  },
+export const getSecurityQuestion = mutation({
+  args: { email: v.string() },
   handler: async (ctx, args) => {
     const lowerEmail = args.email.toLowerCase();
-    let existing = await ctx.db
+    const existing = await ctx.db
       .query("staff")
       .withIndex("by_email", (q) => q.eq("email", lowerEmail))
       .first();
 
-    if (!existing) {
-      // Check if they are in INITIAL_STAFF
-      const initial = INITIAL_STAFF.find(s => s.email.toLowerCase() === lowerEmail);
-      if (initial) {
-        // Insert them into the DB so we can assign a reset PIN
-        const newId = await ctx.db.insert("staff", {
-          name: initial.name,
-          email: lowerEmail,
-          role: initial.role,
-        });
-        existing = await ctx.db.get(newId);
-      } else {
-        throw new Error("Account not found.");
-      }
+    if (!existing || existing.role === "Revoked") {
+      throw new Error("Account not found or revoked.");
     }
 
-    if (existing?.role === "Revoked") {
-      throw new Error("Account access revoked.");
+    if (!existing.securityQuestion) {
+      throw new Error("No security question is set for this account. Please contact an Administrator.");
     }
 
-    // Generate a 6-digit random code
-    const pin = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiry = Date.now() + 15 * 60 * 1000; // 15 minutes
-
-    await ctx.db.patch(existing!._id, {
-      resetCode: pin,
-      resetCodeExpiry: expiry,
-    });
-
-    return { pin, email: existing!.email, name: existing!.name };
+    return { question: existing.securityQuestion };
   },
 });
 
-export const requestPasswordReset = action({
+export const setSecurityQuestion = mutation({
   args: {
     email: v.string(),
-  },
-  handler: async (ctx, args) => {
-    try {
-      const { pin, email, name } = await ctx.runMutation(internal.staff.generateResetPin, { email: args.email });
-
-      const resendApiKey = process.env.RESEND_API_KEY;
-      if (!resendApiKey) {
-        console.error("Missing RESEND_API_KEY environment variable.");
-        return { success: false, message: "Email service is not configured (missing API key). Please contact the administrator." };
-      }
-
-      const resend = new Resend(resendApiKey);
-
-      const { error } = await resend.emails.send({
-        from: "Workforce Hermes <onboarding@resend.dev>",
-        to: email,
-        subject: "Your Password Reset PIN",
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 10px;">
-            <h2 style="color: #1e293b;">Password Reset Request</h2>
-            <p style="color: #475569;">Hello ${name},</p>
-            <p style="color: #475569;">We received a request to reset your password for Workforce Hermes. Here is your 6-digit verification PIN:</p>
-            <div style="background-color: #f1f5f9; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; color: #10b981; border-radius: 8px; margin: 20px 0;">
-              ${pin}
-            </div>
-            <p style="color: #475569;">This PIN will expire in 15 minutes.</p>
-            <p style="color: #475569; font-size: 12px; margin-top: 30px;">If you did not request this reset, please ignore this email.</p>
-          </div>
-        `,
-      });
-
-      if (error) {
-        console.error("Resend error:", error);
-        return { success: false, message: "Failed to send reset email. " + error.message };
-      }
-
-      return { success: true, message: "Reset PIN sent to your email." };
-    } catch (err: any) {
-      console.error("Action error:", err);
-      return { success: false, message: err.message || "An unexpected error occurred." };
-    }
-  },
-});
-
-export const verifyResetPin = mutation({
-  args: {
-    email: v.string(),
-    pin: v.string(),
+    question: v.string(),
+    answer: v.string(),
   },
   handler: async (ctx, args) => {
     const lowerEmail = args.email.toLowerCase();
@@ -327,19 +256,40 @@ export const verifyResetPin = mutation({
 
     if (!existing) throw new Error("Account not found.");
 
-    if (!existing.resetCode || existing.resetCode !== args.pin) {
-      throw new Error("Invalid or incorrect PIN.");
+    await ctx.db.patch(existing._id, {
+      securityQuestion: args.question,
+      securityAnswer: args.answer.trim().toLowerCase(),
+    });
+
+    return { success: true };
+  },
+});
+
+export const verifySecurityAnswer = mutation({
+  args: {
+    email: v.string(),
+    answer: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const lowerEmail = args.email.toLowerCase();
+    const existing = await ctx.db
+      .query("staff")
+      .withIndex("by_email", (q) => q.eq("email", lowerEmail))
+      .first();
+
+    if (!existing) throw new Error("Account not found.");
+
+    if (!existing.securityAnswer) {
+      throw new Error("No security question is set for this account.");
     }
 
-    if (existing.resetCodeExpiry && Date.now() > existing.resetCodeExpiry) {
-      throw new Error("Reset PIN has expired. Please request a new one.");
+    if (existing.securityAnswer !== args.answer.trim().toLowerCase()) {
+      throw new Error("Incorrect answer to the security question.");
     }
 
-    // PIN is correct, clear the PIN and password
+    // Answer is correct, clear the password
     await ctx.db.patch(existing._id, {
       password: undefined,
-      resetCode: undefined,
-      resetCodeExpiry: undefined,
     });
 
     return { success: true };

@@ -76,6 +76,9 @@ export default defineSchema({
     country: v.optional(v.union(v.string(), v.null())),
     status: v.optional(v.union(v.string(), v.null())),
     lastSeen: v.optional(v.number()),
+    securityQuestion: v.optional(v.string()),
+    securityAnswer: v.optional(v.string()),
+    // Legacy fields — kept for backward compatibility with existing documents
     resetCode: v.optional(v.string()),
     resetCodeExpiry: v.optional(v.number()),
   }).index("by_email", ["email"]),
