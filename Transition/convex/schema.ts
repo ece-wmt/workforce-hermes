@@ -107,4 +107,17 @@ export default defineSchema({
     createdAt: v.number(),
     seenBy: v.array(v.string()),
   }),
+
+  // Security audit logs — visible only in Convex dashboard
+  securityLogs: defineTable({
+    action: v.string(),        // e.g. "PASSWORD_RESET", "SECURITY_QUESTION_SET"
+    userEmail: v.string(),     // who performed the action
+    targetEmail: v.string(),   // who was affected
+    details: v.optional(v.string()), // additional context
+    timestamp: v.number(),
+    ip: v.optional(v.string()),
+  })
+    .index("by_user", ["userEmail"])
+    .index("by_target", ["targetEmail"])
+    .index("by_action", ["action"]),
 });

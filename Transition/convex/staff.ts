@@ -99,6 +99,15 @@ export const setPassword = mutation({
         });
       }
     }
+
+    // Audit log
+    await ctx.db.insert("securityLogs", {
+      action: "PASSWORD_SET",
+      userEmail: args.email.toLowerCase(),
+      targetEmail: args.email.toLowerCase(),
+      details: "User set a new password.",
+      timestamp: Date.now(),
+    });
   },
 });
 
@@ -216,6 +225,15 @@ export const resetPassword = mutation({
     if (existing) {
       // Clear the password so the user must set a new one on next login
       await ctx.db.patch(existing._id, { password: undefined });
+
+      // Audit log
+      await ctx.db.insert("securityLogs", {
+        action: "PASSWORD_RESET_BY_ADMIN",
+        userEmail: "admin",
+        targetEmail: lowerEmail,
+        details: "Admin reset password for user.",
+        timestamp: Date.now(),
+      });
     }
   },
 });
@@ -261,6 +279,15 @@ export const setSecurityQuestion = mutation({
       securityAnswer: args.answer.trim().toLowerCase(),
     });
 
+    // Audit log
+    await ctx.db.insert("securityLogs", {
+      action: "SECURITY_QUESTION_SET",
+      userEmail: lowerEmail,
+      targetEmail: lowerEmail,
+      details: `Security question updated to: "${args.question}"`,
+      timestamp: Date.now(),
+    });
+
     return { success: true };
   },
 });
@@ -284,12 +311,29 @@ export const verifySecurityAnswer = mutation({
     }
 
     if (existing.securityAnswer !== args.answer.trim().toLowerCase()) {
+      // Audit log — failed attempt
+      await ctx.db.insert("securityLogs", {
+        action: "SECURITY_ANSWER_FAILED",
+        userEmail: lowerEmail,
+        targetEmail: lowerEmail,
+        details: "Incorrect answer to security question.",
+        timestamp: Date.now(),
+      });
       throw new Error("Incorrect answer to the security question.");
     }
 
     // Answer is correct, clear the password
     await ctx.db.patch(existing._id, {
       password: undefined,
+    });
+
+    // Audit log — success
+    await ctx.db.insert("securityLogs", {
+      action: "PASSWORD_RESET_VIA_SECURITY_QUESTION",
+      userEmail: lowerEmail,
+      targetEmail: lowerEmail,
+      details: "Password cleared after answering security question correctly.",
+      timestamp: Date.now(),
     });
 
     return { success: true };
