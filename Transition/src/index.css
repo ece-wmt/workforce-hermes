@@ -4328,13 +4328,17 @@ body.role-programmer .kanban-col.col-scrap {
   align-items: center;
   gap: 8px;
   font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--color-accent);
+  font-weight: 600;
+  color: var(--color-text-primary);
   margin-bottom: 15px;
-  background: var(--color-accent-lighter);
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-accent);
   width: fit-content;
   padding: 6px 12px;
   border-radius: 10px;
+}
+.profile-popover-status svg {
+  color: var(--color-accent);
 }
 
 .profile-popover-meta {
