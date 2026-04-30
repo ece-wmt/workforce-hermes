@@ -451,7 +451,7 @@ export default function App() {
   // Render stages
   // -------------------------------------------------------
   if (authStage === "login") {
-    return <Login onLogin={handleLogin} externalError={loginError} />;
+    return <Login onLogin={handleLogin} externalError={loginError} onResetSuccess={(email) => { setPendingEmail(email); setAuthStage("set-password"); }} />;
   }
 
   if (authStage === "set-password") {

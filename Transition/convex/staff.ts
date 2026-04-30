@@ -1,4 +1,5 @@
-import { query, mutation } from "./_generated/server";
+import { query, mutation, internalMutation, action } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { v } from "convex/values";
 
 /**
@@ -217,6 +218,126 @@ export const resetPassword = mutation({
       // Clear the password so the user must set a new one on next login
       await ctx.db.patch(existing._id, { password: undefined });
     }
+  },
+});
+
+export const generateResetPin = internalMutation({
+  args: {
+    email: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const lowerEmail = args.email.toLowerCase();
+    let existing = await ctx.db
+      .query("staff")
+      .withIndex("by_email", (q) => q.eq("email", lowerEmail))
+      .first();
+
+    if (!existing) {
+      // Check if they are in INITIAL_STAFF
+      const initial = INITIAL_STAFF.find(s => s.email.toLowerCase() === lowerEmail);
+      if (initial) {
+        // Insert them into the DB so we can assign a reset PIN
+        const newId = await ctx.db.insert("staff", {
+          name: initial.name,
+          email: lowerEmail,
+          role: initial.role,
+        });
+        existing = await ctx.db.get(newId);
+      } else {
+        throw new Error("Account not found.");
+      }
+    }
+
+    if (existing?.role === "Revoked") {
+      throw new Error("Account access revoked.");
+    }
+
+    // Generate a 6-digit random code
+    const pin = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiry = Date.now() + 15 * 60 * 1000; // 15 minutes
+
+    await ctx.db.patch(existing!._id, {
+      resetCode: pin,
+      resetCodeExpiry: expiry,
+    });
+
+    return { pin, email: existing!.email, name: existing!.name };
+  },
+});
+
+export const requestPasswordReset = action({
+  args: {
+    email: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const { pin, email, name } = await ctx.runMutation(internal.staff.generateResetPin, { email: args.email });
+
+    const resendApiKey = process.env.RESEND_API_KEY;
+    if (!resendApiKey) {
+      console.error("Missing RESEND_API_KEY environment variable.");
+      throw new Error("Email service is not configured. Please contact the administrator.");
+    }
+
+    const { Resend } = await import("resend");
+    const resend = new Resend(resendApiKey);
+
+    const { error } = await resend.emails.send({
+      from: "Workforce Hermes <onboarding@resend.dev>",
+      to: email,
+      subject: "Your Password Reset PIN",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 10px;">
+          <h2 style="color: #1e293b;">Password Reset Request</h2>
+          <p style="color: #475569;">Hello ${name},</p>
+          <p style="color: #475569;">We received a request to reset your password for Workforce Hermes. Here is your 6-digit verification PIN:</p>
+          <div style="background-color: #f1f5f9; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; color: #10b981; border-radius: 8px; margin: 20px 0;">
+            ${pin}
+          </div>
+          <p style="color: #475569;">This PIN will expire in 15 minutes.</p>
+          <p style="color: #475569; font-size: 12px; margin-top: 30px;">If you did not request this reset, please ignore this email.</p>
+        </div>
+      `,
+    });
+
+    if (error) {
+      console.error("Resend error:", error);
+      throw new Error("Failed to send reset email. " + error.message);
+    }
+
+    return { success: true, message: "Reset PIN sent to your email." };
+  },
+});
+
+export const verifyResetPin = mutation({
+  args: {
+    email: v.string(),
+    pin: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const lowerEmail = args.email.toLowerCase();
+    const existing = await ctx.db
+      .query("staff")
+      .withIndex("by_email", (q) => q.eq("email", lowerEmail))
+      .first();
+
+    if (!existing) throw new Error("Account not found.");
+
+    if (!existing.resetCode || existing.resetCode !== args.pin) {
+      throw new Error("Invalid or incorrect PIN.");
+    }
+
+    if (existing.resetCodeExpiry && Date.now() > existing.resetCodeExpiry) {
+      throw new Error("Reset PIN has expired. Please request a new one.");
+    }
+
+    // PIN is correct, clear the PIN and password
+    await ctx.db.patch(existing._id, {
+      password: undefined,
+      resetCode: undefined,
+      resetCodeExpiry: undefined,
+    });
+
+    return { success: true };
   },
 });
 

@@ -76,6 +76,8 @@ export default defineSchema({
     country: v.optional(v.union(v.string(), v.null())),
     status: v.optional(v.union(v.string(), v.null())),
     lastSeen: v.optional(v.number()),
+    resetCode: v.optional(v.string()),
+    resetCodeExpiry: v.optional(v.number()),
   }).index("by_email", ["email"]),
 
   notebook: defineTable({

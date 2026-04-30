@@ -14,7 +14,8 @@
   "dependencies": {
     "convex": "^1.17.4",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "resend": "^6.12.2"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
