@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useMutation } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { loadSettings, saveSettings, applySettings, DEFAULT_SETTINGS } from "../utils/settingsManager";
 
@@ -14,7 +14,7 @@ const ACCENT_COLORS = [
 const FONT_SIZES = ["Standard", "Large", "Extra Large"];
 const DEFAULT_VIEWS = ["Dashboard", "Projects", "Activity Feed", "Notebook"];
 
-const SECTIONS = [
+const BASE_SECTIONS = [
   { id: "appearance", label: "Appearance & UI", icon: "palette" },
   { id: "general", label: "General Preferences", icon: "sliders" },
   { id: "account", label: "Account & Profile", icon: "user" },
@@ -32,13 +32,20 @@ function SectionIcon({ icon, size = 18 }) {
       return (<svg viewBox="0 0 24 24" {...s}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>);
     case "bell":
       return (<svg viewBox="0 0 24 24" {...s}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>);
+    case "shield":
+      return (<svg viewBox="0 0 24 24" {...s}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>);
     default: return null;
   }
 }
 
-export default function Settings({ userName, userEmail, onClose, showModal, onLogout }) {
+export default function Settings({ userName, userEmail, onClose, showModal, onLogout, actualRole, onViewProfile }) {
   const [activeSection, setActiveSection] = useState("appearance");
   const [hasChanges, setHasChanges] = useState(false);
+  const isAdminPlus = actualRole === "Admin+";
+  const SECTIONS = isAdminPlus
+    ? [...BASE_SECTIONS, { id: "staff", label: "Staff Management", icon: "shield" }]
+    : BASE_SECTIONS;
+
   const contentRef = useRef(null);
   const savedRef = useRef(null); // snapshot of settings before edits
 
@@ -68,6 +75,19 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const updateProfile = useMutation(api.staff.updateProfile);
+  const resetPasswordMut = useMutation(api.staff.resetPassword);
+  const updateStaffRole = useMutation(api.staff.updateStaffRole);
+  const deleteStaffMut = useMutation(api.staff.deleteStaff);
+  const addStaffMut = useMutation(api.staff.addStaff);
+  const allStaff = useQuery(api.staff.getStaff);
+
+  // Staff management state
+  const [newStaffName, setNewStaffName] = useState("");
+  const [newStaffEmail, setNewStaffEmail] = useState("");
+  const [newStaffRole, setNewStaffRole] = useState("Programmer");
+
+  const activeStaff = (allStaff || []).filter(s => s.role !== "Pending");
+  const pendingRequests = (allStaff || []).filter(s => s.role === "Pending");
 
   // --- Notifications state ---
   const [notificationsEnabled, setNotificationsEnabled] = useState(saved.notificationsEnabled);
@@ -379,6 +399,204 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
                 </div>
               </div>
             </section>
+
+            {/* ─── STAFF MANAGEMENT (Admin+ only) ─── */}
+            {isAdminPlus && (
+              <section id="settings-section-staff" className="settings-section">
+                <div className="settings-section-header"><SectionIcon icon="shield" size={20} /><h3>Staff Management</h3></div>
+                <p className="settings-section-desc">Manage team members, approve access requests, and reset credentials.</p>
+
+                {/* Pending Access Requests */}
+                <div className="settings-card">
+                  <label className="settings-field-label" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+                    Pending Access Requests
+                    {pendingRequests.length > 0 && (
+                      <span style={{ background: "var(--color-logout)", color: "white", borderRadius: "20px", padding: "2px 10px", fontSize: "0.7rem", fontWeight: 800, marginLeft: "4px" }}>{pendingRequests.length}</span>
+                    )}
+                  </label>
+                  {pendingRequests.length > 0 ? (
+                    <div className="staff-management-list">
+                      {pendingRequests.map((s) => (
+                        <div key={s.email} className="staff-mgmt-row pending">
+                          <div className="staff-mgmt-avatar" onClick={() => onViewProfile && onViewProfile(s)}>
+                            {s.avatarUrl ? <img src={s.avatarUrl} alt={s.name} /> : (
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+                            )}
+                          </div>
+                          <div className="staff-mgmt-info">
+                            <span className="staff-mgmt-name">{s.name}</span>
+                            <span className="staff-mgmt-email">{s.email}</span>
+                          </div>
+                          <div className="staff-mgmt-actions">
+                            <button
+                              className="staff-action-btn approve"
+                              onClick={async () => {
+                                try {
+                                  await updateStaffRole({ staffEmail: s.email, newRole: "Programmer" });
+                                  showModal({ title: "Approved", message: `${s.name} has been approved as Programmer.`, type: "success" });
+                                } catch (err) {
+                                  showModal({ title: "Error", message: err.message, type: "alert" });
+                                }
+                              }}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                              Approve
+                            </button>
+                            <button
+                              className="staff-action-btn reject"
+                              onClick={async () => {
+                                try {
+                                  await deleteStaffMut({ email: s.email });
+                                  showModal({ title: "Rejected", message: `Access for ${s.name} has been rejected.`, type: "success" });
+                                } catch (err) {
+                                  showModal({ title: "Error", message: err.message, type: "alert" });
+                                }
+                              }}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                              Reject
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: "center", color: "var(--color-text-secondary)", fontStyle: "italic", padding: "24px", background: "var(--color-bg-subtle)", borderRadius: "var(--radius-md)", border: "1px dashed var(--glass-border)", fontSize: "0.85rem" }}>
+                      No pending access requests.
+                    </div>
+                  )}
+                </div>
+
+                {/* Active Staff */}
+                <div className="settings-card">
+                  <label className="settings-field-label">Active Team Members</label>
+                  <p className="settings-field-hint">Manage roles, reset passwords, or revoke access for current team members.</p>
+                  <div className="staff-management-list">
+                    {activeStaff.map((s) => (
+                      <div key={s.email} className="staff-mgmt-row">
+                        <div className="staff-mgmt-avatar" onClick={() => onViewProfile && onViewProfile(s)} style={{ cursor: "pointer" }}>
+                          {s.avatarUrl ? <img src={s.avatarUrl} alt={s.name} /> : (
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+                          )}
+                        </div>
+                        <div className="staff-mgmt-info">
+                          <span className="staff-mgmt-name" onClick={() => onViewProfile && onViewProfile(s)} style={{ cursor: "pointer" }}>{s.name}</span>
+                          <span className="staff-mgmt-email">{s.email}</span>
+                        </div>
+                        <div className="staff-mgmt-role">
+                          <select
+                            className="staff-role-select"
+                            value={s.role}
+                            onChange={async (e) => {
+                              const newRole = e.target.value;
+                              await updateStaffRole({ staffEmail: s.email, newRole });
+                              showModal({ title: "Role Updated", message: `${s.name}'s role has been changed to ${newRole}.`, type: "success" });
+                            }}
+                          >
+                            <option value="Programmer">Programmer</option>
+                            <option value="Admin">Admin</option>
+                            <option value="Admin+">Admin+</option>
+                          </select>
+                        </div>
+                        <div className="staff-mgmt-actions">
+                          <button
+                            className="staff-action-btn reset-pw"
+                            title="Reset password — user will need to set a new one on next login"
+                            onClick={() => {
+                              showModal({
+                                title: "Reset Password",
+                                message: `Are you sure you want to reset the password for ${s.name}? They will need to set a new password on their next login using the default password.`,
+                                type: "confirm",
+                                onConfirm: async () => {
+                                  try {
+                                    await resetPasswordMut({ targetEmail: s.email });
+                                    showModal({ title: "Password Reset", message: `Password for ${s.name} has been reset successfully.`, type: "success" });
+                                  } catch (err) {
+                                    showModal({ title: "Error", message: err.message, type: "alert" });
+                                  }
+                                },
+                              });
+                            }}
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                            Reset PW
+                          </button>
+                          <button
+                            className="staff-action-btn revoke"
+                            title="Revoke this user's access"
+                            onClick={() => {
+                              showModal({
+                                title: "Revoke Access",
+                                message: `Are you sure you want to revoke access for ${s.name}? They will no longer be able to log in.`,
+                                type: "confirm",
+                                onConfirm: async () => {
+                                  try {
+                                    await deleteStaffMut({ email: s.email });
+                                    showModal({ title: "Access Revoked", message: `Successfully removed access for ${s.name}.`, type: "success" });
+                                  } catch (err) {
+                                    showModal({ title: "Error", message: err.message, type: "alert" });
+                                  }
+                                },
+                              });
+                            }}
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                            Revoke
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Add New Staff */}
+                <div className="settings-card">
+                  <label className="settings-field-label">Add New Staff Member</label>
+                  <p className="settings-field-hint">Register a new team member with their email and assigned role.</p>
+                  <div className="add-staff-form">
+                    <div className="settings-field">
+                      <label className="settings-input-label">Full Name</label>
+                      <input type="text" className="settings-input" value={newStaffName} onChange={(e) => setNewStaffName(e.target.value)} placeholder="e.g. John Doe" />
+                    </div>
+                    <div className="settings-field">
+                      <label className="settings-input-label">Email Address</label>
+                      <input type="email" className="settings-input" value={newStaffEmail} onChange={(e) => setNewStaffEmail(e.target.value)} placeholder="e.g. jdoe@company.com" />
+                    </div>
+                    <div className="settings-field">
+                      <label className="settings-input-label">Role</label>
+                      <select className="settings-select" value={newStaffRole} onChange={(e) => setNewStaffRole(e.target.value)}>
+                        <option value="Programmer">Programmer</option>
+                        <option value="Admin">Admin</option>
+                        <option value="Admin+">Admin+</option>
+                      </select>
+                    </div>
+                    <button
+                      className="settings-btn-primary"
+                      style={{ marginTop: "8px" }}
+                      onClick={async () => {
+                        if (!newStaffName.trim() || !newStaffEmail.trim()) {
+                          showModal({ title: "Error", message: "Please fill in both name and email.", type: "alert" });
+                          return;
+                        }
+                        try {
+                          await addStaffMut({ name: newStaffName.trim(), email: newStaffEmail.trim(), role: newStaffRole });
+                          showModal({ title: "Staff Added", message: `${newStaffName} has been registered successfully.`, type: "success" });
+                          setNewStaffName("");
+                          setNewStaffEmail("");
+                          setNewStaffRole("Programmer");
+                        } catch (err) {
+                          showModal({ title: "Error", message: err.message, type: "alert" });
+                        }
+                      }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                      Register Staff Member
+                    </button>
+                  </div>
+                </div>
+              </section>
+            )}
 
             <div style={{ height: 100 }} />
           </div>

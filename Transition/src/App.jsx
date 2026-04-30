@@ -671,14 +671,7 @@ export default function App() {
             >
               NOTEBOOK
             </div>
-            {(userRole === "Admin" || userRole === "Admin+") && (
-              <div
-                className={`nav-btn ${currentView === "admin" ? "active" : ""}`}
-                onClick={() => switchView("admin")}
-              >
-                ADMIN
-              </div>
-            )}
+
             {actualRole === "Admin+" && (
               <div
                 className={`nav-btn ${currentView === "announcements" ? "active" : ""}`}
@@ -721,7 +714,7 @@ export default function App() {
       {currentView === "notebook" && (
         <Notebook userRole={userRole} userName={userName} showModal={showModal} />
       )}
-      {currentView === "admin" && <AdminPanel showModal={showModal} onViewProfile={(s) => setViewingStaff(s)} />}
+
       {currentView === "announcements" && actualRole === "Admin+" && (
         <AnnouncementComposer userName={userName} showModal={showModal} />
       )}
@@ -878,6 +871,8 @@ export default function App() {
           onClose={() => setShowSettings(false)}
           showModal={showModal}
           onLogout={logout}
+          actualRole={actualRole}
+          onViewProfile={(s) => setViewingStaff(s)}
         />
       )}
 

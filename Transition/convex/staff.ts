@@ -202,6 +202,24 @@ export const updateProfile = mutation({
   },
 });
 
+export const resetPassword = mutation({
+  args: {
+    targetEmail: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const lowerEmail = args.targetEmail.toLowerCase();
+    const existing = await ctx.db
+      .query("staff")
+      .withIndex("by_email", (q) => q.eq("email", lowerEmail))
+      .first();
+
+    if (existing) {
+      // Clear the password so the user must set a new one on next login
+      await ctx.db.patch(existing._id, { password: undefined });
+    }
+  },
+});
+
 export const heartbeat = mutation({
   args: { email: v.string() },
   handler: async (ctx, args) => {
