@@ -63,13 +63,27 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
   const [openOnStartup, setOpenOnStartup] = useState(saved.openOnStartup);
   const [startMinimized, setStartMinimized] = useState(saved.startMinimized);
 
-  // --- Account state ---
-  const [avatarUrl, setAvatarUrl] = useState(saved.avatarUrl);
-  const [username, setUsername] = useState(userName || saved.username || "");
-  const [bio, setBio] = useState(saved.bio || "");
-  const [country, setCountry] = useState(saved.country || "");
-  const [status, setStatus] = useState(saved.status || "");
+  // --- Account state: load from the DATABASE for the logged-in user ---
+  const currentUserProfile = useQuery(api.staff.getStaffByEmail, userEmail ? { email: userEmail } : "skip");
+
+  const [avatarUrl, setAvatarUrl] = useState(null);
+  const [username, setUsername] = useState(userName || "");
+  const [bio, setBio] = useState("");
+  const [country, setCountry] = useState("");
+  const [status, setStatus] = useState("");
   const [email, setEmail] = useState(userEmail || "");
+
+  // Sync profile fields when the database data arrives or the user changes
+  useEffect(() => {
+    if (currentUserProfile) {
+      setUsername(currentUserProfile.name || userName || "");
+      setBio(currentUserProfile.bio || "");
+      setAvatarUrl(currentUserProfile.avatarUrl || null);
+      setCountry(currentUserProfile.country || "");
+      setStatus(currentUserProfile.status || "");
+      setEmail(currentUserProfile.email || userEmail || "");
+    }
+  }, [currentUserProfile, userEmail]);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -148,7 +162,8 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
   }
 
   function buildSettingsObject() {
-    return { theme, accentColor, fontSize, defaultView, openOnStartup, startMinimized, notificationsEnabled, notifyErrors, notifyUpdates, avatarUrl, bio, username, country, status };
+    // Only visual/UI preferences go to localStorage — profile data is per-user in the database
+    return { theme, accentColor, fontSize, defaultView, openOnStartup, startMinimized, notificationsEnabled, notifyErrors, notifyUpdates };
   }
 
   async function handleSave() {
