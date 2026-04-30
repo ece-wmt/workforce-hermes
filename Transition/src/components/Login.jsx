@@ -43,6 +43,8 @@ export default function Login({ onLogin, externalError = "", onResetSuccess }) {
       if (res.success) {
         setSuccessMsg("A 6-digit reset PIN has been sent to your email.");
         setMode("verify");
+      } else {
+        throw new Error(res.message || "Failed to send reset email.");
       }
     } catch (err) {
       setError(err.message || "Failed to request password reset.");

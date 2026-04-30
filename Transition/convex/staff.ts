@@ -1,6 +1,7 @@
 import { query, mutation, internalMutation, action } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
+import { Resend } from "resend";
 
 /**
  * Initial staff members — always present in the system.
@@ -270,41 +271,45 @@ export const requestPasswordReset = action({
     email: v.string(),
   },
   handler: async (ctx, args) => {
-    const { pin, email, name } = await ctx.runMutation(internal.staff.generateResetPin, { email: args.email });
+    try {
+      const { pin, email, name } = await ctx.runMutation(internal.staff.generateResetPin, { email: args.email });
 
-    const resendApiKey = process.env.RESEND_API_KEY;
-    if (!resendApiKey) {
-      console.error("Missing RESEND_API_KEY environment variable.");
-      throw new Error("Email service is not configured. Please contact the administrator.");
-    }
+      const resendApiKey = process.env.RESEND_API_KEY;
+      if (!resendApiKey) {
+        console.error("Missing RESEND_API_KEY environment variable.");
+        return { success: false, message: "Email service is not configured (missing API key). Please contact the administrator." };
+      }
 
-    const { Resend } = await import("resend");
-    const resend = new Resend(resendApiKey);
+      const resend = new Resend(resendApiKey);
 
-    const { error } = await resend.emails.send({
-      from: "Workforce Hermes <onboarding@resend.dev>",
-      to: email,
-      subject: "Your Password Reset PIN",
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 10px;">
-          <h2 style="color: #1e293b;">Password Reset Request</h2>
-          <p style="color: #475569;">Hello ${name},</p>
-          <p style="color: #475569;">We received a request to reset your password for Workforce Hermes. Here is your 6-digit verification PIN:</p>
-          <div style="background-color: #f1f5f9; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; color: #10b981; border-radius: 8px; margin: 20px 0;">
-            ${pin}
+      const { error } = await resend.emails.send({
+        from: "Workforce Hermes <onboarding@resend.dev>",
+        to: email,
+        subject: "Your Password Reset PIN",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 10px;">
+            <h2 style="color: #1e293b;">Password Reset Request</h2>
+            <p style="color: #475569;">Hello ${name},</p>
+            <p style="color: #475569;">We received a request to reset your password for Workforce Hermes. Here is your 6-digit verification PIN:</p>
+            <div style="background-color: #f1f5f9; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; color: #10b981; border-radius: 8px; margin: 20px 0;">
+              ${pin}
+            </div>
+            <p style="color: #475569;">This PIN will expire in 15 minutes.</p>
+            <p style="color: #475569; font-size: 12px; margin-top: 30px;">If you did not request this reset, please ignore this email.</p>
           </div>
-          <p style="color: #475569;">This PIN will expire in 15 minutes.</p>
-          <p style="color: #475569; font-size: 12px; margin-top: 30px;">If you did not request this reset, please ignore this email.</p>
-        </div>
-      `,
-    });
+        `,
+      });
 
-    if (error) {
-      console.error("Resend error:", error);
-      throw new Error("Failed to send reset email. " + error.message);
+      if (error) {
+        console.error("Resend error:", error);
+        return { success: false, message: "Failed to send reset email. " + error.message };
+      }
+
+      return { success: true, message: "Reset PIN sent to your email." };
+    } catch (err: any) {
+      console.error("Action error:", err);
+      return { success: false, message: err.message || "An unexpected error occurred." };
     }
-
-    return { success: true, message: "Reset PIN sent to your email." };
   },
 });
 
