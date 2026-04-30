@@ -888,19 +888,23 @@ export default function App() {
                 <div className="profile-popover-email">
                   {activeProfile.email}
                 </div>
-                <div className="profile-popover-status">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                    <circle cx="12" cy="10" r="3" />
-                  </svg>
-                  {activeProfile.status || "At work"}
+                <div className="profile-popover-badges" style={{ display: "flex", gap: "10px", marginBottom: "15px", flexWrap: "wrap" }}>
+                  <div className="profile-popover-status location" style={{ marginBottom: 0, background: "var(--color-bg-subtle)", color: "var(--color-text-primary)", border: "1px solid var(--color-border)" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                      <circle cx="12" cy="10" r="3" />
+                    </svg>
+                    {activeProfile.country || "Philippines"}
+                  </div>
+                  <div className="profile-popover-status" style={{ marginBottom: 0 }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    </svg>
+                    {activeProfile.status || "At work"}
+                  </div>
                 </div>
 
                 <div className="profile-popover-meta">
-                  <div className="meta-item">
-                    <span className="meta-label">Country:</span>
-                    <span className="meta-value">{activeProfile.country || "Philippines"}</span>
-                  </div>
                   <div className="meta-item">
                     <span className="meta-label">Last seen:</span>
                     <span className="meta-value">
