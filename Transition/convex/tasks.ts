@@ -105,12 +105,12 @@ export const getProjectStats = query({
     );
 
     stats.projectsWithLinks = tasks
-      .filter(t => t.appscriptLink || t.webappLink)
+      .filter(t => t.appscriptLink || t.webappLink || t.projectLink)
       .map(t => ({
         id: t._id,
         title: t.title,
         appscriptLink: t.appscriptLink,
-        webappLink: t.webappLink
+        webappLink: t.webappLink || t.projectLink
       }));
 
     return stats;

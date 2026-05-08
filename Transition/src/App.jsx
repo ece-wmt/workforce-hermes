@@ -655,13 +655,19 @@ export default function App() {
                 onClick={() => {
                   if (!contextMenu.task || !contextMenu.task._id) return;
                   showInputModal({
-                    title: "Project Link",
-                    message: "Enter the direct link for this project workspace.",
-                    fields: [{ name: "link", label: "Project URL", placeholder: "https://...", initialValue: contextMenu.task.projectLink }],
+                    title: "Deployed Webapp Link",
+                    message: "Enter the deployed URL for this web application.",
+                    fields: [{ name: "link", label: "Webapp URL", placeholder: "https://...", initialValue: contextMenu.task.webappLink || contextMenu.task.projectLink }],
                     onConfirm: (data) => {
-                      console.log("Saving Project Link for ID:", contextMenu.task._id, data.link);
-                      updateProjectLink({ taskId: contextMenu.task._id, projectLink: data.link })
-                        .catch(err => console.error("Project Link Mutation Error:", err));
+                      updateTaskDetails({
+                        taskId: contextMenu.task._id,
+                        newTitle: contextMenu.task.title,
+                        newDescription: contextMenu.task.description,
+                        newAssignee: contextMenu.task.assignee,
+                        newWebappLink: data.link,
+                        newAppscriptLink: contextMenu.task.appscriptLink,
+                        newMilestones: contextMenu.task.milestones || []
+                      }).catch(err => console.error("Webapp Link Mutation Error:", err));
                     }
                   });
                   setContextMenu((prev) => ({ ...prev, visible: false }));
@@ -671,7 +677,37 @@ export default function App() {
                   <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
                   <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
                 </svg>
-                {contextMenu.task.projectLink ? "Edit Project Link" : "Add Project Link"}
+                {contextMenu.task.webappLink ? "Edit Webapp Link" : "Add Webapp Link"}
+              </div>
+
+              <div
+                className="context-menu-item"
+                onClick={() => {
+                  if (!contextMenu.task || !contextMenu.task._id) return;
+                  showInputModal({
+                    title: "Google Appscript Link",
+                    message: "Enter the URL for the Google Apps Script project.",
+                    fields: [{ name: "link", label: "Appscript URL", placeholder: "https://script.google.com/...", initialValue: contextMenu.task.appscriptLink }],
+                    onConfirm: (data) => {
+                      updateTaskDetails({
+                        taskId: contextMenu.task._id,
+                        newTitle: contextMenu.task.title,
+                        newDescription: contextMenu.task.description,
+                        newAssignee: contextMenu.task.assignee,
+                        newWebappLink: contextMenu.task.webappLink,
+                        newAppscriptLink: data.link,
+                        newMilestones: contextMenu.task.milestones || []
+                      }).catch(err => console.error("Appscript Link Mutation Error:", err));
+                    }
+                  });
+                  setContextMenu((prev) => ({ ...prev, visible: false }));
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4285f4" strokeWidth="2.5">
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                </svg>
+                {contextMenu.task.appscriptLink ? "Edit Appscript Link" : "Add Appscript Link"}
               </div>
               <div
                 className="context-menu-item"
@@ -851,14 +887,18 @@ export default function App() {
             </h2>
             
             <div className="full-kanban-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "20px" }}>
-              {tasks?.filter(t => t.projectLink).map(t => (
+              {tasks?.filter(t => t.webappLink || t.appscriptLink || t.projectLink).map(t => (
                 <div 
                   key={t._id} 
                   className="programmer-card" 
-                  onClick={() => window.open(t.projectLink.startsWith("http") ? t.projectLink : `https://${t.projectLink}`, "_blank")}
+                  onClick={() => {
+                    const primaryLink = t.webappLink || t.projectLink || t.appscriptLink;
+                    if (primaryLink) window.open(primaryLink.startsWith("http") ? primaryLink : `https://${primaryLink}`, "_blank");
+                  }}
                   style={{ 
                     borderTop: "6px solid var(--color-accent)",
-                    transition: "transform 0.2s, box-shadow 0.2s"
+                    transition: "transform 0.2s, box-shadow 0.2s",
+                    cursor: "pointer"
                   }}
                 >
                   <div className="card-header">
@@ -872,12 +912,21 @@ export default function App() {
                   <p style={{ fontSize: "0.75rem", color: "#64748b", margin: "5px 0 15px 0", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                     {t.description || "No description provided."}
                   </p>
-                  <div style={{ fontSize: "0.7rem", fontWeight: 800, color: "var(--color-accent)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    Open Project Link →
+                  <div style={{ display: "flex", gap: 10 }}>
+                    {(t.webappLink || t.projectLink) && (
+                      <div style={{ flex: 1, fontSize: "0.65rem", fontWeight: 800, color: "var(--color-accent)", textTransform: "uppercase", letterSpacing: "0.5px", background: "var(--color-bg-subtle)", padding: "6px", borderRadius: "6px", textAlign: "center", border: "1px solid var(--color-accent)" }}>
+                        Webapp
+                      </div>
+                    )}
+                    {t.appscriptLink && (
+                      <div style={{ flex: 1, fontSize: "0.65rem", fontWeight: 800, color: "#4285f4", textTransform: "uppercase", letterSpacing: "0.5px", background: "var(--color-bg-subtle)", padding: "6px", borderRadius: "6px", textAlign: "center", border: "1px solid #4285f4" }}>
+                        Appscript
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
-              {tasks?.filter(t => t.projectLink).length === 0 && (
+              {tasks?.filter(t => t.webappLink || t.appscriptLink || t.projectLink).length === 0 && (
                 <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "40px", color: "#94a3b8" }}>
                   No projects with links found.
                 </div>

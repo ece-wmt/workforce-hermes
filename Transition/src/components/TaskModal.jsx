@@ -34,6 +34,9 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   const [notesFullscreen, setNotesFullscreen] = useState(false);
   const [noteContextMenu, setNoteContextMenu] = useState(null); // { index, noteRect }
   const noteRefs = useRef({});
+  const milestoneListRef = useRef(null);
+  const dragFromRef = useRef(null);
+  const dragOverRef = useRef(null);
   const [threadModal, setThreadModal] = useState(null); // { index, note }
   const [replyInputText, setReplyInputText] = useState("");
 
@@ -64,6 +67,9 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
     });
   };
 
+  const [refreshBadges, setRefreshBadges] = useState(0);
+
+  // 1. Pure effects (no state dependencies other than taskId)
   useEffect(() => {
     const handleEsc = (e) => {
       if (e.key === "Escape") {
@@ -77,11 +83,24 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
     return () => window.removeEventListener("keydown", handleEsc);
   }, []);
 
-  // Drag refs — no React state updated during drag to avoid re-render/listener issues
-  const milestoneListRef = useRef(null);
-  const dragFromRef = useRef(null);
-  const dragOverRef = useRef(null);
+  useEffect(() => {
+    const markViewed = () => {
+      if (taskId) {
+        const userEmail = localStorage.getItem("wf_email") || "";
+        const nowStr = Date.now().toString();
+        localStorage.setItem(`task_viewed_${taskId}`, nowStr);
+        localStorage.setItem(`task_viewed_features_${taskId}`, nowStr);
+        localStorage.setItem(`task_viewed_bugs_${taskId}`, nowStr);
+        localStorage.setItem(`task_viewed_notes_${taskId}`, nowStr);
+        localStorage.setItem(`task_viewed_milestones_${taskId}`, nowStr);
+        window.dispatchEvent(new Event("task-viewed"));
+        markTaskAsViewed({ taskId, userEmail });
+      }
+    };
+    return () => markViewed();
+  }, [taskId, markTaskAsViewed]);
 
+  // 2. Effects depending on task data
   useEffect(() => {
     if (task) {
       setEditedTitle(task.title || "");
@@ -99,54 +118,8 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
     }
   }, [task?._id, isEditMode]);
 
-  const [refreshBadges, setRefreshBadges] = useState(0);
-
-  useEffect(() => {
-    const markViewed = () => {
-      if (taskId) {
-        const userEmail = localStorage.getItem("wf_email") || "";
-        const nowStr = Date.now().toString();
-        // Clear global and specific so everything is clean on exit
-        localStorage.setItem(`task_viewed_${taskId}`, nowStr);
-        localStorage.setItem(`task_viewed_features_${taskId}`, nowStr);
-        localStorage.setItem(`task_viewed_bugs_${taskId}`, nowStr);
-        localStorage.setItem(`task_viewed_notes_${taskId}`, nowStr);
-        localStorage.setItem(`task_viewed_milestones_${taskId}`, nowStr);
-        window.dispatchEvent(new Event("task-viewed"));
-        markTaskAsViewed({ taskId, userEmail });
-      }
-    };
-
-    // ONLY mark tasks globally viewed when the modal CLOSES, so badges stay active while looking around!
-    return () => markViewed();
-  }, [taskId, markTaskAsViewed]);
-
-  const clearBadge = (type) => {
-    if (actualRole === "Programmer" || userRole === "Programmer") {
-      localStorage.setItem(`task_viewed_${type}_${taskId}`, Date.now().toString());
-      setRefreshBadges(r => r + 1);
-      window.dispatchEvent(new Event("task-viewed"));
-    }
-  };
-
-  const milestones = task?.milestones || [];
-  const doneM = task?.completedMilestones || 0;
-  const progressPercent = milestones.length > 0 ? Math.round((doneM / milestones.length) * 100) : 0;
-
-  const isAdminPlus = actualRole === "Admin+";
-  const isAdminLevel = actualRole === "Admin" || isAdminPlus;
-
-  let canEditMilestone = true;
-  if (isAdminLevel) {
-    const assigneeVal = (task?.assignee || "").toLowerCase();
-    const userNameVal = (userName || "").toLowerCase();
-    if (!assigneeVal.includes(userNameVal)) canEditMilestone = false;
-  }
-
-  const canManageFeatures = isAdminLevel || canEditMilestone;
+  // Derived programmer status for badge logic
   const isProgrammer = actualRole === "Programmer" || userRole === "Programmer";
-
-  // Use localStorage specific times (immediate), then fallback to query result / global time
   const globalLS = parseInt(localStorage.getItem(`task_viewed_${taskId}`) || "0", 10);
   const globalDB = typeof taskViewHistoryTime === 'number' ? taskViewHistoryTime : 0;
   const globalTime = Math.max(globalLS, globalDB);
@@ -155,7 +128,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   const lastViewedBugs = isProgrammer ? Math.max(parseInt(localStorage.getItem(`task_viewed_bugs_${taskId}`) || "0", 10), globalTime) : 0;
   const lastViewedNotes = isProgrammer ? Math.max(parseInt(localStorage.getItem(`task_viewed_notes_${taskId}`) || "0", 10), globalTime) : 0;
   const lastViewedMilestones = isProgrammer ? Math.max(parseInt(localStorage.getItem(`task_viewed_milestones_${taskId}`) || "0", 10), globalTime) : 0;
-  
+
   const newNotes = isProgrammer ? (task?.notes || []).filter((n) => {
     const noteTime = n.timestamp || 0;
     return noteTime > 0 && noteTime > lastViewedNotes;
@@ -178,26 +151,35 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
     return milestoneTime > 0 && milestoneTime > lastViewedMilestones;
   }).length : 0;
 
-  // Debug logging
   useEffect(() => {
-    console.log("👤 ROLE CHECK:", { userEmail: localStorage.getItem("wf_email"), actualRole, isProgrammer, userRole });
-    if (isProgrammer) {
-      console.log("📊 BADGE DEBUG:", {
-        isProgrammer,
-        globalTime,
-        lastViewedFeatures,
-        taskNotesCount: (task?.notes || []).length,
-        taskFeaturesCount: (task?.features || []).filter(f => (f.type || "feature") === "feature").length,
-        taskBugsCount: (task?.features || []).filter(f => (f.type || "feature") === "bug").length,
-        newNotes,
-        newFeatures,
-        newBugs,
-        newMilestones: newMilestonesBadge,
-        notes: (task?.notes || []).slice(0, 3).map((n, i) => ({ i, timestamp: n.timestamp, text: n.text?.slice(0, 20) })),
-        features: (task?.features || []).slice(0, 3).map((f, i) => ({ i, type: f.type, createdAtTime: f.createdAtTime, name: f.name })),
-      });
+    if (isProgrammer && task) {
+      console.log("📊 BADGE DEBUG:", { isProgrammer, globalTime, newNotes, newFeatures, newBugs, newMilestonesBadge });
     }
-  }, [task, isProgrammer, globalTime, newNotes, newFeatures, newBugs, newMilestonesBadge, actualRole, userRole]);
+  }, [task?._id, isProgrammer, globalTime, newNotes, newFeatures, newBugs, newMilestonesBadge]);
+
+  const clearBadge = (type) => {
+    if (isProgrammer) {
+      localStorage.setItem(`task_viewed_${type}_${taskId}`, Date.now().toString());
+      setRefreshBadges(r => r + 1);
+      window.dispatchEvent(new Event("task-viewed"));
+    }
+  };
+
+  const milestones = task?.milestones || [];
+  const doneM = task?.completedMilestones || 0;
+  const progressPercent = milestones.length > 0 ? Math.round((doneM / milestones.length) * 100) : 0;
+
+  const isAdminPlus = actualRole === "Admin+";
+  const isAdminLevel = actualRole === "Admin" || isAdminPlus;
+
+  let canEditMilestone = true;
+  if (isAdminLevel) {
+    const assigneeVal = (task?.assignee || "").toLowerCase();
+    const userNameVal = (userName || "").toLowerCase();
+    if (!assigneeVal.includes(userNameVal)) canEditMilestone = false;
+  }
+
+  const canManageFeatures = isAdminLevel || canEditMilestone;
 
   function toggleAssignee(name) {
     setSelectedAssignees((prev) => {
@@ -712,9 +694,9 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                   </button>
                 ) : (
                   <div style={{ display: "flex", gap: 10 }}>
-                    {task.webappLink && (
+                    {(task.webappLink || task.projectLink) && (
                       <a
-                        href={task.webappLink.startsWith("http") ? task.webappLink : `https://${task.webappLink}`}
+                        href={(task.webappLink || task.projectLink).startsWith("http") ? (task.webappLink || task.projectLink) : `https://${(task.webappLink || task.projectLink)}`}
                         target="_blank" rel="noopener noreferrer"
                         className="btn-primary"
                         style={{ background: "var(--color-accent)", color: "white", padding: "8px 16px", fontSize: "0.65rem", borderRadius: 8, textDecoration: "none", fontWeight: 800, textAlign: "center", display: "inline-flex", alignItems: "center" }}
@@ -1006,8 +988,8 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                       ) : <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>—</span>}
                       
                       <span style={{ fontSize: "0.6rem", fontWeight: 900, textTransform: "uppercase", color: "#3b82f6" }}>Webapp:</span>
-                      {task.webappLink ? (
-                        <a href={task.webappLink.startsWith("http") ? task.webappLink : `https://${task.webappLink}`} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 700, fontSize: "0.75rem", color: "var(--color-accent)", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{task.webappLink}</a>
+                      {(task.webappLink || task.projectLink) ? (
+                        <a href={(task.webappLink || task.projectLink).startsWith("http") ? (task.webappLink || task.projectLink) : `https://${(task.webappLink || task.projectLink)}`} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 700, fontSize: "0.75rem", color: "var(--color-accent)", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{task.webappLink || task.projectLink}</a>
                       ) : <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>—</span>}
                     </div>
                   </div>
