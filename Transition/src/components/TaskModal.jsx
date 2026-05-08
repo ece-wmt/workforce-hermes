@@ -24,6 +24,8 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   const [showOptions, setShowOptions] = useState(false);
   const [editedTitle, setEditedTitle] = useState("");
   const [editedDesc, setEditedDesc] = useState("");
+  const [editedAppscriptLink, setEditedAppscriptLink] = useState("");
+  const [editedWebappLink, setEditedWebappLink] = useState("");
   const [featureModalConfig, setFeatureModalConfig] = useState(null);
   const [featureContextMenu, setFeatureContextMenu] = useState(null);
   const [editedMilestones, setEditedMilestones] = useState([]);
@@ -84,6 +86,8 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
     if (task) {
       setEditedTitle(task.title || "");
       setEditedDesc(task.description || "");
+      setEditedAppscriptLink(task.appscriptLink || "");
+      setEditedWebappLink(task.webappLink || "");
       const initialAssignees = (task.assignee || "")
         .split(",")
         .map((s) => s.trim())
@@ -304,6 +308,8 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
       newTitle: editedTitle,
       newDescription: editedDesc,
       newAssignee: Array.from(selectedAssignees).join(", "),
+      newAppscriptLink: editedAppscriptLink,
+      newWebappLink: editedWebappLink,
       newMilestones,
     });
     onClose();
@@ -706,14 +712,24 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                   </button>
                 ) : (
                   <div style={{ display: "flex", gap: 10 }}>
-                    {task.projectLink && (
+                    {task.webappLink && (
                       <a
-                        href={task.projectLink.startsWith("http") ? task.projectLink : `https://${task.projectLink}`}
+                        href={task.webappLink.startsWith("http") ? task.webappLink : `https://${task.webappLink}`}
                         target="_blank" rel="noopener noreferrer"
                         className="btn-primary"
                         style={{ background: "var(--color-accent)", color: "white", padding: "8px 16px", fontSize: "0.65rem", borderRadius: 8, textDecoration: "none", fontWeight: 800, textAlign: "center", display: "inline-flex", alignItems: "center" }}
                       >
                         VIEW PROJECT
+                      </a>
+                    )}
+                    {task.appscriptLink && (
+                      <a
+                        href={task.appscriptLink.startsWith("http") ? task.appscriptLink : `https://${task.appscriptLink}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="btn-primary"
+                        style={{ background: "#4285f4", color: "white", padding: "8px 16px", fontSize: "0.65rem", borderRadius: 8, textDecoration: "none", fontWeight: 800, textAlign: "center", display: "inline-flex", alignItems: "center" }}
+                      >
+                        VIEW APPSCRIPT
                       </a>
                     )}
                     {userRole === "Admin" && (
@@ -779,13 +795,39 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
               <div className="modal-desc" style={{ marginTop: 20 }}>
                 <h3 style={{ fontWeight: 900, textTransform: "uppercase", fontSize: "0.65rem", color: "var(--color-text-secondary)", marginBottom: 8, letterSpacing: "1px" }}>Project Description</h3>
                 {isEditMode ? (
-                  <textarea
-                    className="form-input"
-                    value={editedDesc}
-                    onChange={(e) => setEditedDesc(e.target.value)}
-                    style={{ width: "100%", height: 80, fontSize: "0.85rem", padding: 12, borderRadius: "var(--radius-md)" }}
-                    placeholder="Enter project description..."
-                  />
+                  <>
+                    <textarea
+                      className="form-input"
+                      value={editedDesc}
+                      onChange={(e) => setEditedDesc(e.target.value)}
+                      style={{ width: "100%", height: 80, fontSize: "0.85rem", padding: 12, borderRadius: "var(--radius-md)", marginBottom: 15 }}
+                      placeholder="Enter project description..."
+                    />
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 15, marginBottom: 15 }}>
+                      <div>
+                        <label style={{ fontSize: "0.6rem", fontWeight: 900, color: "var(--color-text-secondary)", textTransform: "uppercase", display: "block", marginBottom: 4 }}>Appscript Link</label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          value={editedAppscriptLink}
+                          onChange={(e) => setEditedAppscriptLink(e.target.value)}
+                          style={{ width: "100%", padding: "6px 10px", borderRadius: "var(--radius-md)", fontSize: "0.8rem" }}
+                          placeholder="Google Appscript URL"
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: "0.6rem", fontWeight: 900, color: "var(--color-text-secondary)", textTransform: "uppercase", display: "block", marginBottom: 4 }}>Webapp (Exec) Link</label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          value={editedWebappLink}
+                          onChange={(e) => setEditedWebappLink(e.target.value)}
+                          style={{ width: "100%", padding: "6px 10px", borderRadius: "var(--radius-md)", fontSize: "0.8rem" }}
+                          placeholder="Deployed Webapp URL"
+                        />
+                      </div>
+                    </div>
+                  </>
                 ) : (
                   <div style={{ fontSize: "0.85rem", color: "var(--color-text-primary)", lineHeight: 1.5 }}>
                     {task.description || "No description provided."}
@@ -947,23 +989,48 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
             </div>
 
             {(userRole === "Admin" || userRole === "Admin+") && (
-              <div className="admin-creds-box" style={{ flexShrink: 0, marginTop: 10, background: "var(--color-bg-subtle)", border: "2px solid var(--color-accent)", borderRadius: "8px", overflow: "hidden", boxShadow: "var(--shadow-sm)" }}>
-                <div className="creds-header" style={{ background: "var(--color-accent)", padding: "6px 12px", color: "white", fontSize: "0.6rem", fontWeight: 900, display: "flex", alignItems: "center", gap: "8px", letterSpacing: "1px" }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                  </svg>
-                  ADMIN CREDENTIALS (SENSITIVE)
-                </div>
-                <div className="creds-content" style={{ padding: "8px 12px", color: "var(--color-nav-bg)" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "80px 1fr", gap: "2px 10px", alignItems: "center" }}>
-                    <span style={{ fontSize: "0.6rem", fontWeight: 900, textTransform: "uppercase", color: "var(--color-accent)" }}>Email:</span>
-                    <span style={{ fontWeight: 700, fontSize: "0.8rem", fontFamily: "monospace" }}>{task.adminCredentials?.email || "—"}</span>
-                    <span style={{ fontSize: "0.6rem", fontWeight: 900, textTransform: "uppercase", color: "var(--color-accent)" }}>Pass:</span>
-                    <span style={{ fontWeight: 700, fontSize: "0.8rem", fontFamily: "monospace" }}>{task.adminCredentials?.password || "—"}</span>
+              <>
+                <div className="system-links-box" style={{ flexShrink: 0, marginTop: 10, background: "var(--color-bg-subtle)", border: "2px solid #3b82f6", borderRadius: "8px", overflow: "hidden", boxShadow: "var(--shadow-sm)" }}>
+                  <div className="creds-header" style={{ background: "#3b82f6", padding: "6px 12px", color: "white", fontSize: "0.6rem", fontWeight: 900, display: "flex", alignItems: "center", gap: "8px", letterSpacing: "1px" }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                    </svg>
+                    SYSTEM LINKS
+                  </div>
+                  <div className="creds-content" style={{ padding: "8px 12px", color: "var(--color-nav-bg)" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: "4px 10px", alignItems: "center" }}>
+                      <span style={{ fontSize: "0.6rem", fontWeight: 900, textTransform: "uppercase", color: "#3b82f6" }}>Appscript:</span>
+                      {task.appscriptLink ? (
+                        <a href={task.appscriptLink.startsWith("http") ? task.appscriptLink : `https://${task.appscriptLink}`} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 700, fontSize: "0.75rem", color: "var(--color-accent)", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{task.appscriptLink}</a>
+                      ) : <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>—</span>}
+                      
+                      <span style={{ fontSize: "0.6rem", fontWeight: 900, textTransform: "uppercase", color: "#3b82f6" }}>Webapp:</span>
+                      {task.webappLink ? (
+                        <a href={task.webappLink.startsWith("http") ? task.webappLink : `https://${task.webappLink}`} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 700, fontSize: "0.75rem", color: "var(--color-accent)", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{task.webappLink}</a>
+                      ) : <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>—</span>}
+                    </div>
                   </div>
                 </div>
-              </div>
+
+                <div className="admin-creds-box" style={{ flexShrink: 0, marginTop: 10, background: "var(--color-bg-subtle)", border: "2px solid var(--color-accent)", borderRadius: "8px", overflow: "hidden", boxShadow: "var(--shadow-sm)" }}>
+                  <div className="creds-header" style={{ background: "var(--color-accent)", padding: "6px 12px", color: "white", fontSize: "0.6rem", fontWeight: 900, display: "flex", alignItems: "center", gap: "8px", letterSpacing: "1px" }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                    ADMIN CREDENTIALS (SENSITIVE)
+                  </div>
+                  <div className="creds-content" style={{ padding: "8px 12px", color: "var(--color-nav-bg)" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "80px 1fr", gap: "2px 10px", alignItems: "center" }}>
+                      <span style={{ fontSize: "0.6rem", fontWeight: 900, textTransform: "uppercase", color: "var(--color-accent)" }}>Email:</span>
+                      <span style={{ fontWeight: 700, fontSize: "0.8rem", fontFamily: "monospace" }}>{task.adminCredentials?.email || "—"}</span>
+                      <span style={{ fontSize: "0.6rem", fontWeight: 900, textTransform: "uppercase", color: "var(--color-accent)" }}>Pass:</span>
+                      <span style={{ fontWeight: 700, fontSize: "0.8rem", fontFamily: "monospace" }}>{task.adminCredentials?.password || "—"}</span>
+                    </div>
+                  </div>
+                </div>
+              </>
             )}
           </div>
 

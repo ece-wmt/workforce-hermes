@@ -104,6 +104,15 @@ export const getProjectStats = query({
       (a, b) => b.active + b.pending - (a.active + a.pending)
     );
 
+    stats.projectsWithLinks = tasks
+      .filter(t => t.appscriptLink || t.webappLink)
+      .map(t => ({
+        id: t._id,
+        title: t.title,
+        appscriptLink: t.appscriptLink,
+        webappLink: t.webappLink
+      }));
+
     return stats;
   },
 });
@@ -218,6 +227,8 @@ export const updateTaskDetails = mutation({
     newTitle: v.string(),
     newDescription: v.optional(v.string()),
     newAssignee: v.string(),
+    newAppscriptLink: v.optional(v.string()),
+    newWebappLink: v.optional(v.string()),
     newMilestones: v.array(
       v.object({
         name: v.string(),
@@ -237,6 +248,8 @@ export const updateTaskDetails = mutation({
       title: args.newTitle,
       description: args.newDescription || "",
       assignee: args.newAssignee,
+      appscriptLink: args.newAppscriptLink,
+      webappLink: args.newWebappLink,
       milestones: args.newMilestones.map(m => ({ ...m, createdAtTime: m.createdAtTime || Date.now() })),
       completedMilestones: completedCount,
       lastUpdated: Date.now(),

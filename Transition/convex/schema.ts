@@ -45,6 +45,8 @@ export default defineSchema({
     ),
     startDate: v.optional(v.string()),
     projectLink: v.optional(v.string()),
+    appscriptLink: v.optional(v.string()),
+    webappLink: v.optional(v.string()),
     adminCredentials: v.optional(v.any()),
     lastUpdated: v.number(),
     features: v.optional(
