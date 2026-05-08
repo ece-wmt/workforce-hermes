@@ -91,6 +91,7 @@ export default function App() {
   const tasks = useQuery(api.tasks.getTasks);
   const addStaffMutation = useMutation(api.staff.addStaff);
   const setPasswordMutation = useMutation(api.staff.setPassword);
+  const loginMutation = useMutation(api.staff.login);
   const deleteStaffMutation = useMutation(api.staff.deleteStaff);
   const deleteTask = useMutation(api.tasks.deleteTask);
   const updateProjectLink = useMutation(api.tasks.updateProjectLink);
@@ -271,78 +272,42 @@ export default function App() {
       return;
     }
 
-    const isMainAdmin = lowerEmail === "wmt@ececontactcenters.com";
+    try {
+      const result = await loginMutation({ email: lowerEmail, password });
 
-    if (isMainAdmin) {
-      if (password === "admin") {
+      if (!result.success) {
+        setLoginError(result.error || "Login failed.");
+        return;
+      }
+
+      // Server validated credentials — handle the stage
+      if (result.stage === "denied") {
+        localStorage.setItem("wf_authenticated", "true");
+        localStorage.setItem("wf_email", lowerEmail);
+        setAuthStage("denied");
+        return;
+      }
+
+      if (result.stage === "set-password") {
+        setPendingEmail(lowerEmail);
+        setAuthStage("set-password");
+        return;
+      }
+
+      if (result.stage === "authenticated") {
         localStorage.setItem("wf_authenticated", "true");
         localStorage.setItem("wf_email", lowerEmail);
         localStorage.setItem("wf_last_activity", Date.now().toString());
         setLoading(true);
         setShowIntro(true);
         setAuthStage("authenticated");
-      } else {
-        setLoginError("Incorrect password.");
+        // Trigger notification popup for programmers after login
+        if (result.role === "Programmer") {
+          setShowLoginNotifications(true);
+        }
       }
-      return;
-    }
-
-    const user = staff.find((s) => (s.email || "").toLowerCase() === lowerEmail);
-
-    if (!user) {
-      // Not in staff list — must register with "admin"
-      if (password === "admin") {
-        const defaultName = lowerEmail.split("@")[0];
-        addStaffMutation({ name: defaultName, email: lowerEmail, role: "Pending" });
-        // Show access denied — admin must approve them
-        localStorage.setItem("wf_authenticated", "true");
-        localStorage.setItem("wf_email", lowerEmail);
-        setAuthStage("denied");
-      } else {
-        setLoginError("You are not registered. Use the default password to register.");
-      }
-      return;
-    }
-
-    // User is marked as pending approval
-    if (user.role === "Pending") {
-      localStorage.setItem("wf_authenticated", "true");
-      localStorage.setItem("wf_email", lowerEmail);
-      setAuthStage("denied");
-      return;
-    }
-
-    if (user.role === "Revoked") {
-      setLoginError("Your access has been revoked by an administrator.");
-      return;
-    }
-
-    // User IS in staff list
-    if (!user.password) {
-      // No personal password set: only "admin" is accepted  → go to set-password
-      if (password === "admin") {
-        setPendingEmail(lowerEmail);
-        setAuthStage("set-password");
-      } else {
-        setLoginError("Incorrect password.");
-      }
-      return;
-    }
-
-    // User has a personal password
-    if (password === user.password) {
-      localStorage.setItem("wf_authenticated", "true");
-      localStorage.setItem("wf_email", lowerEmail);
-      localStorage.setItem("wf_last_activity", Date.now().toString());
-      setLoading(true);
-      setShowIntro(true);
-      setAuthStage("authenticated");
-      // Trigger notification popup for programmers after login
-      if (user.role === "Programmer") {
-        setShowLoginNotifications(true);
-      }
-    } else {
-      setLoginError("Incorrect password.");
+    } catch (err) {
+      setLoginError("Login failed. Please try again.");
     }
   }
 

@@ -105,6 +105,7 @@ export default function Login({ onLogin, externalError = "", onResetSuccess }) {
                   onChange={(e) => { setEmail(e.target.value); setError(""); }}
                   required
                   autoFocus
+                  autoComplete="username"
                 />
               </div>
               <div className="form-group" style={{ marginBottom: "8px" }}>
@@ -115,6 +116,7 @@ export default function Login({ onLogin, externalError = "", onResetSuccess }) {
                   value={password}
                   onChange={(e) => { setPassword(e.target.value); setError(""); }}
                   required
+                  autoComplete="current-password"
                 />
                 {displayError && <div className="error-text">{displayError}</div>}
               </div>

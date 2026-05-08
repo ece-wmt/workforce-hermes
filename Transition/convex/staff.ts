@@ -29,7 +29,84 @@ export const getStaff = query({
       staffMap[s.email.toLowerCase()] = s;
     });
 
-    return Object.values(staffMap).filter((s: any) => s.role !== "Revoked");
+    // Strip sensitive fields before sending to client
+    return Object.values(staffMap)
+      .filter((s: any) => s.role !== "Revoked")
+      .map(({ password, securityAnswer, securityQuestion, resetCode, resetCodeExpiry, ...safe }: any) => safe);
+  },
+});
+
+/**
+ * Server-side login — validates credentials without exposing passwords to the client.
+ * Returns a result object indicating success/failure and any needed next steps.
+ */
+export const login = mutation({
+  args: {
+    email: v.string(),
+    password: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const lowerEmail = args.email.toLowerCase();
+    const isMainAdmin = lowerEmail === "wmt@ececontactcenters.com";
+
+    // --- Main Admin shortcut ---
+    if (isMainAdmin) {
+      if (args.password === "admin") {
+        return { success: true, stage: "authenticated" };
+      }
+      return { success: false, error: "Incorrect password." };
+    }
+
+    // --- Lookup user in DB ---
+    const dbUser = await ctx.db
+      .query("staff")
+      .withIndex("by_email", (q) => q.eq("email", lowerEmail))
+      .first();
+
+    // Fall back to INITIAL_STAFF
+    const initial = INITIAL_STAFF.find(
+      (s) => s.email.toLowerCase() === lowerEmail
+    );
+    const user = dbUser || (initial ? { ...initial, password: undefined } : null);
+
+    // --- Not found: attempt registration ---
+    if (!user) {
+      if (args.password === "admin") {
+        const defaultName = lowerEmail.split("@")[0];
+        await ctx.db.insert("staff", {
+          name: defaultName,
+          email: lowerEmail,
+          role: "Pending",
+        });
+        return { success: true, stage: "denied" };
+      }
+      return { success: false, error: "You are not registered. Use the default password to register." };
+    }
+
+    // --- Pending approval ---
+    if (user.role === "Pending") {
+      return { success: true, stage: "denied" };
+    }
+
+    // --- Revoked ---
+    if (user.role === "Revoked") {
+      return { success: false, error: "Your access has been revoked by an administrator." };
+    }
+
+    // --- No personal password set: accept "admin" → go to set-password ---
+    if (!user.password) {
+      if (args.password === "admin") {
+        return { success: true, stage: "set-password" };
+      }
+      return { success: false, error: "Incorrect password." };
+    }
+
+    // --- Validate personal password ---
+    if (args.password === user.password) {
+      return { success: true, stage: "authenticated", role: user.role };
+    }
+
+    return { success: false, error: "Incorrect password." };
   },
 });
 
