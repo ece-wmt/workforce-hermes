@@ -129,10 +129,8 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
     }
   };
 
-  if (!task) return null;
-
-  const milestones = task.milestones || [];
-  const doneM = task.completedMilestones || 0;
+  const milestones = task?.milestones || [];
+  const doneM = task?.completedMilestones || 0;
   const progressPercent = milestones.length > 0 ? Math.round((doneM / milestones.length) * 100) : 0;
 
   const isAdminPlus = actualRole === "Admin+";
@@ -140,7 +138,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
 
   let canEditMilestone = true;
   if (isAdminLevel) {
-    const assigneeVal = (task.assignee || "").toLowerCase();
+    const assigneeVal = (task?.assignee || "").toLowerCase();
     const userNameVal = (userName || "").toLowerCase();
     if (!assigneeVal.includes(userNameVal)) canEditMilestone = false;
   }
@@ -158,24 +156,24 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   const lastViewedNotes = isProgrammer ? Math.max(parseInt(localStorage.getItem(`task_viewed_notes_${taskId}`) || "0", 10), globalTime) : 0;
   const lastViewedMilestones = isProgrammer ? Math.max(parseInt(localStorage.getItem(`task_viewed_milestones_${taskId}`) || "0", 10), globalTime) : 0;
   
-  const newNotes = isProgrammer ? (task.notes || []).filter((n) => {
+  const newNotes = isProgrammer ? (task?.notes || []).filter((n) => {
     const noteTime = n.timestamp || 0;
     return noteTime > 0 && noteTime > lastViewedNotes;
   }).length : 0;
 
-  const newFeatures = isProgrammer ? (task.features || []).filter((f) => {
+  const newFeatures = isProgrammer ? (task?.features || []).filter((f) => {
     if ((f.type || "feature") !== "feature") return false;
     const featureTime = f.createdAtTime || 0;
     return featureTime > 0 && featureTime > lastViewedFeatures;
   }).length : 0;
 
-  const newBugs = isProgrammer ? (task.features || []).filter((f) => {
+  const newBugs = isProgrammer ? (task?.features || []).filter((f) => {
     if ((f.type || "feature") !== "bug") return false;
     const featureTime = f.createdAtTime || 0;
     return featureTime > 0 && featureTime > lastViewedBugs;
   }).length : 0;
 
-  const newMilestones = isProgrammer ? (task.milestones || []).filter((m) => {
+  const newMilestonesBadge = isProgrammer ? (task?.milestones || []).filter((m) => {
     const milestoneTime = m.createdAtTime || 0;
     return milestoneTime > 0 && milestoneTime > lastViewedMilestones;
   }).length : 0;
@@ -188,18 +186,18 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
         isProgrammer,
         globalTime,
         lastViewedFeatures,
-        taskNotesCount: (task.notes || []).length,
-        taskFeaturesCount: (task.features || []).filter(f => (f.type || "feature") === "feature").length,
-        taskBugsCount: (task.features || []).filter(f => (f.type || "feature") === "bug").length,
+        taskNotesCount: (task?.notes || []).length,
+        taskFeaturesCount: (task?.features || []).filter(f => (f.type || "feature") === "feature").length,
+        taskBugsCount: (task?.features || []).filter(f => (f.type || "feature") === "bug").length,
         newNotes,
         newFeatures,
         newBugs,
-        newMilestones,
-        notes: (task.notes || []).slice(0, 3).map((n, i) => ({ i, timestamp: n.timestamp, text: n.text?.slice(0, 20) })),
-        features: (task.features || []).slice(0, 3).map((f, i) => ({ i, type: f.type, createdAtTime: f.createdAtTime, name: f.name })),
+        newMilestones: newMilestonesBadge,
+        notes: (task?.notes || []).slice(0, 3).map((n, i) => ({ i, timestamp: n.timestamp, text: n.text?.slice(0, 20) })),
+        features: (task?.features || []).slice(0, 3).map((f, i) => ({ i, type: f.type, createdAtTime: f.createdAtTime, name: f.name })),
       });
     }
-  }, [task, isProgrammer, globalTime, newNotes, newFeatures, newBugs, newMilestones, actualRole, userRole]);
+  }, [task, isProgrammer, globalTime, newNotes, newFeatures, newBugs, newMilestonesBadge, actualRole, userRole]);
 
   function toggleAssignee(name) {
     setSelectedAssignees((prev) => {
@@ -491,6 +489,8 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
   }
+
+  if (!task) return null;
 
   return (
     <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
