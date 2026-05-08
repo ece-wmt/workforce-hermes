@@ -34,14 +34,24 @@ export const getStaff = query({
     // invalidating this query on every heartbeat mutation.
     return Object.values(staffMap)
       .filter((s: any) => s.role !== "Revoked")
-      .map(({ password, securityAnswer, securityQuestion, resetCode, resetCodeExpiry, lastSeen, ...safe }: any) => safe);
+      .map(({ password, securityAnswer, securityQuestion, resetCode, resetCodeExpiry, lastSeen, ...safe }: any) => ({
+        ...safe,
+        password: password ? "********" : undefined,
+        securityAnswer: securityAnswer ? "********" : undefined,
+        securityQuestion: securityQuestion
+      }));
   },
 });
 
-/**
- * Server-side login — validates credentials without exposing passwords to the client.
- * Returns a result object indicating success/failure and any needed next steps.
- */
+// --- Hashing Helpers ---
+async function hashPassword(password: string) {
+  const msgUint8 = new TextEncoder().encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return hashHex;
+}
+
 export const login = mutation({
   args: {
     email: v.string(),
@@ -104,8 +114,22 @@ export const login = mutation({
     }
 
     // --- Validate personal password ---
-    if (args.password === user.password) {
-      return { success: true, stage: "authenticated", role: user.role };
+    const inputHash = await hashPassword(args.password);
+    
+    // Check if stored password is a hash (SHA-256 hex is 64 chars) or plain text
+    const isHash = user.password.length === 64 && /^[0-9a-f]+$/.test(user.password);
+    
+    if (isHash) {
+      if (inputHash === user.password) {
+        return { success: true, stage: "authenticated", role: user.role };
+      }
+    } else {
+      // Fallback for existing plain-text passwords
+      if (args.password === user.password) {
+        // Auto-migrate to hash on successful login
+        await ctx.db.patch(user._id, { password: inputHash });
+        return { success: true, stage: "authenticated", role: user.role };
+      }
     }
 
     return { success: false, error: "Incorrect password." };
@@ -162,8 +186,9 @@ export const setPassword = mutation({
       .withIndex("by_email", (q) => q.eq("email", args.email.toLowerCase()))
       .first();
 
+    const hashedPassword = await hashPassword(args.password);
     if (existing) {
-      await ctx.db.patch(existing._id, { password: args.password });
+      await ctx.db.patch(existing._id, { password: hashedPassword });
     } else {
       // User is from INITIAL_STAFF but not yet in DB — create their DB record
       const initial = INITIAL_STAFF.find(
@@ -174,7 +199,7 @@ export const setPassword = mutation({
           name: initial.name,
           email: initial.email.toLowerCase(),
           role: initial.role,
-          password: args.password,
+          password: hashedPassword,
         });
       }
     }

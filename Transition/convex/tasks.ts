@@ -33,6 +33,30 @@ export const getTasksLight = query({
   },
 });
 
+// --- Obfuscation Helpers ---
+// These are used to hide plain text from casual observation in the Convex DB browser.
+// They are reversible so that the user can still reveal them in the modal.
+function obfuscate(str: string | undefined) {
+  if (!str) return str;
+  try {
+    const encoded = btoa(str);
+    return "obf_" + encoded.split('').reverse().join('');
+  } catch (e) {
+    return str;
+  }
+}
+
+function deobfuscate(str: string | undefined) {
+  if (!str || !str.startsWith("obf_")) return str;
+  try {
+    const reversed = str.substring(4);
+    const encoded = reversed.split('').reverse().join('');
+    return atob(encoded);
+  } catch (e) {
+    return str;
+  }
+}
+
 /**
  * Targeted query for fetching full details of a single task.
  * Used for the TaskModal to avoid fetching all tasks' notes/features.
@@ -40,7 +64,21 @@ export const getTasksLight = query({
 export const getTaskById = query({
   args: { taskId: v.id("tasks") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.taskId);
+    const task = await ctx.db.get(args.taskId);
+    if (!task) return null;
+    
+    // Deobfuscate sensitive fields before sending to client
+    if (task.adminCredentials) {
+      return {
+        ...task,
+        adminCredentials: {
+          email: deobfuscate(task.adminCredentials.email),
+          password: deobfuscate(task.adminCredentials.password),
+        }
+      };
+    }
+    
+    return task;
   },
 });
 
@@ -283,8 +321,8 @@ export const updateAdminCredentials = mutation({
     if (!task) throw new Error("Task not found");
     await ctx.db.patch(args.taskId, {
       adminCredentials: {
-        email: args.email,
-        password: args.password,
+        email: obfuscate(args.email),
+        password: obfuscate(args.password),
       },
       lastUpdated: Date.now(),
     });

@@ -532,6 +532,16 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
                         <div className="staff-mgmt-info">
                           <span className="staff-mgmt-name" onClick={() => onViewProfile && onViewProfile(s)} style={{ cursor: "pointer" }}>{s.name}</span>
                           <span className="staff-mgmt-email">{s.email}</span>
+                          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                            <span style={{ fontSize: "0.6rem", color: "#94a3b8", display: "flex", alignItems: "center", gap: 3 }}>
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                              Pass: <span style={{ color: s.password ? "var(--color-accent)" : "#94a3b8" }}>{s.password || "None"}</span>
+                            </span>
+                            <span style={{ fontSize: "0.6rem", color: "#94a3b8", display: "flex", alignItems: "center", gap: 3 }}>
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
+                              Sec: <span style={{ color: s.securityAnswer ? "var(--color-accent)" : "#94a3b8" }}>{s.securityAnswer || "None"}</span>
+                            </span>
+                          </div>
                         </div>
                         <div className="staff-mgmt-role">
                           <select
