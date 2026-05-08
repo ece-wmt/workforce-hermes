@@ -624,6 +624,7 @@ export default function App() {
           staff={staff || []}
           onClose={closeTaskModal}
           showModal={showModal}
+          showInputModal={showInputModal}
           onViewProfile={(s) => setViewingStaff(s)}
         />
       )}

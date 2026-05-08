@@ -4,7 +4,7 @@ import { api } from "../../convex/_generated/api";
 import { notifyNoteAdded, notifyMilestoneCompleted } from "../utils/notifications";
 import FeatureModal from "./FeatureModal";
 
-export default function TaskModal({ taskId, isEditMode, userRole, actualRole, userName, staff, onClose, showModal, onViewProfile }) {
+export default function TaskModal({ taskId, isEditMode, userRole, actualRole, userName, staff, onClose, showModal, showInputModal, onViewProfile }) {
   const task = useQuery(api.tasks.getTaskById, { taskId });
   const updateTaskMilestones = useMutation(api.tasks.updateTaskMilestones);
   const addNoteToTask = useMutation(api.tasks.addNoteToTask);
@@ -44,6 +44,26 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   const [selectedFeatures, setSelectedFeatures] = useState(new Set());
   const [selectedBugs, setSelectedBugs] = useState(new Set());
   const [selectedMilestones, setSelectedMilestones] = useState(new Set());
+  const [passwordRevealed, setPasswordRevealed] = useState(false);
+
+  const handleRevealPassword = () => {
+    if (passwordRevealed) {
+      setPasswordRevealed(false);
+      return;
+    }
+    showInputModal({
+      title: "Security Check",
+      message: "Please enter the master password to reveal these credentials.",
+      fields: [{ name: "pass", label: "Master Password", type: "password", placeholder: "••••" }],
+      onConfirm: (data) => {
+        if (data.pass === "wfm1234") {
+          setPasswordRevealed(true);
+        } else {
+          showModal({ title: "Access Denied", message: "Incorrect master password.", type: "alert" });
+        }
+      }
+    });
+  };
 
   const handleRowClickToggle = (e, setFn, id) => {
     if (e.ctrlKey || e.metaKey) {
@@ -1006,10 +1026,22 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                   <div className="creds-content" style={{ padding: "8px 12px", color: "var(--color-nav-bg)" }}>
                     <div style={{ display: "grid", gridTemplateColumns: "80px 1fr", gap: "2px 10px", alignItems: "center" }}>
                       <span style={{ fontSize: "0.6rem", fontWeight: 900, textTransform: "uppercase", color: "var(--color-accent)" }}>Email:</span>
-                      <span style={{ fontWeight: 700, fontSize: "0.8rem", fontFamily: "monospace" }}>{task.adminCredentials?.email || "—"}</span>
+                      <span style={{ fontWeight: 700, fontSize: "0.8rem", fontFamily: "monospace" }}>
+                        {passwordRevealed ? (task.adminCredentials?.email || "—") : "••••••••••••"}
+                      </span>
                       <span style={{ fontSize: "0.6rem", fontWeight: 900, textTransform: "uppercase", color: "var(--color-accent)" }}>Pass:</span>
-                      <span style={{ fontWeight: 700, fontSize: "0.8rem", fontFamily: "monospace" }}>{task.adminCredentials?.password || "—"}</span>
+                      <span style={{ fontWeight: 700, fontSize: "0.8rem", fontFamily: "monospace" }}>
+                        {passwordRevealed ? (task.adminCredentials?.password || "—") : "••••••••"}
+                      </span>
                     </div>
+                    {!passwordRevealed && (
+                      <button 
+                        onClick={handleRevealPassword}
+                        style={{ marginTop: 8, width: "100%", padding: "4px", fontSize: "0.55rem", fontWeight: 900, background: "var(--color-bg-primary)", border: "1px dashed var(--color-accent)", color: "var(--color-accent)", borderRadius: "4px", cursor: "pointer" }}
+                      >
+                        CLICK TO REVEAL
+                      </button>
+                    )}
                   </div>
                 </div>
               </>
