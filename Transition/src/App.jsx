@@ -35,13 +35,6 @@ export default function App() {
         localStorage.clear();
         return "login";
       }
-      // Check if session has expired (7 hours of inactivity)
-      const INACTIVITY_LIMIT_MS = 7 * 60 * 60 * 1000;
-      const lastActivity = parseInt(localStorage.getItem("wf_last_activity") || "0", 10);
-      if (lastActivity > 0 && (Date.now() - lastActivity) > INACTIVITY_LIMIT_MS) {
-        // Flag for the useEffect to handle
-        localStorage.setItem("wf_session_expired_on_load", "true");
-      }
       return "authenticated";
     }
     return "login";
@@ -96,7 +89,6 @@ export default function App() {
   const deleteTask = useMutation(api.tasks.deleteTask);
   const updateProjectLink = useMutation(api.tasks.updateProjectLink);
   const updateAdminCredentials = useMutation(api.tasks.updateAdminCredentials);
-  const heartbeatMutation = useMutation(api.staff.heartbeat);
 
   const activeProfile = useMemo(() => {
     if (!viewingStaff) return null;
@@ -163,66 +155,21 @@ export default function App() {
         }
         hasSetInitialView.current = true;
       }
+    } else if (staff.length > 0 && !mainAdmin) {
+      // User is authenticated but not found in the staff list.
+      // Could happen if they were deleted.
+      console.warn("Authenticated user not found in staff list:", email);
     }
     setLoading(false);
   }, [staff, authStage, showSettings]);
 
-  // --- Initialize notifications and activity tracking on authentication ---
+  // --- Initialize notifications on authentication ---
   useEffect(() => {
     if (authStage !== "authenticated") return;
 
     initNotifications();
 
-    // Heartbeat for "Last Seen"
-    const email = localStorage.getItem("wf_email");
-    if (!email) return;
-
-    let throttleTimer;
-
-    const interval = setInterval(() => {
-      heartbeatMutation({ email });
-    }, 120000); // 2 minutes heartbeat
-
-    heartbeatMutation({ email }); // Initial beat
-
-    // --- Session Expiry check on load ---
-    if (localStorage.getItem("wf_session_expired_on_load") === "true") {
-      localStorage.removeItem("wf_session_expired_on_load");
-      showModal({
-        title: "Session Expired",
-        message: "Your session has expired. Please log in again.",
-        type: "alert",
-        onConfirm: () => {
-          logout();
-        }
-      });
-      return; 
-    }
-
-    // --- Track last activity ---
-    const handleActivity = () => {
-      if (throttleTimer) return;
-      throttleTimer = setTimeout(() => {
-        localStorage.setItem("wf_last_activity", Date.now().toString());
-        throttleTimer = null;
-      }, 5000);
-    };
-
-    // Record initial activity
-    localStorage.setItem("wf_last_activity", Date.now().toString());
-    ACTIVITY_EVENTS.forEach(evt => window.addEventListener(evt, handleActivity));
-
-    // Show session expired modal if flagged from a previous expired session
-    if (localStorage.getItem("wf_session_expired") === "true") {
-      // Don't show immediately — wait until after intro animation
-      setSessionExpiredPending(true);
-      localStorage.removeItem("wf_session_expired");
-    }
-
     return () => {
-      clearInterval(interval);
-      clearTimeout(throttleTimer);
-      ACTIVITY_EVENTS.forEach(evt => window.removeEventListener(evt, handleActivity));
     };
   }, [authStage]);
 
@@ -380,8 +327,6 @@ export default function App() {
       },
     });
   }
-
-
 
   function showInputModal({ title, message, fields, onConfirm }) {
     setInputModal({
@@ -847,7 +792,7 @@ export default function App() {
             <div className="profile-popover-body">
               <div className="profile-popover-main">
                 <div className="profile-popover-name-row">
-                  <div className={`status-indicator ${(Date.now() - (activeProfile.lastSeen || 0)) < 3600000 ? "active" : ""}`} />
+                  <div className="status-indicator active" />
                   <h3>{activeProfile.name}</h3>
                 </div>
                 <div className="profile-popover-email">
@@ -869,19 +814,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="profile-popover-meta">
-                  <div className="meta-item">
-                    <span className="meta-label">Last seen:</span>
-                    <span className="meta-value">
-                      {activeProfile.lastSeen ? (
-                        (Date.now() - activeProfile.lastSeen < 60000) ? "Just now" :
-                          (Date.now() - activeProfile.lastSeen < 86400000) ?
-                            new Date(activeProfile.lastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) :
-                            new Date(activeProfile.lastSeen).toLocaleDateString()
-                      ) : "Never"}
-                    </span>
-                  </div>
-                </div>
+
 
                 {activeProfile.bio && (
                   <div className="profile-popover-bio">

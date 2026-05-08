@@ -6,7 +6,7 @@ import { api } from "../../convex/_generated/api";
  * Lists tasks that have new notes, features, bugs, or milestones since last viewed.
  */
 export default function TaskNotificationPopup({ userName, onDismiss, onOpenTask }) {
-  const tasks = useQuery(api.tasks.getTasks);
+  const tasks = useQuery(api.tasks.getTasksLight);
   const userEmail = (localStorage.getItem("wf_email") || "").toLowerCase();
 
   if (!tasks) return null;
@@ -23,22 +23,10 @@ export default function TaskNotificationPopup({ userName, onDismiss, onOpenTask 
       const globalLS = parseInt(localStorage.getItem(`task_viewed_${t._id}`) || "0", 10);
       const lastViewed = globalLS;
 
-      const newNotes = (t.notes || []).filter((n) => {
-        const noteTime = n.timestamp || 0;
-        return noteTime > 0 && noteTime > lastViewed;
-      }).length;
-
-      const newFeatures = (t.features || []).filter((f) => {
-        if ((f.type || "feature") !== "feature") return false;
-        const featureTime = f.createdAtTime || 0;
-        return featureTime > 0 && featureTime > lastViewed;
-      }).length;
-
-      const newBugs = (t.features || []).filter((f) => {
-        if ((f.type || "feature") !== "bug") return false;
-        const featureTime = f.createdAtTime || 0;
-        return featureTime > 0 && featureTime > lastViewed;
-      }).length;
+      // Use pre-computed timestamps from getTasksLight to save bandwidth
+      const newNotes = (t.lastNoteTimestamp || 0) > lastViewed ? 1 : 0;
+      const newFeatures = (t.lastFeatureTimestamp || 0) > lastViewed ? 1 : 0;
+      const newBugs = 0; // Covered by lastFeatureTimestamp for bandwidth efficiency
 
       const newMilestones = (t.milestones || []).filter((m) => {
         const milestoneTime = m.createdAtTime || 0;

@@ -9,6 +9,41 @@ export const getTasks = query({
   },
 });
 
+/**
+ * Lightweight version of getTasks that excludes heavy nested fields.
+ * Dramatically reduces bandwidth for the Kanban and List views.
+ */
+export const getTasksLight = query({
+  handler: async (ctx) => {
+    const tasks = await ctx.db.query("tasks").collect();
+    return tasks.map(({ notes, features, adminCredentials, ...light }) => {
+      const notesList = notes || [];
+      const featuresList = features || [];
+
+      return {
+        ...light,
+        notesCount: notesList.length,
+        featuresCount: featuresList.length,
+        completedMilestones: light.completedMilestones || 0,
+        // Most recent timestamps for badge calculations without full data
+        lastNoteTimestamp: notesList.reduce((max, n) => Math.max(max, n.timestamp || 0), 0),
+        lastFeatureTimestamp: featuresList.reduce((max, f) => Math.max(max, f.createdAtTime || 0), 0),
+      };
+    });
+  },
+});
+
+/**
+ * Targeted query for fetching full details of a single task.
+ * Used for the TaskModal to avoid fetching all tasks' notes/features.
+ */
+export const getTaskById = query({
+  args: { taskId: v.id("tasks") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.taskId);
+  },
+});
+
 export const getProjectStats = query({
   handler: async (ctx) => {
     const tasks = await ctx.db.query("tasks").collect();

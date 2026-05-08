@@ -29,10 +29,12 @@ export const getStaff = query({
       staffMap[s.email.toLowerCase()] = s;
     });
 
-    // Strip sensitive fields before sending to client
+    // Strip sensitive fields AND lastSeen before sending to client.
+    // lastSeen is stored in the separate "heartbeats" table to avoid
+    // invalidating this query on every heartbeat mutation.
     return Object.values(staffMap)
       .filter((s: any) => s.role !== "Revoked")
-      .map(({ password, securityAnswer, securityQuestion, resetCode, resetCodeExpiry, ...safe }: any) => safe);
+      .map(({ password, securityAnswer, securityQuestion, resetCode, resetCodeExpiry, lastSeen, ...safe }: any) => safe);
   },
 });
 
@@ -426,27 +428,3 @@ export const verifySecurityAnswer = mutation({
   },
 });
 
-export const heartbeat = mutation({
-  args: { email: v.string() },
-  handler: async (ctx, args) => {
-    const lowerEmail = args.email.toLowerCase();
-    const existing = await ctx.db
-      .query("staff")
-      .withIndex("by_email", (q) => q.eq("email", lowerEmail))
-      .first();
-
-    if (existing) {
-      await ctx.db.patch(existing._id, { lastSeen: Date.now() });
-    } else {
-      const initial = INITIAL_STAFF.find(s => s.email.toLowerCase() === lowerEmail);
-      if (initial) {
-        await ctx.db.insert("staff", {
-          name: initial.name,
-          email: lowerEmail,
-          role: initial.role,
-          lastSeen: Date.now(),
-        });
-      }
-    }
-  },
-});

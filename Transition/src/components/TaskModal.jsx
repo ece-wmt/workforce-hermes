@@ -5,7 +5,7 @@ import { notifyNoteAdded, notifyMilestoneCompleted } from "../utils/notification
 import FeatureModal from "./FeatureModal";
 
 export default function TaskModal({ taskId, isEditMode, userRole, actualRole, userName, staff, onClose, showModal, onViewProfile }) {
-  const tasks = useQuery(api.tasks.getTasks);
+  const task = useQuery(api.tasks.getTaskById, { taskId });
   const updateTaskMilestones = useMutation(api.tasks.updateTaskMilestones);
   const addNoteToTask = useMutation(api.tasks.addNoteToTask);
   const deleteTask = useMutation(api.tasks.deleteTask);
@@ -80,8 +80,6 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   const dragFromRef = useRef(null);
   const dragOverRef = useRef(null);
 
-  const task = tasks?.find((t) => t._id === taskId);
-
   useEffect(() => {
     if (task) {
       setEditedTitle(task.title || "");
@@ -127,7 +125,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
     }
   };
 
-  if (!tasks || !task) return null;
+  if (!task) return null;
 
   const milestones = task.milestones || [];
   const doneM = task.completedMilestones || 0;

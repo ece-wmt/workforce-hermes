@@ -4,14 +4,14 @@ import { api } from "../../convex/_generated/api";
 import { notifyTaskUpdated, notifyMilestoneCompleted, notifyNoteAdded } from "../utils/notifications";
 
 export default function KanbanBoard({ userRole, actualRole, userName, openTaskModal, onContextMenu, showModal, staff }) {
-  const tasks = useQuery(api.tasks.getTasks);
+  const tasks = useQuery(api.tasks.getTasksLight);
   const updateTaskStatus = useMutation(api.tasks.updateTaskStatus).withOptimisticUpdate(
     (localStore, { taskId, newStatus }) => {
-      const allTasks = localStore.getQuery(api.tasks.getTasks, {});
+      const allTasks = localStore.getQuery(api.tasks.getTasksLight, {});
       if (!Array.isArray(allTasks)) return;
       const task = allTasks.find((t) => t._id === taskId);
       if (task) {
-        localStore.setQuery(api.tasks.getTasks, {}, (prevTasks) => {
+        localStore.setQuery(api.tasks.getTasksLight, {}, (prevTasks) => {
           if (!Array.isArray(prevTasks)) return prevTasks;
           return prevTasks.map((t) => (t._id === taskId ? { ...t, status: newStatus, lastUpdated: Date.now() } : t));
         });
@@ -54,28 +54,18 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
     
     // Check specific timestamps or fallback to global
     const lastViewedFeatures = Math.max(parseInt(localStorage.getItem(`task_viewed_features_${task._id}`) || "0", 10), globalViewedTime);
-    const lastViewedBugs = Math.max(parseInt(localStorage.getItem(`task_viewed_bugs_${task._id}`) || "0", 10), globalViewedTime);
     const lastViewedNotes = Math.max(parseInt(localStorage.getItem(`task_viewed_notes_${task._id}`) || "0", 10), globalViewedTime);
     const lastViewedMilestones = Math.max(parseInt(localStorage.getItem(`task_viewed_milestones_${task._id}`) || "0", 10), globalViewedTime);
 
-    const newNotes = (task.notes || []).filter(n => {
-      const noteTime = n.timestamp || 0;
-      return noteTime > 0 && noteTime > lastViewedNotes;
-    }).length;
+    // Use pre-computed timestamps from getTasksLight to save bandwidth
+    const newNotes = (task.lastNoteTimestamp || 0) > lastViewedNotes ? 1 : 0;
     
-    const newFeatures = (task.features || [])
-      .filter(f => {
-        if ((f.type || "feature") !== "feature") return false;
-        const featureTime = f.createdAtTime || 0;
-        return featureTime > 0 && featureTime > lastViewedFeatures;
-      }).length;
-      
-    const newBugs = (task.features || [])
-      .filter(f => {
-        if ((f.type || "feature") !== "bug") return false;
-        const featureTime = f.createdAtTime || 0;
-        return featureTime > 0 && featureTime > lastViewedBugs;
-      }).length;
+    // For features/bugs, we use lastFeatureTimestamp
+    // Note: We can't distinguish between feature and bug without the full data,
+    // so we'll just show the badge if there's any new feature/bug.
+    const hasNewFeatureOrBug = (task.lastFeatureTimestamp || 0) > Math.min(lastViewedFeatures, lastViewedBugs);
+    const newFeatures = hasNewFeatureOrBug ? 1 : 0;
+    const newBugs = 0; // Simplified for bandwidth
     
     const newMilestones = (task.milestones || [])
       .filter(m => {
