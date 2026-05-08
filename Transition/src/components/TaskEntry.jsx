@@ -15,8 +15,7 @@ const DEFAULT_MILESTONES = [
   { name: "Post-Launch Support", days: 22 },
 ];
 
-export default function TaskEntry({ userRole, userName, onCreated, showModal }) {
-  const staff = useQuery(api.staff.getStaff);
+export default function TaskEntry({ staff, userRole, userName, onCreated, showModal }) {
   const addTask = useMutation(api.tasks.addTask).withOptimisticUpdate((localStore, args) => {
     const prevTasks = localStore.getQuery(api.tasks.getTasks, {});
     if (prevTasks !== undefined) {

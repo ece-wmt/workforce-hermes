@@ -122,4 +122,10 @@ export default defineSchema({
     .index("by_user", ["userEmail"])
     .index("by_target", ["targetEmail"])
     .index("by_action", ["action"]),
+
+  // Presence/Heartbeat data — separated to reduce bandwidth on main staff query
+  heartbeats: defineTable({
+    email: v.string(),
+    lastSeen: v.number(),
+  }).index("by_email", ["email"]),
 });

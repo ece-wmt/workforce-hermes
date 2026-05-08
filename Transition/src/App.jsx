@@ -79,9 +79,30 @@ export default function App() {
     onConfirm: () => { },
   });
 
-  // --- Convex ---
-  const staff = useQuery(api.staff.getStaff);
-  const tasks = useQuery(api.tasks.getTasks);
+  // --- Convex (Optimized for Bandwidth) ---
+  const [staff, setStaff] = useState([]);
+  const tasks = useQuery(api.tasks.getTasksLight);
+
+  // Fetch staff list via Vercel Proxy (with Edge Caching to save Convex Bandwidth)
+  const fetchStaff = async () => {
+    try {
+      const resp = await fetch("/api/getStaff");
+      if (resp.ok) {
+        const data = await resp.json();
+        setStaff(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch staff from proxy:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchStaff();
+    // Refresh staff list every 5 minutes (instead of every second) to save bandwidth
+    const interval = setInterval(fetchStaff, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   const addStaffMutation = useMutation(api.staff.addStaff);
   const setPasswordMutation = useMutation(api.staff.setPassword);
   const loginMutation = useMutation(api.staff.login);
@@ -607,6 +628,9 @@ export default function App() {
       )}
       {currentView === "notebook" && (
         <Notebook userRole={userRole} userName={userName} showModal={showModal} />
+      )}
+      {currentView === "admin" && actualRole === "Admin+" && (
+        <AdminPanel staff={staff} showModal={showModal} onViewProfile={(s) => setViewingStaff(s)} />
       )}
 
       {currentView === "announcements" && actualRole === "Admin+" && (

@@ -1,8 +1,7 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
-export default function AdminPanel({ showModal, onViewProfile }) {
-  const staff = useQuery(api.staff.getStaff);
+export default function AdminPanel({ staff, showModal, onViewProfile }) {
   const addStaffMut = useMutation(api.staff.addStaff);
   const updateStaffRole = useMutation(api.staff.updateStaffRole);
   const deleteStaffMut = useMutation(api.staff.deleteStaff);

@@ -29,9 +29,8 @@ export const getStaff = query({
       staffMap[s.email.toLowerCase()] = s;
     });
 
-    // Strip sensitive fields AND lastSeen before sending to client.
-    // lastSeen is stored in the separate "heartbeats" table to avoid
-    // invalidating this query on every heartbeat mutation.
+    // Strip sensitive fields AND heartbeat data before sending to client.
+    // Presence is handled by the separate getOnlineStatus query to save bandwidth.
     return Object.values(staffMap)
       .filter((s: any) => s.role !== "Revoked")
       .map(({ password, securityAnswer, securityQuestion, resetCode, resetCodeExpiry, lastSeen, ...safe }: any) => ({
@@ -40,6 +39,44 @@ export const getStaff = query({
         securityAnswer: securityAnswer ? "********" : undefined,
         securityQuestion: securityQuestion
       }));
+  },
+});
+
+export const getOnlineStatus = query({
+  args: {},
+  handler: async (ctx) => {
+    const heartbeats = await ctx.db.query("heartbeats").collect();
+    const now = Date.now();
+    const onlineMap: Record<string, boolean> = {};
+    
+    heartbeats.forEach(hb => {
+      // Consider online if seen in the last 60 seconds
+      if (now - hb.lastSeen < 60000) {
+        onlineMap[hb.email.toLowerCase()] = true;
+      }
+    });
+    
+    return onlineMap;
+  }
+});
+
+export const heartbeat = mutation({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    const lowerEmail = args.email.toLowerCase();
+    const existing = await ctx.db
+      .query("heartbeats")
+      .withIndex("by_email", (q) => q.eq("email", lowerEmail))
+      .first();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, { lastSeen: Date.now() });
+    } else {
+      await ctx.db.insert("heartbeats", {
+        email: lowerEmail,
+        lastSeen: Date.now(),
+      });
+    }
   },
 });
 
@@ -453,3 +490,19 @@ export const verifySecurityAnswer = mutation({
   },
 });
 
+
+export const migrateAllPasswordsToHashes = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const staff = await ctx.db.query("staff").collect();
+    let count = 0;
+    for (const user of staff) {
+      if (user.password && !(user.password.length === 64 && /^[0-9a-f]+$/.test(user.password))) {
+        const hashed = await hashPassword(user.password);
+        await ctx.db.patch(user._id, { password: hashed });
+        count++;
+      }
+    }
+    return { migrated: count };
+  },
+});

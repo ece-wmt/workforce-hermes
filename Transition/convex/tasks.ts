@@ -147,6 +147,7 @@ export const getProjectStats = query({
       .map(t => ({
         id: t._id,
         title: t.title,
+        description: t.description,
         appscriptLink: t.appscriptLink,
         webappLink: t.webappLink || t.projectLink
       }));
@@ -616,5 +617,25 @@ export const deleteTaskMilestonesBulk = mutation({
       completedMilestones: completedCount,
       lastUpdated: Date.now(),
     });
+  },
+});
+
+export const migrateAllAdminCredentials = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const tasks = await ctx.db.query("tasks").collect();
+    let count = 0;
+    for (const task of tasks) {
+      if (task.adminCredentials && !task.adminCredentials.password.startsWith("obf_")) {
+        await ctx.db.patch(task._id, {
+          adminCredentials: {
+            email: obfuscate(task.adminCredentials.email),
+            password: obfuscate(task.adminCredentials.password)
+          }
+        });
+        count++;
+      }
+    }
+    return { migrated: count };
   },
 });
