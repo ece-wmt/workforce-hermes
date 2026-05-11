@@ -110,6 +110,8 @@ export default function App() {
   const deleteTask = useMutation(api.tasks.deleteTask);
   const updateProjectLink = useMutation(api.tasks.updateProjectLink);
   const updateAdminCredentials = useMutation(api.tasks.updateAdminCredentials);
+  const updateTaskDetailsMut = useMutation(api.tasks.updateTaskDetails);
+  console.log("DEBUG: updateTaskDetailsMut is defined:", !!updateTaskDetailsMut);
 
   const activeProfile = useMemo(() => {
     if (!viewingStaff) return null;
@@ -684,10 +686,12 @@ export default function App() {
                     message: "Enter the deployed URL for this web application.",
                     fields: [{ name: "link", label: "Webapp URL", placeholder: "https://...", initialValue: contextMenu.task.webappLink || contextMenu.task.projectLink }],
                     onConfirm: (data) => {
-                      updateTaskDetails({
+                      console.log("DEBUG: onConfirm called for Webapp Link. data:", data);
+                      if (!contextMenu.task) return;
+                      updateTaskDetailsMut({
                         taskId: contextMenu.task._id,
                         newTitle: contextMenu.task.title,
-                        newDescription: contextMenu.task.description,
+                        newDescription: contextMenu.task.description || "",
                         newAssignee: contextMenu.task.assignee,
                         newWebappLink: data.link,
                         newAppscriptLink: contextMenu.task.appscriptLink,
@@ -714,10 +718,12 @@ export default function App() {
                     message: "Enter the URL for the Google Apps Script project.",
                     fields: [{ name: "link", label: "Appscript URL", placeholder: "https://script.google.com/...", initialValue: contextMenu.task.appscriptLink }],
                     onConfirm: (data) => {
-                      updateTaskDetails({
+                      console.log("DEBUG: onConfirm called for Appscript Link. data:", data);
+                      if (!contextMenu.task) return;
+                      updateTaskDetailsMut({
                         taskId: contextMenu.task._id,
                         newTitle: contextMenu.task.title,
-                        newDescription: contextMenu.task.description,
+                        newDescription: contextMenu.task.description || "",
                         newAssignee: contextMenu.task.assignee,
                         newWebappLink: contextMenu.task.webappLink,
                         newAppscriptLink: data.link,
