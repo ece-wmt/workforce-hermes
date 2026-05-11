@@ -1,8 +1,9 @@
 {
   "name": "workforce-hermes-root",
   "private": true,
+  "type": "module",
   "scripts": {
-    "build": "cd Transition && npm install && npm run build && cd .. && mkdir -p public && cp -r Transition/dist/* public/",
+    "build": "cd Transition && npm install && npm run build && cd .. && mkdir -p public && cp -rv \"Transition/dist/.\" \"public/\"",
     "install": "cd Transition && npm install"
   }
 }
