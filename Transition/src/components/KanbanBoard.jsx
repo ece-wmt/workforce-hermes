@@ -54,6 +54,7 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
     
     // Check specific timestamps or fallback to global
     const lastViewedFeatures = Math.max(parseInt(localStorage.getItem(`task_viewed_features_${task._id}`) || "0", 10), globalViewedTime);
+    const lastViewedBugs = Math.max(parseInt(localStorage.getItem(`task_viewed_bugs_${task._id}`) || "0", 10), globalViewedTime);
     const lastViewedNotes = Math.max(parseInt(localStorage.getItem(`task_viewed_notes_${task._id}`) || "0", 10), globalViewedTime);
     const lastViewedMilestones = Math.max(parseInt(localStorage.getItem(`task_viewed_milestones_${task._id}`) || "0", 10), globalViewedTime);
 
