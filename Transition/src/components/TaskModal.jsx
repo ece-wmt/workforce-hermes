@@ -1200,13 +1200,20 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                     ref={(el) => { noteRefs.current[i] = el; }}
                     className={`note-item ${selectedNotes.has(i) ? "bulk-selected-item" : ""}`}
                     onClick={(e) => handleRowClickToggle(e, setSelectedNotes, i)}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setNoteContextMenu({ index: i, noteRect: rect });
+                    style={{ 
+                      background: "var(--color-card-bg)", 
+                      padding: 12, 
+                      borderRadius: "var(--radius-md)", 
+                      border: "1px solid var(--glass-border)", 
+                      marginBottom: 8, 
+                      boxShadow: "var(--shadow-sm)", 
+                      display: "flex", 
+                      gap: "10px", 
+                      alignItems: "flex-start", 
+                      cursor: "pointer", 
+                      position: "relative",
+                      transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)"
                     }}
-                    style={{ background: "var(--color-card-bg)", padding: 12, borderRadius: "var(--radius-md)", border: "1px solid var(--glass-border)", marginBottom: 8, boxShadow: "var(--shadow-sm)", display: "flex", gap: "10px", alignItems: "flex-start", cursor: "pointer", position: "relative" }}
                   >
                     <div style={{ flex: 1 }}>
                       <div className="note-date" style={{ color: "var(--color-accent)", marginBottom: 4, fontSize: "0.65rem", fontWeight: 700 }}>
@@ -1247,8 +1254,24 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                         })}
                       </div>
 
-                      {/* Reply Button / Thread Link */}
-                      { (replyCount > 0 || noteContextMenu?.index === i) && (
+                      {/* Reply Button (Appears on Hover via CSS) */}
+                      <div className="note-hover-actions">
+                        <button 
+                          className="btn-reply-hover"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setThreadModal({ index: i, note: n });
+                          }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                          </svg>
+                          <span>Reply</span>
+                        </button>
+                      </div>
+
+                      {/* Thread Link (Always visible if replies exist) */}
+                      { replyCount > 0 && (
                         <div style={{ marginTop: 8 }}>
                           <button 
                             className="btn-thread-link"
@@ -1272,7 +1295,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                             </svg>
-                            {replyCount === 0 ? "Reply" : `${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}`}
+                            {`${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}`}
                           </button>
                         </div>
                       )}
@@ -1313,7 +1336,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                     </div>
                     <button className="announcement-close-btn" onClick={() => setNotesFullscreen(false)}>×</button>
                   </div>
-                  <div style={{ padding: 20, flex: 1, display: "flex", flexDirection: "column" }}>
+                  <div style={{ padding: 20, flex: 1, display: "flex", flexDirection: "column", position: "relative" }}>
                     <textarea
                       ref={noteTextareaRef}
                       className="notes-fullscreen-textarea"
@@ -1324,7 +1347,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                       onKeyDown={(e) => handleTextareaKeyDown(e, 'note')}
                     />
                     {mentionConfig && mentionConfig.target === 'note' && filteredStaff.length > 0 && (
-                      <div className="mention-list" style={{ position: 'absolute', bottom: '80px', left: '20px' }}>
+                      <div className="mention-list" style={{ position: 'absolute', top: '10px', left: '20px', zIndex: 10002 }}>
                         {filteredStaff.map((s, i) => (
                           <div 
                             key={s.email} 
@@ -1456,6 +1479,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
             className="thread-modal-content" 
             onClick={(e) => e.stopPropagation()}
             style={{ 
+              position: "relative",
               width: "100%", 
               maxWidth: "500px", 
               background: "var(--color-bg-primary)", 
@@ -1533,7 +1557,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
             </div>
 
             {/* Reply Input */}
-            <div style={{ padding: "20px 24px", borderTop: "1px solid var(--glass-border)", background: "var(--color-bg-subtle)" }}>
+            <div style={{ padding: "20px 24px", borderTop: "1px solid var(--glass-border)", background: "var(--color-bg-subtle)", position: "relative" }}>
               <div style={{ display: "flex", gap: "12px" }}>
                 <textarea 
                   ref={replyTextareaRef}
@@ -1569,7 +1593,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                 </button>
               </div>
               {mentionConfig && mentionConfig.target === 'reply' && filteredStaff.length > 0 && (
-                <div className="mention-list" style={{ position: 'absolute', bottom: '80px', left: '24px' }}>
+                <div className="mention-list" style={{ position: 'absolute', bottom: 'calc(100% + 5px)', left: '24px', zIndex: 10002 }}>
                   {filteredStaff.map((s, i) => (
                     <div 
                       key={s.email} 

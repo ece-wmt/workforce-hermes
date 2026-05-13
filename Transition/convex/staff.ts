@@ -158,14 +158,14 @@ export const login = mutation({
     
     if (isHash) {
       if (inputHash === user.password) {
-        return { success: true, stage: "authenticated", role: user.role };
+        return { success: true, stage: "authenticated", role: user.role, hasSecurityQuestion: !!user.securityQuestion };
       }
     } else {
       // Fallback for existing plain-text passwords
       if (args.password === user.password) {
         // Auto-migrate to hash on successful login
         await ctx.db.patch(user._id, { password: inputHash });
-        return { success: true, stage: "authenticated", role: user.role };
+        return { success: true, stage: "authenticated", role: user.role, hasSecurityQuestion: !!user.securityQuestion };
       }
     }
 
@@ -402,7 +402,7 @@ export const getSecurityQuestion = mutation({
     }
 
     if (!existing.securityQuestion) {
-      throw new Error("No security question is set for this account. Please contact an Administrator.");
+      throw new Error("No security question is set for this account. Please ask assistance to an admin to reset password.");
     }
 
     return { question: existing.securityQuestion };

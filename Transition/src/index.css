@@ -2238,6 +2238,7 @@ body.role-programmer .kanban-col.col-scrap {
 }
 
 .notes-fullscreen-card {
+  position: relative;
   background: white;
   border-radius: 20px;
   width: 90%;
@@ -4699,7 +4700,8 @@ body.role-programmer .kanban-col.col-scrap {
 }
 
 .mention-item:hover, .mention-item.selected {
-  background: #f1f5f9;
+  background: var(--color-bg-subtle, #f1f5f9);
+  color: var(--color-accent);
 }
 
 .mention-avatar {
@@ -4777,7 +4779,8 @@ body.role-programmer .kanban-col.col-scrap {
 }
 
 [data-theme="dark"] .mention-item:hover, [data-theme="dark"] .mention-item.selected {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--color-accent);
 }
 
 /* ============================================================
@@ -4839,4 +4842,59 @@ body.role-programmer .kanban-col.col-scrap {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
+}
+
+/* --- Note Hover & Reply Reform --- */
+.note-item {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.note-item:hover {
+  padding-right: 85px !important;
+  background: var(--color-bg-subtle) !important;
+  border-color: var(--color-accent) !important;
+}
+
+.note-hover-actions {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%) translateX(15px);
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+
+.note-item:hover .note-hover-actions {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+  pointer-events: auto;
+}
+
+.btn-reply-hover {
+  background: var(--color-nav-bg);
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 18px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-reply-hover:hover {
+  transform: scale(1.05);
+  background: var(--color-accent);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+}
+
+.btn-reply-hover svg {
+  width: 12px;
+  height: 12px;
 }

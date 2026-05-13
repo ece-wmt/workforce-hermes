@@ -13,8 +13,8 @@ const SECURITY_QUESTIONS = [
   "What was your childhood nickname?",
 ];
 
-export default function SetPassword({ email, onSet, onComplete }) {
-  const [step, setStep] = useState("password"); // "password" | "security"
+export default function SetPassword({ email, onSet, onComplete, mode = "onboarding" }) {
+  const [step, setStep] = useState(mode === "security-only" ? "security" : "password"); // "password" | "security"
   const [newPassword, setNewPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
@@ -192,6 +192,16 @@ export default function SetPassword({ email, onSet, onComplete }) {
               <button type="submit" className="btn-primary" style={{ width: "100%" }} disabled={isLoading}>
                 {isLoading ? "Saving..." : "Complete Setup"}
               </button>
+              {mode === "security-only" && (
+                <button 
+                  type="button" 
+                  className="btn-secondary" 
+                  style={{ width: "100%", marginTop: "12px", background: "none", border: "1px solid #e2e8f0" }} 
+                  onClick={onComplete}
+                >
+                  Skip for now
+                </button>
+              )}
             </form>
           </>
         )}

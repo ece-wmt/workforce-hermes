@@ -83,6 +83,7 @@ export default function App() {
   // --- Convex (Optimized for Bandwidth) ---
   const [staff, setStaff] = useState([]);
   const tasks = useQuery(api.tasks.getTasksLight);
+  const convexStaff = useQuery(api.staff.getStaff);
 
   // Fetch staff list via Vercel Proxy (with Edge Caching to save Convex Bandwidth)
   const fetchStaff = async () => {
@@ -91,11 +92,20 @@ export default function App() {
       if (resp.ok) {
         const data = await resp.json();
         setStaff(data);
+      } else if (convexStaff) {
+        setStaff(convexStaff);
       }
     } catch (err) {
       console.error("Failed to fetch staff from proxy:", err);
+      if (convexStaff) setStaff(convexStaff);
     }
   };
+
+  useEffect(() => {
+    if (staff.length === 0 && convexStaff) {
+      setStaff(convexStaff);
+    }
+  }, [convexStaff, staff.length]);
 
   useEffect(() => {
     fetchStaff();
@@ -229,6 +239,37 @@ export default function App() {
     return () => document.removeEventListener("click", handler);
   }, []);
 
+  // --- Session Inactivity Tracker ---
+  useEffect(() => {
+    if (authStage !== "authenticated") return;
+
+    const EXPIRY_TIME = 30 * 60 * 1000; // 30 minutes
+
+    const updateActivity = () => {
+      localStorage.setItem("wf_last_activity", Date.now().toString());
+    };
+
+    const checkSession = () => {
+      const lastActivity = parseInt(localStorage.getItem("wf_last_activity") || "0");
+      if (lastActivity && Date.now() - lastActivity > EXPIRY_TIME) {
+        console.warn("Session expired due to inactivity.");
+        setSessionExpiredPending(true);
+        logout();
+      }
+    };
+
+    // Add listeners
+    ACTIVITY_EVENTS.forEach(event => document.addEventListener(event, updateActivity));
+
+    // Periodic check every 30 seconds
+    const interval = setInterval(checkSession, 30 * 1000);
+
+    return () => {
+      ACTIVITY_EVENTS.forEach(event => document.removeEventListener(event, updateActivity));
+      clearInterval(interval);
+    };
+  }, [authStage]);
+
   // -------------------------------------------------------
   // Login handler — this is called when the user submits
   // the login form with their email and password.
@@ -269,6 +310,14 @@ export default function App() {
         localStorage.setItem("wf_authenticated", "true");
         localStorage.setItem("wf_email", lowerEmail);
         localStorage.setItem("wf_last_activity", Date.now().toString());
+
+        // New: If no security question, redirect to setup with skip option
+        if (!result.hasSecurityQuestion) {
+          setPendingEmail(lowerEmail);
+          setAuthStage("set-security-question");
+          return;
+        }
+
         setLoading(true);
         setShowIntro(true);
         setAuthStage("authenticated");
@@ -389,6 +438,20 @@ export default function App() {
 
   if (authStage === "set-password") {
     return <SetPassword email={pendingEmail} onSet={handleSetPassword} onComplete={handleSetupComplete} />;
+  }
+
+  if (authStage === "set-security-question") {
+    return (
+      <SetPassword 
+        email={pendingEmail} 
+        mode="security-only" 
+        onComplete={() => {
+          setLoading(true);
+          setShowIntro(true);
+          setAuthStage("authenticated");
+        }} 
+      />
+    );
   }
 
   if (authStage === "denied") {
