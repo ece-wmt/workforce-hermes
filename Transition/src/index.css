@@ -4617,6 +4617,104 @@ body.role-programmer .kanban-col.col-scrap {
   box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
 }
 
+.notif-show-more-btn {
+  width: 100%;
+  padding: 12px;
+  background: none;
+  border: none;
+  border-top: 1px solid #f1f5f9;
+  color: var(--color-accent);
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.notif-show-more-btn:hover {
+  background: var(--color-bg-subtle, #f8fafc);
+}
+
+/* Notification Modal */
+.notif-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+}
+
+.notif-modal-content {
+  background: var(--color-card-bg);
+  width: 100%;
+  max-width: 600px;
+  max-height: 80vh;
+  border-radius: 24px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.notif-modal-header {
+  padding: 24px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.notif-modal-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 0;
+}
+
+.mention-list {
+  position: absolute;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 10001;
+  max-height: 200px;
+  overflow-y: auto;
+  min-width: 180px;
+  border: 1px solid #e2e8f0;
+}
+
+.mention-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.mention-item:hover, .mention-item.selected {
+  background: #f1f5f9;
+}
+
+.mention-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 900;
+}
+
 /* Dark mode support */
 [data-theme="dark"] .notif-dropdown {
   background: #1e293b;
@@ -4650,6 +4748,36 @@ body.role-programmer .kanban-col.col-scrap {
 
 [data-theme="dark"] .notif-dropdown-list::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.15);
+}
+
+[data-theme="dark"] .notif-show-more-btn {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .notif-show-more-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .notif-modal-content {
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .notif-modal-header {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .mention-list {
+  background: #1e293b;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .mention-item {
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] .mention-item:hover, [data-theme="dark"] .mention-item.selected {
+  background: rgba(255, 255, 255, 0.05);
 }
 
 /* ============================================================

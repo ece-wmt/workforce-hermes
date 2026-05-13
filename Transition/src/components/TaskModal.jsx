@@ -46,6 +46,84 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   const [selectedMilestones, setSelectedMilestones] = useState(new Set());
   const [passwordRevealed, setPasswordRevealed] = useState(false);
 
+  // Mentions logic
+  const [mentionConfig, setMentionConfig] = useState(null); // { query: string, index: number, target: 'note' | 'reply' }
+  const [mentionIndex, setMentionIndex] = useState(0);
+  const noteTextareaRef = useRef(null);
+  const replyTextareaRef = useRef(null);
+
+  const filteredStaff = mentionConfig 
+    ? (staff || []).filter(s => s.name.toLowerCase().includes(mentionConfig.query.toLowerCase()))
+    : [];
+
+  const handleMentionSelect = (staffMember) => {
+    if (!mentionConfig) return;
+    const isNote = mentionConfig.target === 'note';
+    const text = isNote ? noteInputText : replyInputText;
+    const ref = isNote ? noteTextareaRef : replyTextareaRef;
+    const setFn = isNote ? setNoteInputText : setReplyInputText;
+
+    const before = text.substring(0, mentionConfig.index);
+    const after = text.substring(ref.current.selectionStart);
+    const newText = before + "@" + staffMember.name + " " + after;
+    
+    setFn(newText);
+    setMentionConfig(null);
+
+    setTimeout(() => {
+      if (ref.current) {
+        ref.current.focus();
+        const newPos = before.length + staffMember.name.length + 2;
+        ref.current.setSelectionRange(newPos, newPos);
+      }
+    }, 0);
+  };
+
+  const handleTextareaChange = (e, target) => {
+    const val = e.target.value;
+    const setFn = target === 'note' ? setNoteInputText : setReplyInputText;
+    setFn(val);
+
+    const cursor = e.target.selectionStart;
+    const textBefore = val.substring(0, cursor);
+    const lastAt = textBefore.lastIndexOf("@");
+
+    if (lastAt !== -1) {
+      const query = textBefore.substring(lastAt + 1);
+      if (!query.includes(" ") && !query.includes("\n")) {
+        setMentionConfig({ query, index: lastAt, target });
+        setMentionIndex(0);
+        return;
+      }
+    }
+    setMentionConfig(null);
+  };
+
+  const handleTextareaKeyDown = (e, target) => {
+    if (mentionConfig && mentionConfig.target === target) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setMentionIndex(prev => (prev + 1) % filteredStaff.length);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setMentionIndex(prev => (prev - 1 + filteredStaff.length) % filteredStaff.length);
+      } else if (e.key === "Enter" || e.key === "Tab") {
+        if (filteredStaff.length > 0) {
+          e.preventDefault();
+          handleMentionSelect(filteredStaff[mentionIndex]);
+        }
+      } else if (e.key === "Escape") {
+        setMentionConfig(null);
+      }
+    } else if (e.key === "Enter" && target === 'note' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      handleAddNote();
+    } else if (e.key === "Enter" && target === 'reply' && !e.shiftKey) {
+      e.preventDefault();
+      handleAddReply();
+    }
+  };
+
   const handleRevealPassword = () => {
     if (passwordRevealed) {
       setPasswordRevealed(false);
@@ -1237,13 +1315,30 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                   </div>
                   <div style={{ padding: 20, flex: 1, display: "flex", flexDirection: "column" }}>
                     <textarea
+                      ref={noteTextareaRef}
                       className="notes-fullscreen-textarea"
-                      placeholder="Write your update here...\n\nSupports multi-line text and paragraphs."
+                      placeholder="Write your update here...\n\nSupports @mentions for team members."
                       value={noteInputText}
-                      onChange={(e) => setNoteInputText(e.target.value)}
+                      onChange={(e) => handleTextareaChange(e, 'note')}
                       autoFocus
-                      onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); handleAddNote(); } }}
+                      onKeyDown={(e) => handleTextareaKeyDown(e, 'note')}
                     />
+                    {mentionConfig && mentionConfig.target === 'note' && filteredStaff.length > 0 && (
+                      <div className="mention-list" style={{ position: 'absolute', bottom: '80px', left: '20px' }}>
+                        {filteredStaff.map((s, i) => (
+                          <div 
+                            key={s.email} 
+                            className={`mention-item ${i === mentionIndex ? 'selected' : ''}`}
+                            onClick={() => handleMentionSelect(s)}
+                          >
+                            <div className="mention-avatar">
+                              {s.name.charAt(0).toUpperCase()}
+                            </div>
+                            {s.name}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
                       <span style={{ fontSize: "0.65rem", color: "#94a3b8" }}>Ctrl+Enter to send</span>
                       <div style={{ display: "flex", gap: 8 }}>
@@ -1441,10 +1536,11 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
             <div style={{ padding: "20px 24px", borderTop: "1px solid var(--glass-border)", background: "var(--color-bg-subtle)" }}>
               <div style={{ display: "flex", gap: "12px" }}>
                 <textarea 
-                  placeholder="Reply..."
+                  ref={replyTextareaRef}
+                  placeholder="Reply... (use @ to mention)"
                   value={replyInputText}
-                  onChange={(e) => setReplyInputText(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAddReply(); } }}
+                  onChange={(e) => handleTextareaChange(e, 'reply')}
+                  onKeyDown={(e) => handleTextareaKeyDown(e, 'reply')}
                   style={{ 
                     flex: 1, 
                     background: "var(--color-bg-primary)", 
@@ -1472,6 +1568,22 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                   Reply
                 </button>
               </div>
+              {mentionConfig && mentionConfig.target === 'reply' && filteredStaff.length > 0 && (
+                <div className="mention-list" style={{ position: 'absolute', bottom: '80px', left: '24px' }}>
+                  {filteredStaff.map((s, i) => (
+                    <div 
+                      key={s.email} 
+                      className={`mention-item ${i === mentionIndex ? 'selected' : ''}`}
+                      onClick={() => handleMentionSelect(s)}
+                    >
+                      <div className="mention-avatar">
+                        {s.name.charAt(0).toUpperCase()}
+                      </div>
+                      {s.name}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

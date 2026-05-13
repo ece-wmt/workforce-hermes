@@ -25,6 +25,8 @@ export default function NotificationBell({ userEmail, onOpenTask }) {
 
   const lastSeenNotifId = useRef(null);
 
+  const [showAllModal, setShowAllModal] = useState(false);
+
   // Initialize browser notifications on mount
   useEffect(() => {
     initNotifications();
@@ -125,6 +127,7 @@ export default function NotificationBell({ userEmail, onOpenTask }) {
     if (notif.taskId && onOpenTask) {
       onOpenTask(notif.taskId);
       setIsOpen(false);
+      setShowAllModal(false);
     }
   };
 
@@ -133,6 +136,9 @@ export default function NotificationBell({ userEmail, onOpenTask }) {
     // Optimistically update local state
     setNotifications(prev => prev?.map(n => ({ ...n, read: true })));
   };
+
+  const displayedNotifs = notifications?.slice(0, 7) || [];
+  const hasMore = (notifications?.length || 0) > 7;
 
   return (
     <div className="notif-bell-wrapper" ref={panelRef}>
@@ -201,25 +207,93 @@ export default function NotificationBell({ userEmail, onOpenTask }) {
                 <span style={{ fontSize: "0.7rem", opacity: 0.5 }}>No notifications yet</span>
               </div>
             ) : (
-              notifications.map((notif) => (
+              <>
+                {displayedNotifs.map((notif) => (
+                  <div
+                    key={notif._id}
+                    className={`notif-item ${!notif.read ? "notif-unread" : ""}`}
+                    onClick={() => handleNotificationClick(notif)}
+                  >
+                    <div className="notif-item-icon">
+                      {getIcon(notif.type)}
+                    </div>
+                    <div className="notif-item-content">
+                      <div className="notif-item-text">
+                        <strong>{notif.actorName}</strong>{" "}{notif.message}
+                      </div>
+                      <div className="notif-item-time">{formatTime(notif.createdAt)}</div>
+                    </div>
+                    {!notif.read && <div className="notif-unread-dot" />}
+                  </div>
+                ))}
+                {hasMore && (
+                  <button className="notif-show-more-btn" onClick={() => { setShowAllModal(true); setIsOpen(false); }}>
+                    Show More
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Full Screen Modal */}
+      {showAllModal && (
+        <div className="notif-modal-overlay" onClick={() => setShowAllModal(false)}>
+          <div className="notif-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="notif-modal-header">
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ background: "var(--color-bg-subtle)", padding: 8, borderRadius: 12 }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" strokeWidth="2.5">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 900, color: "var(--color-text-primary)" }}>All Notifications</h2>
+                  <p style={{ margin: 0, fontSize: "0.75rem", color: "#64748b", fontWeight: 700 }}>Recent updates from your projects</p>
+                </div>
+              </div>
+              <button 
+                className="announcement-close-btn" 
+                onClick={() => setShowAllModal(false)}
+                style={{ position: "static", transform: "none", width: 40, height: 40, fontSize: "1.5rem" }}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="notif-modal-list">
+              {notifications?.map((notif) => (
                 <div
                   key={notif._id}
                   className={`notif-item ${!notif.read ? "notif-unread" : ""}`}
                   onClick={() => handleNotificationClick(notif)}
+                  style={{ padding: "16px 32px" }}
                 >
-                  <div className="notif-item-icon">
+                  <div className="notif-item-icon" style={{ width: 42, height: 42, minWidth: 42 }}>
                     {getIcon(notif.type)}
                   </div>
                   <div className="notif-item-content">
-                    <div className="notif-item-text">
+                    <div className="notif-item-text" style={{ fontSize: "0.9rem", WebkitLineClamp: "none" }}>
                       <strong>{notif.actorName}</strong>{" "}{notif.message}
                     </div>
-                    <div className="notif-item-time">{formatTime(notif.createdAt)}</div>
+                    <div className="notif-item-time" style={{ fontSize: "0.75rem" }}>{formatTime(notif.createdAt)}</div>
                   </div>
-                  {!notif.read && <div className="notif-unread-dot" />}
+                  {!notif.read && <div className="notif-unread-dot" style={{ marginTop: 12 }} />}
                 </div>
-              ))
-            )}
+              ))}
+            </div>
+
+            <div style={{ padding: "20px 32px", borderTop: "1px solid #f1f5f9", display: "flex", justifyContent: "flex-end" }}>
+              <button 
+                className="notif-mark-all-btn" 
+                onClick={handleMarkAllRead}
+                style={{ fontSize: "0.8rem", padding: "8px 16px", background: "var(--color-bg-subtle)" }}
+              >
+                Mark all as read
+              </button>
+            </div>
           </div>
         </div>
       )}
