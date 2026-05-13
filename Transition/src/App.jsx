@@ -18,6 +18,7 @@ import AnnouncementPopup from "./components/AnnouncementPopup";
 import AnnouncementComposer from "./components/AnnouncementComposer";
 import TaskNotificationPopup from "./components/TaskNotificationPopup";
 import Settings from "./components/Settings";
+import NotificationBell from "./components/NotificationBell";
 
 const ACTIVITY_EVENTS = ["mousemove", "keydown", "click", "scroll"];
 
@@ -282,7 +283,7 @@ export default function App() {
   }
 
   // -------------------------------------------------------
-  // Set-password handler
+  // Set-password handler (legacy — used when onSet is passed)
   // -------------------------------------------------------
   async function handleSetPassword(newPassword) {
     await setPasswordMutation({ email: pendingEmail, password: newPassword });
@@ -291,6 +292,16 @@ export default function App() {
     setLoading(true);
     setShowIntro(true);
     setAuthStage("authenticated");
+  }
+
+  // -------------------------------------------------------
+  // New user setup complete (password + security question done)
+  // Routes back to login so they can authenticate normally.
+  // -------------------------------------------------------
+  function handleSetupComplete() {
+    setPendingEmail("");
+    setAuthStage("login");
+    setLoginError("");
   }
 
   function logout() {
@@ -368,11 +379,16 @@ export default function App() {
   // Render stages
   // -------------------------------------------------------
   if (authStage === "login") {
-    return <Login onLogin={handleLogin} externalError={loginError} onResetSuccess={(email) => { setPendingEmail(email); setAuthStage("set-password"); }} />;
+    return <Login
+      onLogin={handleLogin}
+      externalError={loginError}
+      onResetSuccess={(email) => { setPendingEmail(email); setAuthStage("set-password"); }}
+      onNewUserSetup={(email) => { setPendingEmail(email); setAuthStage("set-password"); }}
+    />;
   }
 
   if (authStage === "set-password") {
-    return <SetPassword email={pendingEmail} onSet={handleSetPassword} />;
+    return <SetPassword email={pendingEmail} onSet={handleSetPassword} onComplete={handleSetupComplete} />;
   }
 
   if (authStage === "denied") {
@@ -511,11 +527,15 @@ export default function App() {
                 )}
               </div>
             </div>
+            <NotificationBell
+              userEmail={localStorage.getItem("wf_email") || ""}
+              onOpenTask={(taskId) => openTaskModal(taskId)}
+            />
             <button
               className="btn-settings-header"
               onClick={() => setShowSettings(true)}
               title="Settings"
-              style={{ padding: "8px", borderRadius: "50%", marginLeft: "4px" }}
+              style={{ padding: "8px", borderRadius: "50%", marginLeft: "0px" }}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <circle cx="12" cy="12" r="3" />

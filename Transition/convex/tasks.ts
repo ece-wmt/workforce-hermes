@@ -215,13 +215,49 @@ export const updateTaskMilestones = mutation({
       })
     ),
     completedCount: v.number(),
+    actorEmail: v.optional(v.string()),
+    actorName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const task = await ctx.db.get(args.taskId);
+    if (!task) throw new Error("Task not found");
+
+    // Check if a milestone was completed in this update
+    const prevMilestones = task.milestones || [];
+    const newCompletedMilestone = args.milestones.find((m, i) => 
+      m.completed && (!prevMilestones[i] || !prevMilestones[i].completed)
+    );
+
     await ctx.db.patch(args.taskId, {
       milestones: args.milestones,
       completedMilestones: args.completedCount,
       lastUpdated: Date.now(),
     });
+
+    // --- Notification: notify task assignees about milestone completion ---
+    if (newCompletedMilestone && args.actorEmail) {
+      const actorEmail = args.actorEmail.toLowerCase();
+      const allStaff = await ctx.db.query("staff").collect();
+      const assigneeNames = (task.assignee || "").split(",").map(n => n.trim().toLowerCase()).filter(Boolean);
+      
+      for (const staff of allStaff) {
+        if (staff.email.toLowerCase() === actorEmail) continue;
+        const nameMatch = assigneeNames.some(a => staff.name.toLowerCase().includes(a) || a.includes(staff.name.toLowerCase()));
+        if (nameMatch) {
+          await ctx.db.insert("notifications", {
+            type: "project_change",
+            targetEmail: staff.email.toLowerCase(),
+            actorEmail,
+            actorName: args.actorName || actorEmail,
+            message: `completed milestone "${newCompletedMilestone.name}" on "${task.title}"`,
+            taskId: args.taskId,
+            taskTitle: task.title,
+            read: false,
+            createdAt: Date.now(),
+          });
+        }
+      }
+    }
   },
 });
 
@@ -230,6 +266,7 @@ export const addNoteToTask = mutation({
     taskId: v.id("tasks"),
     noteText: v.string(),
     writer: v.string(),
+    writerEmail: v.optional(v.string()),
     date: v.string(),
   },
   handler: async (ctx, args) => {
@@ -248,6 +285,54 @@ export const addNoteToTask = mutation({
       notes,
       lastUpdated: Date.now(),
     });
+
+    // --- Notifications ---
+    const actorEmail = (args.writerEmail || "").toLowerCase();
+    const allStaff = await ctx.db.query("staff").collect();
+
+    // Notify task assignees (project change) — skip the note author
+    const assigneeNames = (task.assignee || "").split(",").map(n => n.trim().toLowerCase()).filter(Boolean);
+    for (const staff of allStaff) {
+      if (staff.email.toLowerCase() === actorEmail) continue;
+      const nameMatch = assigneeNames.some(a => staff.name.toLowerCase().includes(a) || a.includes(staff.name.toLowerCase()));
+      if (nameMatch) {
+        await ctx.db.insert("notifications", {
+          type: "project_change",
+          targetEmail: staff.email.toLowerCase(),
+          actorEmail,
+          actorName: args.writer,
+          message: `added a note on "${task.title}"`,
+          taskId: args.taskId,
+          taskTitle: task.title,
+          read: false,
+          createdAt: Date.now(),
+        });
+      }
+    }
+
+    // Parse @mentions from note text
+    const mentions = args.noteText.match(/@([\w\s]+?)(?=[@,.]|$)/g);
+    if (mentions) {
+      for (const mention of mentions) {
+        const mentionedName = mention.substring(1).trim().toLowerCase();
+        for (const staff of allStaff) {
+          if (staff.email.toLowerCase() === actorEmail) continue;
+          if (staff.name.toLowerCase().includes(mentionedName) || mentionedName.includes(staff.name.toLowerCase().split(" ")[0])) {
+            await ctx.db.insert("notifications", {
+              type: "mention",
+              targetEmail: staff.email.toLowerCase(),
+              actorEmail,
+              actorName: args.writer,
+              message: `mentioned you in a note on "${task.title}"`,
+              taskId: args.taskId,
+              taskTitle: task.title,
+              read: false,
+              createdAt: Date.now(),
+            });
+          }
+        }
+      }
+    }
 
     return notes;
   },
@@ -277,8 +362,13 @@ export const updateTaskDetails = mutation({
         createdAtTime: v.optional(v.number()),
       })
     ),
+    actorEmail: v.optional(v.string()),
+    actorName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const task = await ctx.db.get(args.taskId);
+    if (!task) throw new Error("Task not found");
+
     const completedCount = args.newMilestones.filter(
       (m) => m.completed
     ).length;
@@ -293,6 +383,35 @@ export const updateTaskDetails = mutation({
       completedMilestones: completedCount,
       lastUpdated: Date.now(),
     });
+
+    // --- Notification: notify task assignees about detail changes ---
+    if (args.actorEmail) {
+      const actorEmail = args.actorEmail.toLowerCase();
+      const allStaff = await ctx.db.query("staff").collect();
+      
+      // We notify BOTH the old assignees and the new assignees (union)
+      const oldAssignees = (task.assignee || "").split(",").map(n => n.trim().toLowerCase()).filter(Boolean);
+      const newAssignees = (args.newAssignee || "").split(",").map(n => n.trim().toLowerCase()).filter(Boolean);
+      const notifySet = new Set([...oldAssignees, ...newAssignees]);
+
+      for (const staff of allStaff) {
+        if (staff.email.toLowerCase() === actorEmail) continue;
+        const nameMatch = Array.from(notifySet).some(a => staff.name.toLowerCase().includes(a) || a.includes(staff.name.toLowerCase()));
+        if (nameMatch) {
+          await ctx.db.insert("notifications", {
+            type: "project_change",
+            targetEmail: staff.email.toLowerCase(),
+            actorEmail,
+            actorName: args.actorName || actorEmail,
+            message: `updated project details for "${args.newTitle}"`,
+            taskId: args.taskId,
+            taskTitle: args.newTitle,
+            read: false,
+            createdAt: Date.now(),
+          });
+        }
+      }
+    }
   },
 });
 
@@ -358,6 +477,8 @@ export const addTaskFeature = mutation({
       type: v.optional(v.string()),
       createdAt: v.optional(v.string()),
     }),
+    actorEmail: v.optional(v.string()),
+    actorName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     console.log("Adding feature to task:", args.taskId, args.feature);
@@ -374,6 +495,30 @@ export const addTaskFeature = mutation({
     };
     features.push(featureWithTimestamp);
     await ctx.db.patch(args.taskId, { features, lastUpdated: Date.now() });
+
+    // --- Notification: notify task assignees ---
+    if (args.actorEmail) {
+      const actorEmail = args.actorEmail.toLowerCase();
+      const allStaff = await ctx.db.query("staff").collect();
+      const assigneeNames = (task.assignee || "").split(",").map(n => n.trim().toLowerCase()).filter(Boolean);
+      for (const staff of allStaff) {
+        if (staff.email.toLowerCase() === actorEmail) continue;
+        const nameMatch = assigneeNames.some(a => staff.name.toLowerCase().includes(a) || a.includes(staff.name.toLowerCase()));
+        if (nameMatch) {
+          await ctx.db.insert("notifications", {
+            type: "project_change",
+            targetEmail: staff.email.toLowerCase(),
+            actorEmail,
+            actorName: args.actorName || actorEmail,
+            message: `added ${args.feature.type === "bug" ? "a bug" : "a feature"} "${args.feature.name}" to "${task.title}"`,
+            taskId: args.taskId,
+            taskTitle: task.title,
+            read: false,
+            createdAt: Date.now(),
+          });
+        }
+      }
+    }
   },
 });
 
@@ -496,6 +641,7 @@ export const toggleNoteReaction = mutation({
     noteIndex: v.number(),
     reactionType: v.string(), // "like" | "wow" | "heart" | "haha"
     userEmail: v.string(),
+    userName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const task = await ctx.db.get(args.taskId);
@@ -514,10 +660,12 @@ export const toggleNoteReaction = mutation({
     const lowerEmail = args.userEmail.toLowerCase();
     const idx = arr.indexOf(lowerEmail);
 
+    let isAdding = false;
     if (idx >= 0) {
       arr.splice(idx, 1); // remove reaction
     } else {
       arr.push(lowerEmail); // add reaction
+      isAdding = true;
     }
 
     reactions[key] = arr;
@@ -525,6 +673,31 @@ export const toggleNoteReaction = mutation({
     notes[args.noteIndex] = note;
 
     await ctx.db.patch(args.taskId, { notes });
+
+    // --- Notification: notify the note author about the reaction ---
+    if (isAdding && note.writer) {
+      const allStaff = await ctx.db.query("staff").collect();
+      const emojiMap: Record<string, string> = { like: "👍", wow: "😮", heart: "❤️", haha: "😂" };
+      // Find the note author's email
+      const writerName = note.writer.toLowerCase();
+      for (const staff of allStaff) {
+        if (staff.email.toLowerCase() === lowerEmail) continue;
+        if (staff.name.toLowerCase() === writerName || staff.name.toLowerCase().includes(writerName)) {
+          await ctx.db.insert("notifications", {
+            type: "reaction",
+            targetEmail: staff.email.toLowerCase(),
+            actorEmail: lowerEmail,
+            actorName: args.userName || lowerEmail,
+            message: `reacted ${emojiMap[key] || key} to your note on "${task.title}"`,
+            taskId: args.taskId,
+            taskTitle: task.title,
+            read: false,
+            createdAt: Date.now(),
+          });
+          break;
+        }
+      }
+    }
   },
 });
 
@@ -534,6 +707,7 @@ export const addNoteReply = mutation({
     noteIndex: v.number(),
     replyText: v.string(),
     writer: v.string(),
+    writerEmail: v.optional(v.string()),
     date: v.string(),
   },
   handler: async (ctx, args) => {
@@ -557,6 +731,56 @@ export const addNoteReply = mutation({
     notes[args.noteIndex] = note;
 
     await ctx.db.patch(args.taskId, { notes });
+
+    // --- Notification: notify original note author of reply ---
+    const actorEmail = (args.writerEmail || "").toLowerCase();
+    if (note.writer) {
+      const allStaff = await ctx.db.query("staff").collect();
+      const writerName = note.writer.toLowerCase();
+      for (const staff of allStaff) {
+        if (staff.email.toLowerCase() === actorEmail) continue;
+        if (staff.name.toLowerCase() === writerName || staff.name.toLowerCase().includes(writerName)) {
+          await ctx.db.insert("notifications", {
+            type: "project_change",
+            targetEmail: staff.email.toLowerCase(),
+            actorEmail,
+            actorName: args.writer,
+            message: `replied to your note on "${task.title}"`,
+            taskId: args.taskId,
+            taskTitle: task.title,
+            read: false,
+            createdAt: Date.now(),
+          });
+          break;
+        }
+      }
+    }
+
+    // Parse @mentions from reply text
+    const mentions = args.replyText.match(/@([\w\s]+?)(?=[@,.]|$)/g);
+    if (mentions) {
+      const allStaff = await ctx.db.query("staff").collect();
+      for (const mention of mentions) {
+        const mentionedName = mention.substring(1).trim().toLowerCase();
+        for (const staff of allStaff) {
+          if (staff.email.toLowerCase() === actorEmail) continue;
+          if (staff.name.toLowerCase().includes(mentionedName) || mentionedName.includes(staff.name.toLowerCase().split(" ")[0])) {
+            await ctx.db.insert("notifications", {
+              type: "mention",
+              targetEmail: staff.email.toLowerCase(),
+              actorEmail,
+              actorName: args.writer,
+              message: `mentioned you in a reply on "${task.title}"`,
+              taskId: args.taskId,
+              taskTitle: task.title,
+              read: false,
+              createdAt: Date.now(),
+            });
+          }
+        }
+      }
+    }
+
     return replies;
   },
 });

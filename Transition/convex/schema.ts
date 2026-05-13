@@ -123,6 +123,21 @@ export default defineSchema({
     .index("by_target", ["targetEmail"])
     .index("by_action", ["action"]),
 
+  // Notifications — consolidated bell icon system
+  notifications: defineTable({
+    type: v.string(),           // "mention" | "project_change" | "reaction"
+    targetEmail: v.string(),    // who receives the notification
+    actorEmail: v.string(),     // who triggered it
+    actorName: v.string(),      // display name of actor
+    message: v.string(),        // human-readable description
+    taskId: v.optional(v.id("tasks")),
+    taskTitle: v.optional(v.string()),
+    read: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_target", ["targetEmail"])
+    .index("by_target_read", ["targetEmail", "read"]),
+
   // Presence/Heartbeat data — separated to reduce bandwidth on main staff query
   heartbeats: defineTable({
     email: v.string(),

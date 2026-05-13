@@ -224,7 +224,13 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
       delete updated[idx].completedAt;
     }
     const completedCount = updated.filter((m) => m.completed).length;
-    updateTaskMilestones({ taskId, milestones: updated, completedCount });
+    updateTaskMilestones({ 
+      taskId, 
+      milestones: updated, 
+      completedCount,
+      actorEmail: currentUserEmail,
+      actorName: userName
+    });
   }
 
   function handleAddNote() {
@@ -235,7 +241,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
       year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
     });
     console.log("📝 Adding note:", { taskId, text: text.substring(0, 30), writer: userName });
-    addNoteToTask({ taskId, noteText: text, writer: userName, date: estDate });
+    addNoteToTask({ taskId, noteText: text, writer: userName, writerEmail: currentUserEmail, date: estDate });
     console.log("🔔 Calling notifyNoteAdded:", { taskTitle: task.title, notePreview: text.substring(0, 30) });
     notifyNoteAdded(task.title, text);
     setNoteInputText("");
@@ -255,6 +261,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
       noteIndex: threadModal.index,
       replyText: text,
       writer: userName,
+      writerEmail: currentUserEmail,
       date: estDate
     });
     setReplyInputText("");
@@ -311,6 +318,8 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
       newAppscriptLink: editedAppscriptLink,
       newWebappLink: editedWebappLink,
       newMilestones,
+      actorEmail: currentUserEmail,
+      actorName: userName
     });
     onClose();
   }
@@ -1140,7 +1149,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                               title={`${label}: ${arr.join(', ')}`}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                toggleNoteReaction({ taskId, noteIndex: i, reactionType: key, userEmail: currentUserEmail });
+                                toggleNoteReaction({ taskId, noteIndex: i, reactionType: key, userEmail: currentUserEmail, userName });
                               }}
                               style={{ 
                                 display: "flex", 
@@ -1301,7 +1310,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                   <button
                     key={key}
                     onClick={() => {
-                      toggleNoteReaction({ taskId, noteIndex: noteContextMenu.index, reactionType: key, userEmail: currentUserEmail });
+                      toggleNoteReaction({ taskId, noteIndex: noteContextMenu.index, reactionType: key, userEmail: currentUserEmail, userName });
                       setNoteContextMenu(null);
                     }}
                     style={{

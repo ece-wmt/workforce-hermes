@@ -108,6 +108,8 @@ export default function FeatureModal({ mode, feature, taskId, onClose, canEdit, 
             type: type || "feature",
             createdAt: estDate,
           },
+          actorEmail: (localStorage.getItem("wf_email") || "").toLowerCase(),
+          actorName: userName || "Anonymous",
         });
         notifyFeatureAdded(taskTitle || "Task", name);
       } else if (mode === "edit") {

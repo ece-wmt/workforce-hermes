@@ -203,7 +203,7 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
       timeZone: "America/New_York",
       year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
     });
-    addNoteToTask({ taskId, noteText: text, writer: userName, date: estDate });
+    addNoteToTask({ taskId, noteText: text, writer: userName, writerEmail: (localStorage.getItem("wf_email") || "").toLowerCase(), date: estDate });
     if (task) {
       notifyNoteAdded(task.title, text);
     }

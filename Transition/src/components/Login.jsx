@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
-export default function Login({ onLogin, externalError = "", onResetSuccess }) {
-  const [mode, setMode] = useState("login"); // "login", "forgot", "verify"
+export default function Login({ onLogin, externalError = "", onResetSuccess, onNewUserSetup }) {
+  const [mode, setMode] = useState("email"); // "email", "password", "forgot", "verify"
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [securityQuestion, setSecurityQuestion] = useState("");
@@ -13,15 +13,56 @@ export default function Login({ onLogin, externalError = "", onResetSuccess }) {
 
   const fetchQuestionMut = useMutation(api.staff.getSecurityQuestion);
   const verifyAnswerMut = useMutation(api.staff.verifySecurityAnswer);
+  const checkEmailMut = useMutation(api.staff.checkEmailStatus);
 
   const displayError = externalError || error;
 
-  const handleLoginSubmit = (e) => {
+  // Step 1: Check email and determine next step
+  const handleEmailSubmit = async (e) => {
     e.preventDefault();
     if (!email.trim() || !email.includes("@")) {
       setError("Please enter a valid email address.");
       return;
     }
+    setIsLoading(true);
+    setError("");
+    try {
+      const result = await checkEmailMut({ email: email.trim().toLowerCase() });
+      
+      if (result.revoked) {
+        setError("Your access has been revoked. Please contact an administrator.");
+        setIsLoading(false);
+        return;
+      }
+
+      if (!result.exists) {
+        // New user — they can try registering with the default password
+        setMode("password");
+        setIsLoading(false);
+        return;
+      }
+
+      if (!result.hasPassword) {
+        // User exists but no password — route to set-password flow
+        if (onNewUserSetup) {
+          onNewUserSetup(email.trim().toLowerCase());
+        }
+        setIsLoading(false);
+        return;
+      }
+
+      // User has a password — show password input
+      setMode("password");
+      setIsLoading(false);
+    } catch (err) {
+      setError("Failed to check email. Please try again.");
+      setIsLoading(false);
+    }
+  };
+
+  // Step 2: Submit password for authentication
+  const handlePasswordSubmit = (e) => {
+    e.preventDefault();
     if (!password) {
       setError("Please enter a password.");
       return;
@@ -84,22 +125,28 @@ export default function Login({ onLogin, externalError = "", onResetSuccess }) {
         <img src="https://i.imgur.com/ycmU6oP.png" alt="WFM Logo" className="header-logo" />
       </div>
       <div className="login-box">
-        {mode === "login" && (
+        {mode === "email" && (
           <>
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#4355f1" strokeWidth="2" style={{ marginBottom: 20 }}>
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+              <polyline points="22,6 12,13 2,6" />
             </svg>
-            <h2 style={{ color: "#1e293b", marginBottom: 10, fontWeight: 900 }}>System Login</h2>
+            <h2 style={{ color: "#1e293b", marginBottom: 10, fontWeight: 900 }}>Welcome Back</h2>
             <p style={{ color: "#64748b", fontSize: "0.9rem", marginBottom: 25 }}>
-              Enter your email and password to continue.
+              Enter your email address to continue.
             </p>
 
-            <form onSubmit={handleLoginSubmit} style={{ width: "100%" }}>
-              <div className="form-group" style={{ marginBottom: "15px" }}>
+            {/* Step indicator */}
+            <div className="login-step-indicator">
+              <div className="login-step-dot active" />
+              <div className="login-step-dot" />
+            </div>
+
+            <form onSubmit={handleEmailSubmit} style={{ width: "100%" }}>
+              <div className="form-group" style={{ marginBottom: "20px" }}>
                 <input
                   type="email"
-                  className="form-input"
+                  className={`form-input ${error ? "input-error" : ""}`}
                   placeholder="Email address"
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); setError(""); }}
@@ -107,15 +154,45 @@ export default function Login({ onLogin, externalError = "", onResetSuccess }) {
                   autoFocus
                   autoComplete="username"
                 />
+                {error && <div className="error-text">{error}</div>}
               </div>
+              <button type="submit" className="btn-primary" style={{ width: "100%" }} disabled={isLoading}>
+                {isLoading ? "Checking..." : "Continue"}
+              </button>
+            </form>
+          </>
+        )}
+
+        {mode === "password" && (
+          <>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#4355f1" strokeWidth="2" style={{ marginBottom: 20 }}>
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <h2 style={{ color: "#1e293b", marginBottom: 10, fontWeight: 900 }}>Enter Password</h2>
+            <p style={{ color: "#64748b", fontSize: "0.85rem", marginBottom: 5 }}>
+              Signing in as
+            </p>
+            <p style={{ color: "#4355f1", fontWeight: 700, fontSize: "0.85rem", marginBottom: 20, wordBreak: "break-all" }}>
+              {email}
+            </p>
+
+            {/* Step indicator */}
+            <div className="login-step-indicator">
+              <div className="login-step-dot completed" />
+              <div className="login-step-dot active" />
+            </div>
+
+            <form onSubmit={handlePasswordSubmit} style={{ width: "100%" }}>
               <div className="form-group" style={{ marginBottom: "8px" }}>
                 <input
                   type="password"
-                  className={`form-input ${error ? "input-error" : ""}`}
+                  className={`form-input ${displayError ? "input-error" : ""}`}
                   placeholder="Password"
                   value={password}
                   onChange={(e) => { setPassword(e.target.value); setError(""); }}
                   required
+                  autoFocus
                   autoComplete="current-password"
                 />
                 {displayError && <div className="error-text">{displayError}</div>}
@@ -129,8 +206,16 @@ export default function Login({ onLogin, externalError = "", onResetSuccess }) {
                   Forgot Password?
                 </button>
               </div>
-              <button type="submit" className="btn-primary" style={{ width: "100%" }}>
+              <button type="submit" className="btn-primary" style={{ width: "100%", marginBottom: "12px" }}>
                 Secure Access
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ width: "100%", padding: "10px", fontSize: "0.8rem" }}
+                onClick={() => { setMode("email"); setPassword(""); setError(""); }}
+              >
+                ← Use a different email
               </button>
             </form>
           </>
@@ -167,7 +252,7 @@ export default function Login({ onLogin, externalError = "", onResetSuccess }) {
                 type="button"
                 className="btn-secondary"
                 style={{ width: "100%" }}
-                onClick={() => { setMode("login"); setError(""); }}
+                onClick={() => { setMode("password"); setError(""); }}
               >
                 Back to Login
               </button>

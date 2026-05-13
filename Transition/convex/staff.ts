@@ -506,3 +506,47 @@ export const migrateAllPasswordsToHashes = mutation({
     return { migrated: count };
   },
 });
+
+/**
+ * Check if an email exists in the system and whether it has a password/security question set.
+ * Used for the email-first login flow.
+ */
+export const checkEmailStatus = mutation({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    const lowerEmail = args.email.toLowerCase();
+    const isMainAdmin = lowerEmail === "wmt@ececontactcenters.com";
+
+    if (isMainAdmin) {
+      return { exists: true, hasPassword: true, hasSecurityQuestion: true };
+    }
+
+    // Check DB first
+    const dbUser = await ctx.db
+      .query("staff")
+      .withIndex("by_email", (q) => q.eq("email", lowerEmail))
+      .first();
+
+    // Fall back to INITIAL_STAFF
+    const initial = INITIAL_STAFF.find(
+      (s) => s.email.toLowerCase() === lowerEmail
+    );
+    const user = dbUser || (initial ? { ...initial, password: undefined, securityQuestion: undefined } : null);
+
+    if (!user) {
+      // Not found — could be a new registration attempt
+      return { exists: false, hasPassword: false, hasSecurityQuestion: false };
+    }
+
+    if ((user as any).role === "Revoked") {
+      return { exists: true, revoked: true, hasPassword: false, hasSecurityQuestion: false };
+    }
+
+    return {
+      exists: true,
+      hasPassword: !!(user as any).password,
+      hasSecurityQuestion: !!(user as any).securityQuestion,
+    };
+  },
+});
+
