@@ -705,6 +705,7 @@ export default function App() {
       )}
       {currentView === "entry" && (
         <TaskEntry
+          staff={staff || []}
           userRole={userRole}
           userName={userName}
           onCreated={() => switchView("kanban")}
