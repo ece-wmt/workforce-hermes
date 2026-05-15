@@ -27,7 +27,6 @@ export default function App() {
   const hasSetInitialView = useRef(false);
 
   // --- Auth state ---
-  const [sessionExpiredPending, setSessionExpiredPending] = useState(false);
   const [authStage, setAuthStage] = useState(() => {
     // "login" | "set-password" | "authenticated" | "denied"
     if (localStorage.getItem("wf_authenticated") === "true") {
@@ -253,10 +252,19 @@ export default function App() {
       const lastActivity = parseInt(localStorage.getItem("wf_last_activity") || "0");
       if (lastActivity && Date.now() - lastActivity > EXPIRY_TIME) {
         console.warn("Session expired due to inactivity.");
-        setSessionExpiredPending(true);
-        logout();
+        showModal({
+          title: "Session Expired",
+          message: "Your session has expired due to inactivity. Please log in again.",
+          type: "alert",
+          onConfirm: () => {
+            logout();
+          }
+        });
       }
     };
+
+    // Run check immediately on mount/auth
+    checkSession();
 
     // Add listeners
     ACTIVITY_EVENTS.forEach(event => document.addEventListener(event, updateActivity));
@@ -393,9 +401,9 @@ export default function App() {
 
   /**
    * Shows a custom alert or confirmation modal.
-   * @param {Object} options { title, message, type, onConfirm }
+   * @param {Object} options { title, message, type, onConfirm, onCancel }
    */
-  function showModal({ title, message, type = "alert", onConfirm }) {
+  function showModal({ title, message, type = "alert", onConfirm, onCancel }) {
     setModalConfig({
       isOpen: true,
       title,
@@ -406,6 +414,8 @@ export default function App() {
         setModalConfig((prev) => ({ ...prev, isOpen: false }));
       },
       onCancel: () => {
+        if (onCancel) onCancel();
+        else if (type === "alert" && onConfirm) onConfirm();
         setModalConfig((prev) => ({ ...prev, isOpen: false }));
       },
     });
@@ -1054,14 +1064,6 @@ export default function App() {
       {/* Intro Animation Overlay */}
       {showIntro && <IntroAnimation onDone={() => {
         setShowIntro(false);
-        if (sessionExpiredPending) {
-          setSessionExpiredPending(false);
-          showModal({
-            title: "Session Expired",
-            message: "Your session has expired. Please log in again.",
-            type: "alert",
-          });
-        }
       }} />}
     </>
   );
