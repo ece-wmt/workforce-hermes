@@ -722,7 +722,7 @@ export default function App() {
       </header>
 
       {/* Views */}
-      {currentView === "dashboard" && <Dashboard />}
+      {currentView === "dashboard" && <Dashboard onShowAllLinks={() => setShowAllProjects(true)} />}
       {currentView === "kanban" && (
         <KanbanBoard
           userRole={userRole}

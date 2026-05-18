@@ -1,7 +1,7 @@
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
-export default function Dashboard() {
+export default function Dashboard({ onShowAllLinks }) {
   const stats = useQuery(api.tasks.getProjectStats);
 
   if (!stats) {
@@ -12,21 +12,47 @@ export default function Dashboard() {
     );
   }
 
+  const visibleProjects = (stats.projectsWithLinks || []).slice(0, 8);
+
   return (
     <div id="dashboard-view" className="view-section">
       <div className="container">
         {/* Consolidated System Links */}
         {stats.projectsWithLinks && stats.projectsWithLinks.length > 0 ? (
           <div className="section-card" style={{ marginBottom: 25, background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)", border: "1.5px solid #e2e8f0", boxShadow: "var(--shadow-sm)" }}>
-            <h2 style={{ fontWeight: 900, marginTop: 0, textTransform: "uppercase", fontSize: "1.2rem", color: "var(--color-text-secondary)", marginBottom: 15, display: "flex", alignItems: "center", gap: 10, letterSpacing: "0.5px" }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-              </svg>
-              Consolidated System Links
-            </h2>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 15, flexWrap: "wrap", gap: 10 }}>
+              <h2 style={{ fontWeight: 900, margin: 0, textTransform: "uppercase", fontSize: "1.2rem", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 10, letterSpacing: "0.5px" }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                </svg>
+                Consolidated System Links
+              </h2>
+              {stats.projectsWithLinks.length > 8 && (
+                <button
+                  onClick={onShowAllLinks}
+                  title="View All Projects"
+                  style={{
+                    padding: "6px 14px",
+                    borderRadius: "8px",
+                    border: "1.5px solid var(--color-accent)",
+                    background: "var(--color-accent)",
+                    color: "white",
+                    fontSize: "0.75rem",
+                    fontWeight: 900,
+                    cursor: "pointer",
+                    boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
+                    transition: "opacity 0.2s ease"
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.opacity = 0.85}
+                  onMouseOut={(e) => e.currentTarget.style.opacity = 1}
+                >
+                  Show All ({stats.projectsWithLinks.length})
+                </button>
+              )}
+            </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 15 }}>
-              {stats.projectsWithLinks.map(p => (
+              {visibleProjects.map(p => (
                 <div key={p.id} style={{ background: "white", padding: "15px 20px", borderRadius: 12, border: "1px solid #e2e8f0", transition: "transform 0.2s ease, box-shadow 0.2s ease", display: "flex", flexDirection: "column", gap: 12 }}>
                   <div>
                     <div style={{ fontWeight: 900, fontSize: "0.95rem", color: "var(--color-nav-bg)", borderBottom: "2px solid #f1f5f9", paddingBottom: 8, marginBottom: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>

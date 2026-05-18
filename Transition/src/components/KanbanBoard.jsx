@@ -397,15 +397,13 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
                 </div>
               ))}
             </div>
-            {!isFullView && (
-              <div className="card-actions">
-                {["todo", "pending", "development", "testing", "done", "implemented"].map((s) => (
-                  <div key={s} className="action-btn" onClick={(e) => { e.stopPropagation(); handleMoveTask(t._id, s); }}>
-                    {s === "development" ? "Dev" : s === "testing" ? "Test" : s === "implemented" ? "Impl" : s.charAt(0).toUpperCase() + s.slice(1)}
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="card-actions">
+              {["todo", "pending", "development", "testing", "done", "implemented"].map((s) => (
+                <div key={s} className="action-btn" onClick={(e) => { e.stopPropagation(); handleMoveTask(t._id, s); }}>
+                  {s === "development" ? "Dev" : s === "testing" ? "Test" : s === "implemented" ? "Impl" : s.charAt(0).toUpperCase() + s.slice(1)}
+                </div>
+              ))}
+            </div>
           </>
         )}
       </div>
