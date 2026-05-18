@@ -118,6 +118,7 @@ export default function App() {
   const loginMutation = useMutation(api.staff.login);
   const deleteStaffMutation = useMutation(api.staff.deleteStaff);
   const deleteTask = useMutation(api.tasks.deleteTask);
+  const updateTaskStatus = useMutation(api.tasks.updateTaskStatus);
   const updateProjectLink = useMutation(api.tasks.updateProjectLink);
   const updateAdminCredentials = useMutation(api.tasks.updateAdminCredentials);
   const updateTaskDetailsMut = useMutation(api.tasks.updateTaskDetails);
@@ -248,6 +249,10 @@ export default function App() {
       localStorage.setItem("wf_last_activity", Date.now().toString());
     };
 
+    // Add listeners
+    ACTIVITY_EVENTS.forEach(event => document.addEventListener(event, updateActivity));
+
+    // Periodic check every 30 seconds (NOT immediately — see deferred check below)
     const checkSession = () => {
       const lastActivity = parseInt(localStorage.getItem("wf_last_activity") || "0");
       if (lastActivity && Date.now() - lastActivity > EXPIRY_TIME) {
@@ -262,14 +267,6 @@ export default function App() {
         });
       }
     };
-
-    // Run check immediately on mount/auth
-    checkSession();
-
-    // Add listeners
-    ACTIVITY_EVENTS.forEach(event => document.addEventListener(event, updateActivity));
-
-    // Periodic check every 30 seconds
     const interval = setInterval(checkSession, 30 * 1000);
 
     return () => {
@@ -277,6 +274,25 @@ export default function App() {
       clearInterval(interval);
     };
   }, [authStage]);
+
+  // --- Deferred session expiry check: only runs once app is fully visible ---
+  useEffect(() => {
+    if (authStage !== "authenticated" || loading || showIntro) return;
+
+    const EXPIRY_TIME = 30 * 60 * 1000; // 30 minutes
+    const lastActivity = parseInt(localStorage.getItem("wf_last_activity") || "0");
+    if (lastActivity && Date.now() - lastActivity > EXPIRY_TIME) {
+      console.warn("Session expired — deferred check (app now visible).");
+      showModal({
+        title: "Session Expired",
+        message: "Your session has expired due to inactivity. Please log in again.",
+        type: "alert",
+        onConfirm: () => {
+          logout();
+        }
+      });
+    }
+  }, [authStage, loading, showIntro]);
 
   // -------------------------------------------------------
   // Login handler — this is called when the user submits
@@ -319,8 +335,9 @@ export default function App() {
         localStorage.setItem("wf_email", lowerEmail);
         localStorage.setItem("wf_last_activity", Date.now().toString());
 
-        // New: If no security question, redirect to setup with skip option
-        if (!result.hasSecurityQuestion) {
+        // New: If no security question AND user hasn't been prompted before, redirect to setup
+        const alreadyPrompted = localStorage.getItem(`wf_sq_prompted_${lowerEmail}`);
+        if (!result.hasSecurityQuestion && !alreadyPrompted) {
           setPendingEmail(lowerEmail);
           setAuthStage("set-security-question");
           return;
@@ -364,12 +381,14 @@ export default function App() {
   function logout() {
     localStorage.removeItem("wf_authenticated");
     localStorage.removeItem("wf_email");
+    localStorage.removeItem("wf_last_activity");
     setAuthStage("login");
     setLoading(true);
     setUserName("");
     setActualRole("Admin");
     setUserRole("Admin");
     setCurrentView("dashboard");
+    hasSetInitialView.current = false;
   }
 
   function changeRole(role) {
@@ -456,6 +475,8 @@ export default function App() {
         email={pendingEmail} 
         mode="security-only" 
         onComplete={() => {
+          // Mark as prompted so we don't ask again on future logins
+          localStorage.setItem(`wf_sq_prompted_${pendingEmail.toLowerCase()}`, "true");
           setLoading(true);
           setShowIntro(true);
           setAuthStage("authenticated");
@@ -864,13 +885,42 @@ export default function App() {
           )}
 
           <div
+            className="context-menu-item"
+            style={{ color: "var(--color-text-secondary)" }}
+            onClick={() => {
+              if (!contextMenu.task || !contextMenu.task._id) return;
+              showModal({
+                title: "Archive Project",
+                message: `Are you sure you want to move "${contextMenu.task.title}" to the Archive?`,
+                type: "confirm",
+                onConfirm: async () => {
+                  try {
+                    await updateTaskStatus({ taskId: contextMenu.task._id, newStatus: "scrapyard" });
+                    showModal({ title: "Archived", message: `"${contextMenu.task.title}" has been archived successfully.`, type: "success" });
+                  } catch (err) {
+                    showModal({ title: "Error", message: err.message, type: "alert" });
+                  }
+                }
+              });
+              setContextMenu((prev) => ({ ...prev, visible: false }));
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="21 8 21 21 3 21 3 8" />
+              <rect x="1" y="3" width="22" height="5" />
+              <line x1="10" y1="12" x2="14" y2="12" />
+            </svg>
+            Archive Task
+          </div>
+
+          <div
             className="context-menu-item delete-option"
             onClick={() => {
               showModal({
                 title: "Delete Project",
                 message: "Are you sure you want to permanently delete this project? This action cannot be undone.",
                 type: "confirm",
-                onConfirm: () => deleteTask({ taskId: contextMenu.task._id })
+                onConfirm: () => deleteTask({ taskId: contextMenu.task._id, actorEmail: localStorage.getItem("wf_email") || "", actorName: userName, source: "context-menu" })
               });
               setContextMenu((prev) => ({ ...prev, visible: false }));
             }}

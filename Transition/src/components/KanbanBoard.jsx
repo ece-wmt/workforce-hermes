@@ -125,14 +125,14 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
 
   const displayTasks = (Array.isArray(tasks) && tasks.length > 0) ? tasks : lastKnownTasks;
 
-  const columns = ["todo", "pending", "development", "testing", "done", "scrapyard"];
+  const columns = ["todo", "pending", "development", "testing", "done", "implemented"];
   const columnLabels = {
     todo: "To Do",
     pending: "Pending",
     development: "In Development",
     testing: "In Testing",
     done: "Done",
-    scrapyard: "Scrapyard",
+    implemented: "Implemented",
   };
   const columnClasses = {
     todo: "col-todo",
@@ -140,7 +140,7 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
     development: "col-dev",
     testing: "col-test",
     done: "col-done",
-    scrapyard: "col-scrap",
+    implemented: "col-implemented",
   };
 
   const sorted = [...(Array.isArray(displayTasks) ? displayTasks : [])].sort((a, b) => b.lastUpdated - a.lastUpdated);
@@ -399,9 +399,9 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
             </div>
             {!isFullView && (
               <div className="card-actions">
-                {["todo", "pending", "development", "testing", "done", "scrapyard"].map((s) => (
+                {["todo", "pending", "development", "testing", "done", "implemented"].map((s) => (
                   <div key={s} className="action-btn" onClick={(e) => { e.stopPropagation(); handleMoveTask(t._id, s); }}>
-                    {s === "development" ? "Dev" : s === "testing" ? "Test" : s === "scrapyard" ? "Scrap" : s.charAt(0).toUpperCase() + s.slice(1)}
+                    {s === "development" ? "Dev" : s === "testing" ? "Test" : s === "implemented" ? "Impl" : s.charAt(0).toUpperCase() + s.slice(1)}
                   </div>
                 ))}
               </div>

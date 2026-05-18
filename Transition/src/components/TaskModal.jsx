@@ -377,7 +377,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
       title: "Delete Project",
       message: "Are you sure you want to permanently delete this project? This action cannot be undone.",
       type: "confirm",
-      onConfirm: () => { deleteTask({ taskId }); onClose(); }
+      onConfirm: () => { deleteTask({ taskId, actorEmail: currentUserEmail, actorName: userName, source: "modal" }); onClose(); }
     });
   }
 

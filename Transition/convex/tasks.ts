@@ -58,6 +58,23 @@ function deobfuscate(str: string | undefined) {
 }
 
 /**
+ * Check if the actor (by email) is one of the task assignees.
+ * Used to suppress project_change notifications when the owner makes routine changes.
+ */
+function isActorAssignee(actorEmail: string, assigneeString: string, allStaff: any[]): boolean {
+  if (!actorEmail || !assigneeString) return false;
+  const lowerActor = actorEmail.toLowerCase();
+  const assigneeNames = assigneeString.split(",").map(n => n.trim().toLowerCase()).filter(Boolean);
+  
+  // Find the actor's staff record
+  const actorStaff = allStaff.find(s => s.email.toLowerCase() === lowerActor);
+  if (!actorStaff) return false;
+  
+  const actorName = actorStaff.name.toLowerCase();
+  return assigneeNames.some(a => actorName.includes(a) || a.includes(actorName));
+}
+
+/**
  * Targeted query for fetching full details of a single task.
  * Used for the TaskModal to avoid fetching all tasks' notes/features.
  */
@@ -99,6 +116,7 @@ export const getProjectStats = query({
       testing: 0,
       done: 0,
       scrapyard: 0,
+      implemented: 0,
       overallCompletion: 0,
       staffWorkload: [] as WorkloadInfo[],
     };
@@ -235,26 +253,30 @@ export const updateTaskMilestones = mutation({
     });
 
     // --- Notification: notify task assignees about milestone completion ---
+    // Skip if the actor is an assignee (owner) of the project
     if (newCompletedMilestone && args.actorEmail) {
       const actorEmail = args.actorEmail.toLowerCase();
       const allStaff = await ctx.db.query("staff").collect();
       const assigneeNames = (task.assignee || "").split(",").map(n => n.trim().toLowerCase()).filter(Boolean);
       
-      for (const staff of allStaff) {
-        if (staff.email.toLowerCase() === actorEmail) continue;
-        const nameMatch = assigneeNames.some(a => staff.name.toLowerCase().includes(a) || a.includes(staff.name.toLowerCase()));
-        if (nameMatch) {
-          await ctx.db.insert("notifications", {
-            type: "project_change",
-            targetEmail: staff.email.toLowerCase(),
-            actorEmail,
-            actorName: args.actorName || actorEmail,
-            message: `completed milestone "${newCompletedMilestone.name}" on "${task.title}"`,
-            taskId: args.taskId,
-            taskTitle: task.title,
-            read: false,
-            createdAt: Date.now(),
-          });
+      // Don't notify when owner makes changes to their own project
+      if (!isActorAssignee(actorEmail, task.assignee || "", allStaff)) {
+        for (const staff of allStaff) {
+          if (staff.email.toLowerCase() === actorEmail) continue;
+          const nameMatch = assigneeNames.some(a => staff.name.toLowerCase().includes(a) || a.includes(staff.name.toLowerCase()));
+          if (nameMatch) {
+            await ctx.db.insert("notifications", {
+              type: "project_change",
+              targetEmail: staff.email.toLowerCase(),
+              actorEmail,
+              actorName: args.actorName || actorEmail,
+              message: `completed milestone "${newCompletedMilestone.name}" on "${task.title}"`,
+              taskId: args.taskId,
+              taskTitle: task.title,
+              read: false,
+              createdAt: Date.now(),
+            });
+          }
         }
       }
     }
@@ -290,23 +312,25 @@ export const addNoteToTask = mutation({
     const actorEmail = (args.writerEmail || "").toLowerCase();
     const allStaff = await ctx.db.query("staff").collect();
 
-    // Notify task assignees (project change) — skip the note author
+    // Notify task assignees (project change) — skip if actor is an assignee (owner)
     const assigneeNames = (task.assignee || "").split(",").map(n => n.trim().toLowerCase()).filter(Boolean);
-    for (const staff of allStaff) {
-      if (staff.email.toLowerCase() === actorEmail) continue;
-      const nameMatch = assigneeNames.some(a => staff.name.toLowerCase().includes(a) || a.includes(staff.name.toLowerCase()));
-      if (nameMatch) {
-        await ctx.db.insert("notifications", {
-          type: "project_change",
-          targetEmail: staff.email.toLowerCase(),
-          actorEmail,
-          actorName: args.writer,
-          message: `added a note on "${task.title}"`,
-          taskId: args.taskId,
-          taskTitle: task.title,
-          read: false,
-          createdAt: Date.now(),
-        });
+    if (!isActorAssignee(actorEmail, task.assignee || "", allStaff)) {
+      for (const staff of allStaff) {
+        if (staff.email.toLowerCase() === actorEmail) continue;
+        const nameMatch = assigneeNames.some(a => staff.name.toLowerCase().includes(a) || a.includes(staff.name.toLowerCase()));
+        if (nameMatch) {
+          await ctx.db.insert("notifications", {
+            type: "project_change",
+            targetEmail: staff.email.toLowerCase(),
+            actorEmail,
+            actorName: args.writer,
+            message: `added a note on "${task.title}"`,
+            taskId: args.taskId,
+            taskTitle: task.title,
+            read: false,
+            createdAt: Date.now(),
+          });
+        }
       }
     }
 
@@ -339,9 +363,29 @@ export const addNoteToTask = mutation({
 });
 
 export const deleteTask = mutation({
-  args: { taskId: v.id("tasks") },
+  args: {
+    taskId: v.id("tasks"),
+    actorEmail: v.optional(v.string()),
+    actorName: v.optional(v.string()),
+    source: v.optional(v.string()), // "kanban" | "modal" | "archive" | "context-menu"
+  },
   handler: async (ctx, args) => {
+    // Capture task info before deletion for audit log
+    const task = await ctx.db.get(args.taskId);
+    const taskTitle = task?.title || "Unknown Project";
+    const taskAssignee = task?.assignee || "Unassigned";
+
     await ctx.db.delete(args.taskId);
+
+    // Audit log — record who deleted the project
+    const actorEmail = (args.actorEmail || "unknown").toLowerCase();
+    await ctx.db.insert("securityLogs", {
+      action: "PROJECT_DELETED",
+      userEmail: actorEmail,
+      targetEmail: actorEmail,
+      details: `Deleted project "${taskTitle}" (assignee: ${taskAssignee}) from ${args.source || "unknown"}.`,
+      timestamp: Date.now(),
+    });
   },
 });
 
@@ -385,6 +429,7 @@ export const updateTaskDetails = mutation({
     });
 
     // --- Notification: notify task assignees about detail changes ---
+    // Skip if the actor is an assignee (owner) of the project
     if (args.actorEmail) {
       const actorEmail = args.actorEmail.toLowerCase();
       const allStaff = await ctx.db.query("staff").collect();
@@ -394,21 +439,23 @@ export const updateTaskDetails = mutation({
       const newAssignees = (args.newAssignee || "").split(",").map(n => n.trim().toLowerCase()).filter(Boolean);
       const notifySet = new Set([...oldAssignees, ...newAssignees]);
 
-      for (const staff of allStaff) {
-        if (staff.email.toLowerCase() === actorEmail) continue;
-        const nameMatch = Array.from(notifySet).some(a => staff.name.toLowerCase().includes(a) || a.includes(staff.name.toLowerCase()));
-        if (nameMatch) {
-          await ctx.db.insert("notifications", {
-            type: "project_change",
-            targetEmail: staff.email.toLowerCase(),
-            actorEmail,
-            actorName: args.actorName || actorEmail,
-            message: `updated project details for "${args.newTitle}"`,
-            taskId: args.taskId,
-            taskTitle: args.newTitle,
-            read: false,
-            createdAt: Date.now(),
-          });
+      if (!isActorAssignee(actorEmail, task.assignee || "", allStaff)) {
+        for (const staff of allStaff) {
+          if (staff.email.toLowerCase() === actorEmail) continue;
+          const nameMatch = Array.from(notifySet).some(a => staff.name.toLowerCase().includes(a) || a.includes(staff.name.toLowerCase()));
+          if (nameMatch) {
+            await ctx.db.insert("notifications", {
+              type: "project_change",
+              targetEmail: staff.email.toLowerCase(),
+              actorEmail,
+              actorName: args.actorName || actorEmail,
+              message: `updated project details for "${args.newTitle}"`,
+              taskId: args.taskId,
+              taskTitle: args.newTitle,
+              read: false,
+              createdAt: Date.now(),
+            });
+          }
         }
       }
     }
@@ -497,25 +544,28 @@ export const addTaskFeature = mutation({
     await ctx.db.patch(args.taskId, { features, lastUpdated: Date.now() });
 
     // --- Notification: notify task assignees ---
+    // Skip if the actor is an assignee (owner) of the project
     if (args.actorEmail) {
       const actorEmail = args.actorEmail.toLowerCase();
       const allStaff = await ctx.db.query("staff").collect();
       const assigneeNames = (task.assignee || "").split(",").map(n => n.trim().toLowerCase()).filter(Boolean);
-      for (const staff of allStaff) {
-        if (staff.email.toLowerCase() === actorEmail) continue;
-        const nameMatch = assigneeNames.some(a => staff.name.toLowerCase().includes(a) || a.includes(staff.name.toLowerCase()));
-        if (nameMatch) {
-          await ctx.db.insert("notifications", {
-            type: "project_change",
-            targetEmail: staff.email.toLowerCase(),
-            actorEmail,
-            actorName: args.actorName || actorEmail,
-            message: `added ${args.feature.type === "bug" ? "a bug" : "a feature"} "${args.feature.name}" to "${task.title}"`,
-            taskId: args.taskId,
-            taskTitle: task.title,
-            read: false,
-            createdAt: Date.now(),
-          });
+      if (!isActorAssignee(actorEmail, task.assignee || "", allStaff)) {
+        for (const staff of allStaff) {
+          if (staff.email.toLowerCase() === actorEmail) continue;
+          const nameMatch = assigneeNames.some(a => staff.name.toLowerCase().includes(a) || a.includes(staff.name.toLowerCase()));
+          if (nameMatch) {
+            await ctx.db.insert("notifications", {
+              type: "project_change",
+              targetEmail: staff.email.toLowerCase(),
+              actorEmail,
+              actorName: args.actorName || actorEmail,
+              message: `added ${args.feature.type === "bug" ? "a bug" : "a feature"} "${args.feature.name}" to "${task.title}"`,
+              taskId: args.taskId,
+              taskTitle: task.title,
+              read: false,
+              createdAt: Date.now(),
+            });
+          }
         }
       }
     }

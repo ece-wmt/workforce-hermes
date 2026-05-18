@@ -27,6 +27,7 @@
   --col-test: #34d399;
   --col-done: #064e3b;
   --col-scrap: #94a3b8;
+  --col-implemented: #6366f1;
 
   /* Modern Interface Tokens */
   --glass-bg: rgba(255, 255, 255, 0.75);
@@ -281,6 +282,10 @@ header {
   border-top-color: var(--col-scrap);
 }
 
+.col-implemented {
+  border-top-color: var(--col-implemented);
+}
+
 .col-header {
   padding: 10px;
   font-size: 0.75rem;
@@ -315,6 +320,10 @@ header {
   background: var(--col-scrap);
 }
 
+.col-implemented .col-header {
+  background: var(--col-implemented);
+}
+
 .col-todo {
   background: linear-gradient(to bottom, var(--color-bg-subtle), white);
 }
@@ -337,6 +346,10 @@ header {
 
 .col-scrap {
   background: linear-gradient(to bottom, #f3f4f6, white);
+}
+
+.col-implemented {
+  background: linear-gradient(to bottom, #eef2ff, white);
 }
 
 .col-content {

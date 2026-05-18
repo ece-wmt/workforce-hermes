@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { loadSettings, saveSettings, applySettings, DEFAULT_SETTINGS } from "../utils/settingsManager";
@@ -19,6 +19,7 @@ const BASE_SECTIONS = [
   { id: "general", label: "General Preferences", icon: "sliders" },
   { id: "account", label: "Account & Profile", icon: "user" },
   { id: "notifications", label: "Notifications", icon: "bell" },
+  { id: "archive", label: "Archived Projects", icon: "archive" },
 ];
 
 function SectionIcon({ icon, size = 18 }) {
@@ -34,6 +35,8 @@ function SectionIcon({ icon, size = 18 }) {
       return (<svg viewBox="0 0 24 24" {...s}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>);
     case "shield":
       return (<svg viewBox="0 0 24 24" {...s}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>);
+    case "archive":
+      return (<svg viewBox="0 0 24 24" {...s}><polyline points="21 8 21 21 3 21 3 8" /><rect x="1" y="3" width="22" height="5" /><line x1="10" y1="12" x2="14" y2="12" /></svg>);
     default: return null;
   }
 }
@@ -42,9 +45,15 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
   const [activeSection, setActiveSection] = useState("appearance");
   const [hasChanges, setHasChanges] = useState(false);
   const isAdminPlus = actualRole === "Admin+";
-  const SECTIONS = isAdminPlus
-    ? [...BASE_SECTIONS, { id: "staff", label: "Staff Management", icon: "shield" }]
-    : BASE_SECTIONS;
+  const SECTIONS = useMemo(() => {
+    return isAdminPlus
+      ? [
+          ...BASE_SECTIONS.filter(s => s.id !== "archive"),
+          { id: "staff", label: "Staff Management", icon: "shield" },
+          { id: "archive", label: "Archived Projects", icon: "archive" },
+        ]
+      : BASE_SECTIONS;
+  }, [isAdminPlus]);
 
   const contentRef = useRef(null);
   const savedRef = useRef(null); // snapshot of settings before edits
@@ -100,6 +109,12 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
 
   const allStaff = useQuery(api.staff.getStaff);
 
+  // Archive: fetch all tasks to filter scrapyard ones
+  const allTasks = useQuery(api.tasks.getTasksLight);
+  const updateTaskStatus = useMutation(api.tasks.updateTaskStatus);
+  const archivedTasks = (allTasks || []).filter(t => (t.status || "").toLowerCase() === "scrapyard");
+  const deleteTask = useMutation(api.tasks.deleteTask);
+
   const handleUpdateSecurityQuestion = async () => {
     if (!securityQuestion.trim() || !securityAnswer.trim()) {
       showModal({ title: "Error", message: "Both question and answer are required.", type: "alert" });
@@ -144,6 +159,17 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
     if (!container) return;
     const handler = () => {
       const sects = SECTIONS.map((s) => ({ id: s.id, el: document.getElementById(`settings-section-${s.id}`) }));
+      
+      // Check if we are scrolled to the bottom of the container
+      const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 10;
+      if (isAtBottom && sects.length > 0) {
+        const lastValid = sects.slice().reverse().find(s => s.el);
+        if (lastValid) {
+          setActiveSection(lastValid.id);
+          return;
+        }
+      }
+
       const scrollTop = container.scrollTop + 100;
       for (let i = sects.length - 1; i >= 0; i--) {
         if (sects[i].el && sects[i].el.offsetTop - container.offsetTop <= scrollTop) { setActiveSection(sects[i].id); break; }
@@ -151,7 +177,7 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
     };
     container.addEventListener("scroll", handler);
     return () => container.removeEventListener("scroll", handler);
-  }, []);
+  }, [SECTIONS]);
 
   function handleAvatarUpload(e) {
     const file = e.target.files[0];
@@ -656,6 +682,89 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
                 </div>
               </section>
             )}
+
+            {/* ─── ARCHIVED PROJECTS ─── */}
+            <section id="settings-section-archive" className="settings-section">
+              <div className="settings-section-header"><SectionIcon icon="archive" size={20} /><h3>Archived Projects</h3></div>
+              <p className="settings-section-desc">Scrapped projects are stored here. Restore them or delete permanently.</p>
+
+              <div className="settings-card">
+                <label className="settings-field-label" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-secondary)" strokeWidth="2.5"><polyline points="21 8 21 21 3 21 3 8" /><rect x="1" y="3" width="22" height="5" /><line x1="10" y1="12" x2="14" y2="12" /></svg>
+                  Scrapped / Archived
+                  {archivedTasks.length > 0 && (
+                    <span style={{ background: "#94a3b8", color: "white", borderRadius: "20px", padding: "2px 10px", fontSize: "0.7rem", fontWeight: 800, marginLeft: "4px" }}>{archivedTasks.length}</span>
+                  )}
+                </label>
+                {archivedTasks.length > 0 ? (
+                  <div className="staff-management-list" style={{ maxHeight: 400, overflowY: "auto" }}>
+                    {archivedTasks.map((t) => (
+                      <div key={t._id} className="staff-mgmt-row" style={{ padding: "12px 14px" }}>
+                        <div className="staff-mgmt-info" style={{ flex: 1 }}>
+                          <span className="staff-mgmt-name" style={{ fontSize: "0.82rem" }}>{t.title}</span>
+                          <span className="staff-mgmt-email">{t.assignee || "Unassigned"}</span>
+                          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                            <span style={{ fontSize: "0.6rem", color: "#94a3b8" }}>
+                              Milestones: {t.completedMilestones || 0} / {(t.milestones || []).length}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="staff-mgmt-actions" style={{ gap: 6 }}>
+                          <button
+                            className="staff-action-btn approve"
+                            title="Restore to To Do"
+                            onClick={() => {
+                              showModal({
+                                title: "Restore Project",
+                                message: `Restore "${t.title}" back to the To Do column?`,
+                                type: "confirm",
+                                onConfirm: async () => {
+                                  try {
+                                    await updateTaskStatus({ taskId: t._id, newStatus: "todo" });
+                                    showModal({ title: "Restored", message: `"${t.title}" has been moved back to To Do.`, type: "success" });
+                                  } catch (err) {
+                                    showModal({ title: "Error", message: err.message, type: "alert" });
+                                  }
+                                },
+                              });
+                            }}
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>
+                            Restore
+                          </button>
+                          <button
+                            className="staff-action-btn revoke"
+                            title="Permanently delete"
+                            onClick={() => {
+                              showModal({
+                                title: "Delete Permanently",
+                                message: `Are you sure you want to permanently delete "${t.title}"? This cannot be undone.`,
+                                type: "confirm",
+                                onConfirm: async () => {
+                                  try {
+                                    await deleteTask({ taskId: t._id, actorEmail: userEmail, actorName: userName, source: "archive" });
+                                    showModal({ title: "Deleted", message: `"${t.title}" has been permanently deleted.`, type: "success" });
+                                  } catch (err) {
+                                    showModal({ title: "Error", message: err.message, type: "alert" });
+                                  }
+                                },
+                              });
+                            }}
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ textAlign: "center", color: "var(--color-text-secondary)", fontStyle: "italic", padding: "24px", background: "var(--color-bg-subtle)", borderRadius: "var(--radius-md)", border: "1px dashed var(--glass-border)", fontSize: "0.85rem" }}>
+                    No archived projects.
+                  </div>
+                )}
+              </div>
+            </section>
 
             <div style={{ height: 100 }} />
           </div>
