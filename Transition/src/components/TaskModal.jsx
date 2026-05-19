@@ -1055,7 +1055,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                     // Check if overdue
                     let isOverdue = false;
                     let deadlineTime = null;
-                    if (status === "active" && m.days > 0) {
+                    if (task.status !== "scrapped" && status === "active" && m.days > 0) {
                       let lastTime = 0;
                       if (idx > 0) {
                         lastTime = milestones[idx - 1].completedAtTime || milestones[idx - 1].createdAtTime || task.lastUpdated;

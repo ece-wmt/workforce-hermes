@@ -13,6 +13,7 @@ const cleanConvexError = (errorMessage) => {
 };
 
 const isTaskOverdue = (t) => {
+  if (t.status === "scrapped") return false;
   const milestones = t.milestones || [];
   const firstIncompleteIdx = milestones.findIndex((ms) => !ms.completed);
   if (firstIncompleteIdx === -1) return false;
@@ -32,6 +33,7 @@ const isTaskOverdue = (t) => {
 };
 
 const getMilestoneDeadline = (t, idx) => {
+  if (t.status === "scrapped") return null;
   const milestones = t.milestones || [];
   const m = milestones[idx];
   if (!m || !m.days) return null;

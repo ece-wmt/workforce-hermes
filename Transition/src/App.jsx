@@ -1171,6 +1171,7 @@ export default function App() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "16px", overflowY: "auto", flex: 1, paddingRight: "5px" }}>
               {(() => {
                 const helperIsTaskOverdue = (t) => {
+                  if (t.status === "scrapped") return false;
                   const milestones = t.milestones || [];
                   const firstIncompleteIdx = milestones.findIndex((ms) => !ms.completed);
                   if (firstIncompleteIdx === -1) return false;
@@ -1262,7 +1263,7 @@ export default function App() {
                               const activeIdx = t.milestones.findIndex(ms => !ms.completed);
                               const isMilestoneOverdue = isOverdue && !m.completed && (activeIdx === idx);
                               let dueStr = "";
-                              if (activeIdx === idx && m.days > 0) {
+                              if (t.status !== "scrapped" && activeIdx === idx && m.days > 0) {
                                 let lastTime = 0;
                                 if (idx > 0) {
                                   lastTime = t.milestones[idx - 1].completedAtTime || t.milestones[idx - 1].createdAtTime || t.lastUpdated;
