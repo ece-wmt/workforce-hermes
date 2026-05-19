@@ -13,6 +13,7 @@ export default defineSchema({
         days: v.number(),
         completed: v.optional(v.boolean()),
         completedAt: v.optional(v.string()),
+        completedAtTime: v.optional(v.number()),
         createdAtTime: v.optional(v.number()),
       })
     ),
@@ -66,6 +67,7 @@ export default defineSchema({
         })
       )
     ),
+    isPrioritized: v.optional(v.boolean()),
   }),
 
   staff: defineTable({

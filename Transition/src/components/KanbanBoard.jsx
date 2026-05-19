@@ -3,8 +3,54 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { notifyTaskUpdated, notifyMilestoneCompleted, notifyNoteAdded } from "../utils/notifications";
 
-export default function KanbanBoard({ userRole, actualRole, userName, openTaskModal, onContextMenu, showModal, staff }) {
+const cleanConvexError = (errorMessage) => {
+  if (!errorMessage) return "An unexpected error occurred.";
+  const match = errorMessage.match(/Uncaught Error:\s*([^\n]+)/);
+  if (match && match[1]) {
+    return match[1].replace(/\s*at\s+handler.*/i, "").trim();
+  }
+  return errorMessage.replace(/\[CONVEX[^\]]*\]/g, "").replace(/Server/gi, "").trim();
+};
+
+const isTaskOverdue = (t) => {
+  const milestones = t.milestones || [];
+  const firstIncompleteIdx = milestones.findIndex((ms) => !ms.completed);
+  if (firstIncompleteIdx === -1) return false;
+  const m = milestones[firstIncompleteIdx];
+  if (!m || !m.days) return false;
+  let lastTime = 0;
+  if (firstIncompleteIdx > 0) {
+    lastTime = milestones[firstIncompleteIdx - 1].completedAtTime || milestones[firstIncompleteIdx - 1].createdAtTime || t.lastUpdated;
+  } else {
+    lastTime = m.createdAtTime || t.lastUpdated;
+  }
+  if (lastTime) {
+    const elapsedDays = (Date.now() - lastTime) / (1000 * 60 * 60 * 24);
+    return elapsedDays > m.days;
+  }
+  return false;
+};
+
+const getMilestoneDeadline = (t, idx) => {
+  const milestones = t.milestones || [];
+  const m = milestones[idx];
+  if (!m || !m.days) return null;
+  let lastTime = 0;
+  if (idx > 0) {
+    lastTime = milestones[idx - 1].completedAtTime || milestones[idx - 1].createdAtTime || t.lastUpdated;
+  } else {
+    lastTime = m.createdAtTime || t.lastUpdated;
+  }
+  if (lastTime) {
+    return lastTime + (m.days * 24 * 60 * 60 * 1000);
+  }
+  return null;
+};
+
+
+export default function KanbanBoard({ userRole, actualRole, userName, openTaskModal, onContextMenu, showModal, staff, searchQuery }) {
   const tasks = useQuery(api.tasks.getTasksLight);
+  const toggleTaskPriority = useMutation(api.tasks.toggleTaskPriority);
   const updateTaskStatus = useMutation(api.tasks.updateTaskStatus).withOptimisticUpdate(
     (localStore, { taskId, newStatus }) => {
       const allTasks = localStore.getQuery(api.tasks.getTasksLight, {});
@@ -125,7 +171,7 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
 
   const displayTasks = (Array.isArray(tasks) && tasks.length > 0) ? tasks : lastKnownTasks;
 
-  const columns = ["todo", "pending", "development", "testing", "done", "implemented"];
+  const columns = ["todo", "pending", "development", "testing", "done", "implemented", "scrapped"];
   const columnLabels = {
     todo: "To Do",
     pending: "Pending",
@@ -133,6 +179,7 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
     testing: "In Testing",
     done: "Done",
     implemented: "Implemented",
+    scrapped: "Scrapped Yard",
   };
   const columnClasses = {
     todo: "col-todo",
@@ -141,6 +188,7 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
     testing: "col-test",
     done: "col-done",
     implemented: "col-implemented",
+    scrapped: "col-scrap",
   };
 
   const sorted = [...(Array.isArray(displayTasks) ? displayTasks : [])].sort((a, b) => b.lastUpdated - a.lastUpdated);
@@ -148,6 +196,15 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
   if (userRole === "Programmer") {
     filtered = sorted.filter(
       (t) => t.assignee && t.assignee.toLowerCase().includes(userName.toLowerCase())
+    );
+  }
+
+  if (searchQuery && searchQuery.trim().length > 0) {
+    const sq = searchQuery.toLowerCase().trim();
+    filtered = filtered.filter(
+      (t) => 
+        (t.title && t.title.toLowerCase().includes(sq)) || 
+        (t.assignee && t.assignee.toLowerCase().includes(sq))
     );
   }
 
@@ -165,7 +222,10 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
     e.preventDefault();
     const taskId = e.dataTransfer.getData("taskId");
     if (taskId) {
-      updateTaskStatus({ taskId, newStatus });
+      updateTaskStatus({ taskId, newStatus })
+        .catch(err => {
+          showModal({ title: "Error", message: cleanConvexError(err.message), type: "alert" });
+        });
     }
   }
 
@@ -174,7 +234,10 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
     if (task) {
       notifyTaskUpdated(task.title);
     }
-    updateTaskStatus({ taskId, newStatus });
+    updateTaskStatus({ taskId, newStatus })
+      .catch(err => {
+        showModal({ title: "Error", message: cleanConvexError(err.message), type: "alert" });
+      });
   }
 
   function toggleMilestone(taskId, milestoneIdx, task) {
@@ -186,12 +249,17 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
         timeZone: "America/New_York",
         year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
       });
+      milestones[milestoneIdx].completedAtTime = Date.now();
       notifyMilestoneCompleted(task.title, milestones[milestoneIdx].name);
     } else {
       delete milestones[milestoneIdx].completedAt;
+      delete milestones[milestoneIdx].completedAtTime;
     }
     const completedCount = milestones.filter((m) => m.completed).length;
-    updateTaskMilestones({ taskId, milestones, completedCount });
+    updateTaskMilestones({ taskId, milestones, completedCount })
+      .catch(err => {
+        showModal({ title: "Error", message: cleanConvexError(err.message), type: "alert" });
+      });
   }
 
   function handleAddNote(taskId, inputId) {
@@ -203,7 +271,10 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
       timeZone: "America/New_York",
       year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
     });
-    addNoteToTask({ taskId, noteText: text, writer: userName, writerEmail: (localStorage.getItem("wf_email") || "").toLowerCase(), date: estDate });
+    addNoteToTask({ taskId, noteText: text, writer: userName, writerEmail: (localStorage.getItem("wf_email") || "").toLowerCase(), date: estDate })
+      .catch(err => {
+        showModal({ title: "Error", message: cleanConvexError(err.message), type: "alert" });
+      });
     if (task) {
       notifyNoteAdded(task.title, text);
     }
@@ -222,7 +293,10 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
     const [moved] = milestones.splice(draggedMilestoneIdx, 1);
     milestones.splice(targetIdx, 0, moved);
     const completedCount = milestones.filter((m) => m.completed).length;
-    updateTaskMilestones({ taskId, milestones, completedCount });
+    updateTaskMilestones({ taskId, milestones, completedCount })
+      .catch(err => {
+        showModal({ title: "Error", message: cleanConvexError(err.message), type: "alert" });
+      });
     setDraggedMilestoneIdx(null);
   }
 
@@ -231,6 +305,10 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
     const totalM = milestones.length > 0 ? milestones.length : 10;
     const doneM = t.completedMilestones || 0;
     const progressPercent = Math.round((doneM / totalM) * 100);
+
+    const isOverdue = isTaskOverdue(t);
+    const activeIdx = milestones.findIndex((ms) => !ms.completed);
+    const deadlineTime = activeIdx !== -1 ? getMilestoneDeadline(t, activeIdx) : null;
 
     let canEditMilestone = true;
     if (actualRole === "Admin") {
@@ -256,29 +334,67 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
         onDragEnd={(e) => !isFullView && e.currentTarget.classList.remove("dragging")}
         onClick={() => { setFullViewColumn(null); openTaskModal(t._id); }}
         onContextMenu={(e) => onContextMenu(e, t)}
+        style={{
+          boxShadow: isOverdue ? "0 0 15px rgba(239, 68, 68, 0.35)" : undefined,
+          border: isOverdue ? "1px solid #fee2e2" : undefined,
+          position: "relative"
+        }}
       >
         <div className="card-header" style={{ marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div>
-            <h4 style={{ fontSize: "0.85rem", fontWeight: 900, letterSpacing: "-0.4px" }}>{t.title}</h4>
-            <div style={{ fontSize: "0.6rem", color: "#94a3b8", fontWeight: 800, letterSpacing: "0.8px" }}>
-              #{(t._id || "").slice(-4).toUpperCase()}
+            <h4 style={{ fontSize: "0.85rem", fontWeight: 900, letterSpacing: "-0.4px", display: "flex", alignItems: "center", gap: "6px" }}>
+              {t.title}
+            </h4>
+            <div style={{ fontSize: "0.6rem", color: "#94a3b8", fontWeight: 800, letterSpacing: "0.8px", display: "flex", gap: "6px", alignItems: "center", marginTop: "4px" }}>
+              {((t.assignee || "").split(",").filter(a => a.trim()).length > 1) ? (
+                <>
+                  <span style={{ background: "#dbeafe", color: "#1e40af", padding: "2px 8px", borderRadius: "12px" }}>
+                    SHARED
+                  </span>
+                  <span>#{(t._id || "").slice(-4).toUpperCase()}</span>
+                </>
+              ) : (
+                <span>#{(t._id || "").slice(-4).toUpperCase()}</span>
+              )}
+              {deadlineTime && (
+                <span style={{ background: isOverdue ? "#fee2e2" : "#d1fae5", color: isOverdue ? "#991b1b" : "#065f46", padding: "2px 8px", borderRadius: "12px" }}>
+                  {isOverdue ? "OVERDUE" : "DUE"}: {new Date(deadlineTime).toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase()}
+                </span>
+              )}
             </div>
           </div>
-          {(userRole === "Programmer" || actualRole === "Programmer") && getTaskBadges(t).hasBadges && (
-            <div style={{
-              background: "#ef4444",
-              color: "white",
-              fontSize: "0.65rem",
-              fontWeight: 900,
-              padding: "3px 7px",
-              borderRadius: "12px",
-              minWidth: "24px",
-              textAlign: "center",
-              whiteSpace: "nowrap",
-            }}>
-              {getTaskBadges(t).total}
-            </div>
-          )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
+            {t.isPrioritized && (
+              <span 
+                style={{ background: "#fef9c3", color: "#854d0e", padding: "4px 10px", borderRadius: "8px", cursor: "pointer", fontSize: "0.6rem", fontWeight: 900, letterSpacing: "0.5px" }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleTaskPriority({ taskId: t._id, isPrioritized: false })
+                    .catch(err => {
+                      showModal({ title: "Priority Error", message: cleanConvexError(err.message), type: "alert" });
+                    });
+                }}
+                title="Remove Priority"
+              >
+                PRIORITY
+              </span>
+            )}
+            {(userRole === "Programmer" || actualRole === "Programmer") && getTaskBadges(t).hasBadges && (
+              <div style={{
+                background: "#ef4444",
+                color: "white",
+                fontSize: "0.65rem",
+                fontWeight: 900,
+                padding: "3px 7px",
+                borderRadius: "12px",
+                minWidth: "24px",
+                textAlign: "center",
+                whiteSpace: "nowrap",
+              }}>
+                {getTaskBadges(t).total}
+              </div>
+            )}
+          </div>
         </div>
         
         {isFullView && (
@@ -332,6 +448,23 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
                   if (m.completed) status = "completed";
                   else if (idx === firstIncompleteIdx) status = "active";
 
+                  // Check if overdue
+                  let isOverdue = false;
+                  if (status === "active" && m.days > 0) {
+                    let lastTime = 0;
+                    if (idx > 0) {
+                      lastTime = milestones[idx - 1].completedAtTime || milestones[idx - 1].createdAtTime || t.lastUpdated;
+                    } else {
+                      lastTime = m.createdAtTime || t.lastUpdated;
+                    }
+                    if (lastTime) {
+                      const elapsedDays = (Date.now() - lastTime) / (1000 * 60 * 60 * 24);
+                      if (elapsedDays > m.days) {
+                        isOverdue = true;
+                      }
+                    }
+                  }
+
                   let actionBtn;
                   if (canEditMilestone) {
                     if (status === "completed") {
@@ -352,11 +485,19 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
                     visibilityClass = "m-active-or-last";
                   }
 
+                  const deadlineTime = status === "active" ? getMilestoneDeadline(t, idx) : null;
+
                   return (
                     <div
                       key={idx}
-                      className={`milestone-list-item ${status} ${visibilityClass}`}
-                      style={{ padding: 10, gap: 10 }}
+                      className={`milestone-list-item ${status} ${visibilityClass} ${isOverdue ? "overdue" : ""}`}
+                      style={{ 
+                        padding: 10, 
+                        gap: 10,
+                        border: isOverdue ? "1px solid #ef4444" : undefined,
+                        boxShadow: isOverdue ? "0 0 8px rgba(239, 68, 68, 0.4)" : undefined,
+                        background: isOverdue ? "rgba(239, 68, 68, 0.05)" : undefined,
+                      }}
                       draggable={canEditMilestone}
                       onDragStart={(e) => { e.stopPropagation(); setDraggedMilestoneIdx(idx); }}
                       onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
@@ -365,8 +506,9 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
                       <div className="drag-handle" style={{ fontSize: "1rem" }}>⋮⋮</div>
                       <div className="milestone-list-content">
                         <div className="milestone-name-row">
-                          <span className={`m-name ${m.completed ? "strike" : ""}`} style={{ fontSize: "0.75rem" }}>
-                            {m.name} <span style={{ fontWeight: "normal", color: "#94a3b8" }}>({m.days} days)</span>
+                          <span className={`m-name ${m.completed ? "strike" : ""}`} style={{ fontSize: "0.75rem", color: isOverdue ? "#ef4444" : undefined }}>
+                            {m.name} <span style={{ fontWeight: "normal", color: isOverdue ? "#ef4444" : "#94a3b8" }}>({m.days} days)</span>
+                            {isOverdue && <span style={{ marginLeft: 6, fontSize: "0.6rem", fontWeight: "bold", color: "white", background: "#ef4444", padding: "2px 6px", borderRadius: "8px" }}>OVERDUE</span>}
                           </span>
                           {actionBtn}
                         </div>
@@ -397,10 +539,22 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
                 </div>
               ))}
             </div>
+            {(() => {
+              const firstIncompleteIdx = milestones.findIndex((ms) => !ms.completed);
+              if (firstIncompleteIdx !== -1 && milestones[firstIncompleteIdx]) {
+                const currentM = milestones[firstIncompleteIdx];
+                return (
+                  <div style={{ fontSize: "0.68rem", color: "var(--color-text-secondary)", margin: "8px 0 2px 0", fontWeight: 700 }}>
+                    Current: <span style={{ color: "var(--color-text-primary)", fontWeight: 800 }}>{currentM.name}</span>
+                  </div>
+                );
+              }
+              return null;
+            })()}
             <div className="card-actions">
-              {["todo", "pending", "development", "testing", "done", "implemented"].map((s) => (
+              {["todo", "pending", "development", "testing", "done", "implemented", "scrapped"].map((s) => (
                 <div key={s} className="action-btn" onClick={(e) => { e.stopPropagation(); handleMoveTask(t._id, s); }}>
-                  {s === "development" ? "Dev" : s === "testing" ? "Test" : s === "implemented" ? "Impl" : s.charAt(0).toUpperCase() + s.slice(1)}
+                  {s === "development" ? "Dev" : s === "testing" ? "Test" : s === "implemented" ? "Impl" : s === "scrapped" ? "Scrap" : s.charAt(0).toUpperCase() + s.slice(1)}
                 </div>
               ))}
             </div>

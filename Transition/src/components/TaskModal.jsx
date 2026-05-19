@@ -17,6 +17,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   const deleteFeaturesBulk = useMutation(api.tasks.deleteTaskFeaturesBulk);
   const deleteMilestonesBulk = useMutation(api.tasks.deleteTaskMilestonesBulk);
   const addNoteReply = useMutation(api.tasks.addNoteReply);
+  const toggleTaskPriority = useMutation(api.tasks.toggleTaskPriority);
   const currentUserEmail = (localStorage.getItem("wf_email") || "").toLowerCase();
   const taskViewHistoryTime = useQuery(api.tasks.getTaskViewHistory, { taskId, userEmail: localStorage.getItem("wf_email") || "" });
 
@@ -831,7 +832,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
               <div 
                 className="modal-assignee" 
                 style={{ 
-                  marginBottom: 0, 
+                  marginBottom: 15, 
                   display: "flex", 
                   alignItems: "center", 
                   gap: 8,
@@ -879,6 +880,26 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                 ) : (
                   <span style={{ fontSize: "0.8rem", fontWeight: 700 }}>Assigned to: {task.assignee || "Unassigned"}</span>
                 )}
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <input
+                    type="checkbox"
+                    id="priority-checkbox"
+                    checked={task?.isPrioritized || false}
+                    onChange={() => {
+                      toggleTaskPriority({ taskId, isPrioritized: !task?.isPrioritized })
+                        .catch(err => {
+                          showModal({ title: "Priority Error", message: err.message || "Failed to update priority.", type: "alert" });
+                        });
+                    }}
+                    style={{ cursor: "pointer", width: 16, height: 16 }}
+                  />
+                  <label htmlFor="priority-checkbox" style={{ fontSize: "0.75rem", fontWeight: 700, cursor: "pointer", userSelect: "none" }}>
+                    Mark as Priority
+                  </label>
+                </div>
               </div>
 
               <div className="modal-desc" style={{ marginTop: 20 }}>
@@ -1031,6 +1052,25 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                     if (m.completed) status = "completed";
                     else if (idx === firstIncompleteIdx) status = "active";
 
+                    // Check if overdue
+                    let isOverdue = false;
+                    let deadlineTime = null;
+                    if (status === "active" && m.days > 0) {
+                      let lastTime = 0;
+                      if (idx > 0) {
+                        lastTime = milestones[idx - 1].completedAtTime || milestones[idx - 1].createdAtTime || task.lastUpdated;
+                      } else {
+                        lastTime = m.createdAtTime || task.lastUpdated;
+                      }
+                      if (lastTime) {
+                        deadlineTime = lastTime + (m.days * 24 * 60 * 60 * 1000);
+                        const elapsedDays = (Date.now() - lastTime) / (1000 * 60 * 60 * 24);
+                        if (elapsedDays > m.days) {
+                          isOverdue = true;
+                        }
+                      }
+                    }
+
                     let actionBtn;
                     if (canEditMilestone) {
                       if (status === "completed") actionBtn = <button className="btn-milestone-undo" onClick={() => handleToggleMilestone(idx)}>Undo</button>;
@@ -1045,22 +1085,41 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                     return (
                       <div
                         key={idx}
-                        className={`milestone-list-item ${status} ${selectedMilestones.has(idx) ? "bulk-selected-item" : ""}`}
+                        className={`milestone-list-item ${status} ${selectedMilestones.has(idx) ? "bulk-selected-item" : ""} ${isOverdue ? "overdue" : ""}`}
                         onClick={(e) => {
                           if (userRole === "Admin" || userRole === "Admin+") {
                             handleRowClickToggle(e, setSelectedMilestones, idx);
                           }
                         }}
-                        style={{ display: "flex", alignItems: "center", cursor: (userRole === "Admin" || userRole === "Admin+") ? "pointer" : "default" }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          cursor: (userRole === "Admin" || userRole === "Admin+") ? "pointer" : "default",
+                          border: isOverdue ? "1px solid #ef4444" : undefined,
+                          boxShadow: isOverdue ? "0 0 10px rgba(239, 68, 68, 0.45)" : undefined,
+                          background: isOverdue ? "rgba(239, 68, 68, 0.05)" : undefined
+                        }}
                       >
                         <div className="drag-handle">⋮⋮</div>
                         <div className="milestone-list-content">
                           <div className="milestone-name-row">
-                            <span className={`m-name ${m.completed ? "strike" : ""}`}>
-                              {m.name} <span style={{ fontWeight: "normal", color: "#94a3b8" }}>({m.days} days)</span>
+                            <span className={`m-name ${m.completed ? "strike" : ""}`} style={{ color: isOverdue ? "#ef4444" : undefined }}>
+                              {m.name} <span style={{ fontWeight: "normal", color: isOverdue ? "#ef4444" : "#94a3b8" }}>({m.days} days)</span>
+                              {isOverdue && <span style={{ marginLeft: 6, fontSize: "0.6rem", fontWeight: "bold", color: "white", background: "#ef4444", padding: "2px 6px", borderRadius: "8px", textDecoration: "none", display: "inline-block" }}>OVERDUE</span>}
                             </span>
                             {actionBtn}
                           </div>
+                          {status === "active" && deadlineTime && (
+                            <div className="milestone-date" style={{ color: isOverdue ? "#ef4444" : "#10b981", display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                                <line x1="16" y1="2" x2="16" y2="6" />
+                                <line x1="8" y1="2" x2="8" y2="6" />
+                                <line x1="3" y1="10" x2="21" y2="10" />
+                              </svg>
+                              Due: {new Date(deadlineTime).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                            </div>
+                          )}
                           {m.completed && m.completedAt && (
                             <div className="milestone-date">
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">

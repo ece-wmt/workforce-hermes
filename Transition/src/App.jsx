@@ -63,6 +63,10 @@ export default function App() {
   const [showLoginNotifications, setShowLoginNotifications] = useState(false);
   const [showAllProjects, setShowAllProjects] = useState(false);
   const [showRoleSwitcherPopup, setShowRoleSwitcherPopup] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showUserProjectsModal, setShowUserProjectsModal] = useState(false);
+  const [activeProjectsTab, setActiveProjectsTab] = useState("overview");
   const [modalConfig, setModalConfig] = useState({
     isOpen: false,
     title: "",
@@ -627,6 +631,94 @@ export default function App() {
             />
             <button
               className="btn-settings-header"
+              onClick={() => setShowSearch(!showSearch)}
+              title="Search"
+              style={{ padding: "8px", borderRadius: "50%", marginLeft: "0px" }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </button>
+            <div style={{ display: "flex", alignItems: "center", position: "relative" }}>
+              <div 
+                style={{ 
+                  display: "flex", 
+                  alignItems: "center", 
+                  width: showSearch ? "210px" : "0px", 
+                  opacity: showSearch ? 1 : 0, 
+                  overflow: "visible", 
+                  transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease, visibility 0.3s",
+                  marginLeft: showSearch ? "8px" : "0px",
+                  marginRight: showSearch ? "8px" : "0px",
+                  pointerEvents: showSearch ? "auto" : "none",
+                  visibility: showSearch ? "visible" : "hidden"
+                }}
+              >
+                <input
+                  type="text"
+                  placeholder="Search tasks, people..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  autoFocus={showSearch}
+                  style={{
+                    width: "200px",
+                    padding: "8px 12px",
+                    borderRadius: "16px",
+                    border: "1px solid var(--color-accent)",
+                    outline: "none",
+                    fontSize: "0.8rem",
+                    background: "white",
+                    color: "var(--color-text-primary)",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
+                    boxSizing: "border-box"
+                  }}
+                />
+                {showSearch && searchQuery.trim().length > 0 && (
+                  <div style={{ 
+                    position: "absolute", 
+                    top: "100%", 
+                    left: 0, 
+                    width: "250px", 
+                    background: "white", 
+                    borderRadius: "12px", 
+                    border: "1px solid #f1f5f9", 
+                    boxShadow: "0 10px 25px rgba(0,0,0,0.1)", 
+                    marginTop: "8px", 
+                    maxHeight: "300px", 
+                    overflowY: "auto", 
+                    padding: "8px",
+                    zIndex: 2000,
+                    animation: "slideDown 0.2s ease-out"
+                  }}>
+                    {/* Staff matches */}
+                    {staff?.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()) || s.email.toLowerCase().includes(searchQuery.toLowerCase())).map(s => (
+                      <div key={s._id || s.email} style={{ padding: "8px", cursor: "pointer", borderRadius: "6px", fontSize: "0.8rem", display: "flex", alignItems: "center", gap: "8px" }}
+                        onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"}
+                        onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                        onClick={() => { setViewingStaff(s); setShowSearch(false); setSearchQuery(""); }}
+                      >
+                        <div style={{ width: "20px", height: "20px", borderRadius: "50%", background: "var(--color-accent)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.6rem" }}>{s.name.charAt(0)}</div>
+                        <span>{s.name} (Profile)</span>
+                      </div>
+                    ))}
+                    {/* Task matches */}
+                    {tasks?.filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase()) || (searchQuery.toLowerCase() === "priority" && t.isPrioritized)).map(t => (
+                      <div key={t._id} style={{ padding: "8px", cursor: "pointer", borderRadius: "6px", fontSize: "0.8rem", display: "flex", flexDirection: "column" }}
+                        onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"}
+                        onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                        onClick={() => { openTaskModal(t._id); setShowSearch(false); setSearchQuery(""); }}
+                      >
+                        <div style={{ fontWeight: 800 }}>{t.title}</div>
+                        <div style={{ fontSize: "0.65rem", color: "#64748b" }}>{t.assignee || "Unassigned"}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            <button
+              className="btn-settings-header"
               onClick={() => setShowSettings(true)}
               title="Settings"
               style={{ padding: "8px", borderRadius: "50%", marginLeft: "0px" }}
@@ -732,6 +824,7 @@ export default function App() {
           onContextMenu={handleContextMenu}
           showModal={showModal}
           staff={staff || []}
+          searchQuery={searchQuery}
         />
       )}
       {currentView === "entry" && (
@@ -1025,7 +1118,14 @@ export default function App() {
                   </div>
                 </div>
 
-
+                <button
+                  onClick={() => setShowUserProjectsModal(true)}
+                  style={{ width: "100%", padding: "10px", background: "var(--color-accent)", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", marginBottom: "15px", transition: "0.2s" }}
+                  onMouseEnter={e => e.currentTarget.style.background = "var(--color-accent-hover)"}
+                  onMouseLeave={e => e.currentTarget.style.background = "var(--color-accent)"}
+                >
+                  View Projects
+                </button>
 
                 {activeProfile.bio && (
                   <div className="profile-popover-bio">
@@ -1033,6 +1133,171 @@ export default function App() {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {showUserProjectsModal && activeProfile && (
+        <div className="modal-overlay" style={{ zIndex: 4000 }} onClick={() => setShowUserProjectsModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: "1000px", height: "calc(100vh - 150px)", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
+            <button className="modal-close" onClick={() => setShowUserProjectsModal(false)}>×</button>
+            <h2 style={{ fontSize: "1.2rem", fontWeight: 900, marginBottom: "15px" }}>Projects assigned to {activeProfile.name}</h2>
+            
+            {/* TABS */}
+            <div style={{ display: "flex", gap: "8px", marginBottom: "15px", borderBottom: "1px solid #e2e8f0", paddingBottom: "10px" }}>
+              {["overview", "priority", "overdue", "shared"].map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveProjectsTab(tab)}
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: "8px",
+                    border: "none",
+                    background: activeProjectsTab === tab ? "var(--color-accent)" : "transparent",
+                    color: activeProjectsTab === tab ? "white" : "var(--color-text-secondary)",
+                    fontWeight: "bold",
+                    cursor: "pointer",
+                    textTransform: "uppercase",
+                    fontSize: "0.7rem",
+                    transition: "all 0.2s"
+                  }}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+
+            {/* PROJECTS LIST */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "16px", overflowY: "auto", flex: 1, paddingRight: "5px" }}>
+              {(() => {
+                const helperIsTaskOverdue = (t) => {
+                  const milestones = t.milestones || [];
+                  const firstIncompleteIdx = milestones.findIndex((ms) => !ms.completed);
+                  if (firstIncompleteIdx === -1) return false;
+                  const m = milestones[firstIncompleteIdx];
+                  if (!m || !m.days) return false;
+                  let lastTime = 0;
+                  if (firstIncompleteIdx > 0) {
+                    lastTime = milestones[firstIncompleteIdx - 1].completedAtTime || milestones[firstIncompleteIdx - 1].createdAtTime || t.lastUpdated;
+                  } else {
+                    lastTime = m.createdAtTime || t.lastUpdated;
+                  }
+                  if (lastTime) {
+                    const elapsedDays = (Date.now() - lastTime) / (1000 * 60 * 60 * 24);
+                    return elapsedDays > m.days;
+                  }
+                  return false;
+                };
+
+                const allAssigned = tasks?.filter(t => (t.assignee || "").toLowerCase().includes(activeProfile.name.toLowerCase().split(" ")[0])) || [];
+                
+                const filtered = allAssigned.filter(t => {
+                  if (activeProjectsTab === "priority") return t.isPrioritized;
+                  if (activeProjectsTab === "overdue") return helperIsTaskOverdue(t);
+                  if (activeProjectsTab === "shared") return (t.assignee || "").split(",").map(a => a.trim()).filter(Boolean).length > 1;
+                  return true; // overview
+                });
+
+                if (filtered.length === 0) {
+                  return (
+                    <div style={{ gridColumn: "span 2", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1, color: "#94a3b8", gap: "12px", padding: "40px 0" }}>
+                      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                      </svg>
+                      <span style={{ fontSize: "0.85rem", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                        No projects found under {activeProjectsTab}
+                      </span>
+                    </div>
+                  );
+                }
+
+                return filtered.map(t => {
+                  const assigneesList = (t.assignee || "").split(",").map(a => a.trim()).filter(Boolean);
+                  const isShared = assigneesList.length > 1;
+                  const isOverdue = helperIsTaskOverdue(t);
+                  const completedCount = t.completedMilestones || 0;
+                  const totalCount = t.milestones?.length || 0;
+                  const percent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+                  return (
+                    <div 
+                      key={t._id} 
+                      style={{ 
+                        background: "white", 
+                        padding: "16px", 
+                        borderRadius: "16px", 
+                        border: isOverdue ? "1px solid #fca5a5" : "1px solid #e2e8f0", 
+                        boxShadow: isOverdue ? "0 0 10px rgba(239, 68, 68, 0.1)" : "0 4px 12px rgba(0,0,0,0.03)",
+                        cursor: "pointer", 
+                        transition: "all 0.2s" 
+                      }} 
+                      onClick={() => { setShowUserProjectsModal(false); setViewingStaff(null); openTaskModal(t._id); }}
+                      onMouseEnter={e => e.currentTarget.style.transform = "translateY(-2px)"}
+                      onMouseLeave={e => e.currentTarget.style.transform = "translateY(0)"}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                        <div style={{ fontWeight: 800, fontSize: "0.95rem", color: "var(--color-text-primary)" }}>{t.title}</div>
+                        <div style={{ display: "flex", gap: "6px" }}>
+                          {t.isPrioritized && <span style={{ background: "#fef08a", color: "#854d0e", fontSize: "0.6rem", padding: "2px 8px", borderRadius: "12px", fontWeight: 800 }}>PRIORITY</span>}
+                          {isShared && <span style={{ background: "#bfdbfe", color: "#1e3a8a", fontSize: "0.6rem", padding: "2px 8px", borderRadius: "12px", fontWeight: 800 }}>SHARED</span>}
+                          {isOverdue && <span style={{ background: "#fee2e2", color: "#991b1b", fontSize: "0.6rem", padding: "2px 8px", borderRadius: "12px", fontWeight: 800 }}>OVERDUE</span>}
+                        </div>
+                      </div>
+
+                      {/* Percent completion bar */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px", margin: "10px 0" }}>
+                        <div style={{ flex: 1, height: "6px", background: "#f1f5f9", borderRadius: "10px", overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${percent}%`, background: isOverdue ? "#ef4444" : "var(--color-accent)", borderRadius: "10px" }} />
+                        </div>
+                        <div style={{ fontSize: "0.7rem", fontWeight: "bold", color: "#64748b" }}>{percent}%</div>
+                      </div>
+
+                      {/* Milestones grid */}
+                      {t.milestones && t.milestones.length > 0 && (
+                        <div style={{ marginTop: "12px", background: "#f8fafc", padding: "10px", borderRadius: "10px" }}>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                            {t.milestones.map((m, idx) => {
+                              const activeIdx = t.milestones.findIndex(ms => !ms.completed);
+                              const isMilestoneOverdue = isOverdue && !m.completed && (activeIdx === idx);
+                              let dueStr = "";
+                              if (activeIdx === idx && m.days > 0) {
+                                let lastTime = 0;
+                                if (idx > 0) {
+                                  lastTime = t.milestones[idx - 1].completedAtTime || t.milestones[idx - 1].createdAtTime || t.lastUpdated;
+                                } else {
+                                  lastTime = m.createdAtTime || t.lastUpdated;
+                                }
+                                if (lastTime) {
+                                  const deadlineTime = lastTime + (m.days * 24 * 60 * 60 * 1000);
+                                  dueStr = ` (Due: ${new Date(deadlineTime).toLocaleDateString("en-US", { month: "short", day: "numeric" })})`;
+                                }
+                              }
+                              return (
+                                <span 
+                                  key={idx} 
+                                  style={{ 
+                                    fontSize: "0.65rem", 
+                                    padding: "3px 8px", 
+                                    borderRadius: "6px", 
+                                    background: m.completed ? "#d1fae5" : isMilestoneOverdue ? "#fee2e2" : "#f1f5f9", 
+                                    color: m.completed ? "#065f46" : isMilestoneOverdue ? "#991b1b" : "#64748b",
+                                    fontWeight: "bold",
+                                    border: isMilestoneOverdue ? "1px solid #ef4444" : "1px solid transparent"
+                                  }}
+                                >
+                                  {m.name} ({m.days}d){dueStr}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                });
+              })()}
             </div>
           </div>
         </div>

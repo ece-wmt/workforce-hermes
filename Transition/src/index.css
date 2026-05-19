@@ -27,7 +27,7 @@
   --col-test: #34d399;
   --col-done: #064e3b;
   --col-scrap: #94a3b8;
-  --col-implemented: #6366f1;
+  --col-implemented: #047857;
 
   /* Modern Interface Tokens */
   --glass-bg: rgba(255, 255, 255, 0.75);
@@ -192,7 +192,7 @@ header {
 /* Kanban Totals Bar */
 .kanban-totals-bar {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(7, 1fr);
   gap: 10px;
   padding: 10px 20px;
   max-width: 100%;
@@ -234,7 +234,7 @@ header {
 /* Kanban Layout */
 .kanban-container {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(7, 1fr);
   gap: 12px;
   padding: 0 20px 20px 20px;
   align-items: start;
@@ -349,7 +349,7 @@ header {
 }
 
 .col-implemented {
-  background: linear-gradient(to bottom, #eef2ff, white);
+  background: linear-gradient(to bottom, #d1fae5, white);
 }
 
 .col-content {
@@ -4910,4 +4910,15 @@ body.role-programmer .kanban-col.col-scrap {
 .btn-reply-hover svg {
   width: 12px;
   height: 12px;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

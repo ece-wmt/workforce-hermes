@@ -187,6 +187,7 @@ export const addTask = mutation({
         days: v.number(),
         completed: v.optional(v.boolean()),
         completedAt: v.optional(v.string()),
+        completedAtTime: v.optional(v.number()),
         createdAtTime: v.optional(v.number()),
       })
     ),
@@ -229,6 +230,7 @@ export const updateTaskMilestones = mutation({
         days: v.number(),
         completed: v.optional(v.boolean()),
         completedAt: v.optional(v.string()),
+        completedAtTime: v.optional(v.number()),
         createdAtTime: v.optional(v.number()),
       })
     ),
@@ -372,20 +374,38 @@ export const deleteTask = mutation({
   handler: async (ctx, args) => {
     // Capture task info before deletion for audit log
     const task = await ctx.db.get(args.taskId);
-    const taskTitle = task?.title || "Unknown Project";
-    const taskAssignee = task?.assignee || "Unassigned";
+    if (!task) return;
+    const taskTitle = task.title || "Unknown Project";
+    const taskAssignee = task.assignee || "Unassigned";
 
-    await ctx.db.delete(args.taskId);
-
-    // Audit log — record who deleted the project
     const actorEmail = (args.actorEmail || "unknown").toLowerCase();
-    await ctx.db.insert("securityLogs", {
-      action: "PROJECT_DELETED",
-      userEmail: actorEmail,
-      targetEmail: actorEmail,
-      details: `Deleted project "${taskTitle}" (assignee: ${taskAssignee}) from ${args.source || "unknown"}.`,
-      timestamp: Date.now(),
-    });
+
+    if (args.source === "archive") {
+      // PERMANENT PHYSICAL DELETE
+      await ctx.db.delete(args.taskId);
+
+      await ctx.db.insert("securityLogs", {
+        action: "PROJECT_DELETED_PERMANENTLY",
+        userEmail: actorEmail,
+        targetEmail: actorEmail,
+        details: `Permanently deleted project "${taskTitle}" (assignee: ${taskAssignee}) from archive.`,
+        timestamp: Date.now(),
+      });
+    } else {
+      // SOFT DELETE (MOVE TO SCRAPPED / ARCHIVE)
+      await ctx.db.patch(args.taskId, {
+        status: "scrapped",
+        lastUpdated: Date.now(),
+      });
+
+      await ctx.db.insert("securityLogs", {
+        action: "PROJECT_ARCHIVED",
+        userEmail: actorEmail,
+        targetEmail: actorEmail,
+        details: `Archived/Soft-deleted project "${taskTitle}" (assignee: ${taskAssignee}) from ${args.source || "unknown"}.`,
+        timestamp: Date.now(),
+      });
+    }
   },
 });
 
@@ -403,6 +423,7 @@ export const updateTaskDetails = mutation({
         days: v.number(),
         completed: v.optional(v.boolean()),
         completedAt: v.optional(v.string()),
+        completedAtTime: v.optional(v.number()),
         createdAtTime: v.optional(v.number()),
       })
     ),
@@ -491,6 +512,43 @@ export const updateAdminCredentials = mutation({
         email: obfuscate(args.email),
         password: obfuscate(args.password),
       },
+      lastUpdated: Date.now(),
+    });
+  },
+});
+
+export const toggleTaskPriority = mutation({
+  args: {
+    taskId: v.id("tasks"),
+    isPrioritized: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const task = await ctx.db.get(args.taskId);
+    if (!task) throw new Error("Task not found");
+
+    if (args.isPrioritized) {
+      const assignees = (task.assignee || "").split(",").map(n => n.trim().toLowerCase()).filter(Boolean);
+      const allTasks = await ctx.db.query("tasks").collect();
+
+      for (const assignee of assignees) {
+        let prioritizedCount = 0;
+        for (const t of allTasks) {
+          if (t._id === args.taskId) continue;
+          if (t.isPrioritized) {
+            const tAssignees = (t.assignee || "").split(",").map(n => n.trim().toLowerCase()).filter(Boolean);
+            if (tAssignees.includes(assignee)) {
+              prioritizedCount++;
+            }
+          }
+        }
+        if (prioritizedCount >= 3) {
+          throw new Error(`Cannot prioritize: Assignee "${assignee}" already has 3 prioritized projects.`);
+        }
+      }
+    }
+
+    await ctx.db.patch(args.taskId, {
+      isPrioritized: args.isPrioritized,
       lastUpdated: Date.now(),
     });
   },
