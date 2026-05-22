@@ -4,6 +4,18 @@ import { api } from "../../convex/_generated/api";
 import { notifyNoteAdded, notifyMilestoneCompleted } from "../utils/notifications";
 import FeatureModal from "./FeatureModal";
 
+function deobfuscate(str) {
+  if (!str || typeof str !== "string" || !str.startsWith("obf_")) return str;
+  try {
+    const reversed = str.substring(4);
+    const encoded = reversed.split('').reverse().join('');
+    return atob(encoded);
+  } catch (e) {
+    return str;
+  }
+}
+
+
 export default function TaskModal({ taskId, isEditMode, userRole, actualRole, userName, staff, onClose, showModal, showInputModal, onViewProfile }) {
   const task = useQuery(api.tasks.getTaskById, { taskId });
   const updateTaskMilestones = useMutation(api.tasks.updateTaskMilestones);
@@ -1193,11 +1205,11 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                     <div style={{ display: "grid", gridTemplateColumns: "80px 1fr", gap: "2px 10px", alignItems: "center" }}>
                       <span style={{ fontSize: "0.6rem", fontWeight: 900, textTransform: "uppercase", color: "var(--color-accent)" }}>Email:</span>
                       <span style={{ fontWeight: 700, fontSize: "0.8rem", fontFamily: "monospace" }}>
-                        {passwordRevealed ? (task.adminCredentials?.email || "—") : "••••••••••••"}
+                        {passwordRevealed ? (deobfuscate(task.adminCredentials?.email) || "—") : "••••••••••••"}
                       </span>
                       <span style={{ fontSize: "0.6rem", fontWeight: 900, textTransform: "uppercase", color: "var(--color-accent)" }}>Pass:</span>
                       <span style={{ fontWeight: 700, fontSize: "0.8rem", fontFamily: "monospace" }}>
-                        {passwordRevealed ? (task.adminCredentials?.password || "—") : "••••••••"}
+                        {passwordRevealed ? (deobfuscate(task.adminCredentials?.password) || "—") : "••••••••"}
                       </span>
                     </div>
                     {!passwordRevealed && (

@@ -47,11 +47,16 @@ function obfuscate(str: string | undefined) {
 }
 
 function deobfuscate(str: string | undefined) {
-  if (!str || !str.startsWith("obf_")) return str;
+  if (!str || typeof str !== "string" || !str.startsWith("obf_")) return str;
   try {
     const reversed = str.substring(4);
     const encoded = reversed.split('').reverse().join('');
-    return atob(encoded);
+    // Use a try-catch specifically for atob as it might be missing in some Convex environments
+    if (typeof atob === 'function') {
+      return atob(encoded);
+    }
+    // Fallback? or just return the original string if atob is missing
+    return str; 
   } catch (e) {
     return str;
   }
