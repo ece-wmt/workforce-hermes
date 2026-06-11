@@ -19,12 +19,20 @@ import AnnouncementComposer from "./components/AnnouncementComposer";
 import TaskNotificationPopup from "./components/TaskNotificationPopup";
 import Settings from "./components/Settings";
 import NotificationBell from "./components/NotificationBell";
+import Handbook from "./components/Handbook";
 
-const ACTIVITY_EVENTS = ["mousemove", "keydown", "click", "scroll"];
+const ACTIVITY_EVENTS = ["mousemove", "keydown", "click", "scroll", "touchstart"];
+
+// Session expires only after this much *continuous inactivity* (no mouse, key,
+// click, scroll or touch). Set to 7 hours.
+const SESSION_EXPIRY_MS = 7 * 60 * 60 * 1000;
+// Don't rewrite localStorage on every mousemove — at most once per minute.
+const ACTIVITY_WRITE_THROTTLE_MS = 60 * 1000;
 
 export default function App() {
   // --- Refs ---
   const hasSetInitialView = useRef(false);
+  const sessionExpiredRef = useRef(false); // ensures the expiry prompt fires only once
 
   // --- Auth state ---
   const [authStage, setAuthStage] = useState(() => {
@@ -58,6 +66,7 @@ export default function App() {
     return localStorage.getItem("wf_authenticated") === "true";
   });
   const [showSettings, setShowSettings] = useState(false);
+  const [showHandbook, setShowHandbook] = useState(false);
   const [viewingStaff, setViewingStaff] = useState(null);
 
   const [showLoginNotifications, setShowLoginNotifications] = useState(false);
@@ -218,7 +227,7 @@ export default function App() {
 
   // --- Body scroll lock (Unified) ---
   useEffect(() => {
-    const isModalOpen = !!modalTaskId || modalConfig.isOpen || inputModal.isOpen;
+    const isModalOpen = !!modalTaskId || modalConfig.isOpen || inputModal.isOpen || showHandbook;
     const authRestricted = authStage !== "authenticated";
 
     if (isModalOpen || authRestricted) {
@@ -228,7 +237,7 @@ export default function App() {
     }
 
     return () => { document.body.style.overflow = ""; };
-  }, [authStage, modalTaskId, modalConfig.isOpen, inputModal.isOpen]);
+  }, [authStage, modalTaskId, modalConfig.isOpen, inputModal.isOpen, showHandbook]);
 
   // --- Role class on body ---
   useEffect(() => {
@@ -243,59 +252,69 @@ export default function App() {
     return () => document.removeEventListener("click", handler);
   }, []);
 
+  // Fires the "Session Expired" prompt exactly once (guarded by a ref so the
+  // periodic check, the deferred check and tab-focus checks can't stack it).
+  function triggerSessionExpired(reason) {
+    if (sessionExpiredRef.current) return;
+    sessionExpiredRef.current = true;
+    console.warn("Session expired — " + reason);
+    showModal({
+      title: "Session Expired",
+      message: "You've been inactive for a while, so your session has expired. Please log in again.",
+      type: "alert",
+      onConfirm: () => { logout(); },
+    });
+  }
+
+  // True only when the stored last-activity timestamp is older than the window.
+  // A missing/zero timestamp is treated as "active now" (never a false expiry).
+  function isSessionExpired() {
+    const lastActivity = parseInt(localStorage.getItem("wf_last_activity") || "0", 10);
+    if (!lastActivity) return false;
+    return Date.now() - lastActivity > SESSION_EXPIRY_MS;
+  }
+
   // --- Session Inactivity Tracker ---
   useEffect(() => {
     if (authStage !== "authenticated") return;
 
-    const EXPIRY_TIME = 30 * 60 * 1000; // 30 minutes
-
-    const updateActivity = () => {
+    // A fresh authenticated session is, by definition, active right now.
+    sessionExpiredRef.current = false;
+    if (!localStorage.getItem("wf_last_activity")) {
       localStorage.setItem("wf_last_activity", Date.now().toString());
-    };
+    }
 
-    // Add listeners
-    ACTIVITY_EVENTS.forEach(event => document.addEventListener(event, updateActivity));
-
-    // Periodic check every 30 seconds (NOT immediately — see deferred check below)
-    const checkSession = () => {
-      const lastActivity = parseInt(localStorage.getItem("wf_last_activity") || "0");
-      if (lastActivity && Date.now() - lastActivity > EXPIRY_TIME) {
-        console.warn("Session expired due to inactivity.");
-        showModal({
-          title: "Session Expired",
-          message: "Your session has expired due to inactivity. Please log in again.",
-          type: "alert",
-          onConfirm: () => {
-            logout();
-          }
-        });
-      }
+    // Throttled activity stamp — at most once per ACTIVITY_WRITE_THROTTLE_MS.
+    let lastWrite = 0;
+    const updateActivity = () => {
+      const now = Date.now();
+      if (now - lastWrite < ACTIVITY_WRITE_THROTTLE_MS) return;
+      lastWrite = now;
+      localStorage.setItem("wf_last_activity", now.toString());
     };
-    const interval = setInterval(checkSession, 30 * 1000);
+    ACTIVITY_EVENTS.forEach((event) => document.addEventListener(event, updateActivity, { passive: true }));
+
+    // Re-check whenever the tab regains focus/visibility (catches laptops that
+    // were asleep without the interval running) — and on a 60s heartbeat.
+    const checkSession = () => { if (isSessionExpired()) triggerSessionExpired("inactivity check"); };
+    const onVisible = () => { if (document.visibilityState === "visible") checkSession(); };
+
+    const interval = setInterval(checkSession, 60 * 1000);
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", checkSession);
 
     return () => {
-      ACTIVITY_EVENTS.forEach(event => document.removeEventListener(event, updateActivity));
+      ACTIVITY_EVENTS.forEach((event) => document.removeEventListener(event, updateActivity));
       clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", checkSession);
     };
   }, [authStage]);
 
-  // --- Deferred session expiry check: only runs once app is fully visible ---
+  // --- Deferred session expiry check: only runs once the app is fully visible ---
   useEffect(() => {
     if (authStage !== "authenticated" || loading || showIntro) return;
-
-    const EXPIRY_TIME = 30 * 60 * 1000; // 30 minutes
-    const lastActivity = parseInt(localStorage.getItem("wf_last_activity") || "0");
-    if (lastActivity && Date.now() - lastActivity > EXPIRY_TIME) {
-      console.warn("Session expired — deferred check (app now visible).");
-      showModal({
-        title: "Session Expired",
-        message: "Your session has expired due to inactivity. Please log in again.",
-        type: "alert",
-        onConfirm: () => {
-          logout();
-        }
-      });
-    }
+    if (isSessionExpired()) triggerSessionExpired("deferred check (app now visible)");
   }, [authStage, loading, showIntro]);
 
   // -------------------------------------------------------
@@ -386,6 +405,7 @@ export default function App() {
     localStorage.removeItem("wf_authenticated");
     localStorage.removeItem("wf_email");
     localStorage.removeItem("wf_last_activity");
+    sessionExpiredRef.current = false;
     setAuthStage("login");
     setLoading(true);
     setUserName("");
@@ -729,15 +749,41 @@ export default function App() {
               </svg>
             </button>
           </div>
-          <div className="header-box" style={{ padding: "10px 30px", borderRadius: "20px", border: "1px solid var(--glass-border)", background: "var(--glass-bg)", boxShadow: "var(--shadow-md)" }}>
+          <div className="header-box" style={{ maxWidth: 1280, padding: "12px 40px", gap: 28, borderRadius: "20px", border: "1px solid var(--glass-border)", background: "var(--glass-bg)", boxShadow: "var(--shadow-md)" }}>
             <img src="https://i.imgur.com/BRd5lrB.png" alt="ECE Logo" className="header-logo" style={{ height: "45px" }} />
-            <div className="header-text-content">
+            <div className="header-text-content" style={{ whiteSpace: "nowrap" }}>
               <h1 style={{ fontSize: "1.6rem", letterSpacing: "-1.2px" }}>WORKFORCE HERMES</h1>
               <p style={{ fontSize: "0.75rem", letterSpacing: "0.8px", color: "var(--color-text-secondary)", fontWeight: 700 }}>Workforce Programming Project Database</p>
             </div>
             <img src="https://i.imgur.com/ycmU6oP.png" alt="WFM Logo" className="header-logo" style={{ height: "45px" }} />
             <div style={{ width: "1px", height: "30px", background: "var(--glass-border)", margin: "0 10px" }}></div>
-            <button 
+            <button
+              className="btn-project-consolidation"
+              onClick={() => setShowHandbook(true)}
+              title="Open the Programming Handbook"
+              style={{
+                padding: "8px 16px",
+                borderRadius: "12px",
+                border: "1px solid var(--color-nav-bg)",
+                background: "var(--color-card-bg)",
+                color: "var(--color-nav-bg)",
+                fontSize: "0.7rem",
+                fontWeight: 900,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                marginRight: "10px",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.06)"
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+              </svg>
+              HANDBOOK
+            </button>
+            <button
               className="btn-project-consolidation"
               onClick={() => setShowAllProjects(true)}
               title="View All Project Links"
@@ -1058,6 +1104,16 @@ export default function App() {
             openTaskModal(taskId);
             setShowLoginNotifications(false);
           }}
+        />
+      )}
+
+      {/* Programming Handbook — shared, Admin+ editable */}
+      {showHandbook && (
+        <Handbook
+          onClose={() => setShowHandbook(false)}
+          canEdit={actualRole === "Admin+"}
+          userName={userName}
+          showModal={showModal}
         />
       )}
 

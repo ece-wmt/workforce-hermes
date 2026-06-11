@@ -90,9 +90,23 @@ const FONT_SCALES = {
   "Extra Large": 1.16,
 };
 
+// ── Surface "skins" (visual themes) ──
+// These are aesthetic styles layered on top of the light/dark mode. The actual
+// look is implemented purely in CSS via [data-skin="..."] selectors (see index.css),
+// so adding a new skin here only requires a matching CSS block. "default" is the
+// classic Hermes look and applies no special skin attribute behavior beyond the value.
+export const SKINS = [
+  { id: "default", label: "Classic", desc: "The signature Hermes look — crisp cards and soft shadows.", icon: "✦" },
+  { id: "glass", label: "Glassmorphism", desc: "Frosted translucent surfaces, blur and soft glow.", icon: "❖" },
+  { id: "cubic", label: "Cubic", desc: "Solid blocks, bold borders and hard offset shadows.", icon: "◼" },
+  { id: "aurora", label: "Aurora", desc: "Soft animated gradients and luminous accents.", icon: "🌈" },
+  { id: "minimal", label: "Minimal", desc: "Flat surfaces, hairline borders, distraction-free.", icon: "—" },
+];
+
 // ── Defaults ──
 export const DEFAULT_SETTINGS = {
   theme: "light",
+  skin: "default",
   accentColor: "#10b981",
   fontSize: "Standard",
   defaultView: "Dashboard",
@@ -151,9 +165,13 @@ export function applySettings(settings) {
   if (!settings) settings = loadSettings();
   const root = document.documentElement;
 
-  // ── Theme ──
+  // ── Theme (light/dark mode) ──
   const effectiveTheme = resolveTheme(settings.theme);
   root.setAttribute("data-theme", effectiveTheme);
+
+  // ── Skin (visual surface style) ──
+  const skin = SKINS.some((s) => s.id === settings.skin) ? settings.skin : "default";
+  root.setAttribute("data-skin", skin);
 
   // ── Accent color ──
   const palette = ACCENT_PALETTES[settings.accentColor] || ACCENT_PALETTES["#10b981"];

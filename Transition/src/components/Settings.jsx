@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { loadSettings, saveSettings, applySettings, DEFAULT_SETTINGS } from "../utils/settingsManager";
+import { loadSettings, saveSettings, applySettings, DEFAULT_SETTINGS, SKINS } from "../utils/settingsManager";
 
 const ACCENT_COLORS = [
   { name: "Emerald", value: "#10b981" },
@@ -64,8 +64,16 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
 
   // --- Appearance state ---
   const [theme, setTheme] = useState(saved.theme);
+  const [skin, setSkin] = useState(saved.skin || "default");
   const [accentColor, setAccentColor] = useState(saved.accentColor);
   const [fontSize, setFontSize] = useState(saved.fontSize);
+
+  // Live-preview the skin/theme as the user clicks. Merge current in-progress
+  // selections (not just stored values) so changing one doesn't reset another.
+  // Reverted on cancel via savedRef.current.
+  function previewAppearance(next) {
+    applySettings({ ...loadSettings(), theme, skin, accentColor, fontSize, ...next });
+  }
 
   // --- General Preferences state ---
   const [defaultView, setDefaultView] = useState(saved.defaultView);
@@ -189,7 +197,7 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
 
   function buildSettingsObject() {
     // Only visual/UI preferences go to localStorage — profile data is per-user in the database
-    return { theme, accentColor, fontSize, defaultView, openOnStartup, startMinimized, notificationsEnabled, notifyErrors, notifyUpdates };
+    return { theme, skin, accentColor, fontSize, defaultView, openOnStartup, startMinimized, notificationsEnabled, notifyErrors, notifyUpdates };
   }
 
   async function handleSave() {
@@ -288,11 +296,40 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
               <p className="settings-section-desc">Customize the look and feel of your workspace.</p>
 
               <div className="settings-card">
-                <label className="settings-field-label">Theme</label>
+                <label className="settings-field-label">Mode</label>
                 <div className="settings-segmented-control">
                   {[{ id: "light", label: "Light", icon: "☀️" }, { id: "dark", label: "Dark", icon: "🌙" }, { id: "system", label: "System", icon: "💻" }].map((opt) => (
-                    <button key={opt.id} className={`segmented-btn ${theme === opt.id ? "active" : ""}`} onClick={() => { setTheme(opt.id); markChanged(); }}>
+                    <button key={opt.id} className={`segmented-btn ${theme === opt.id ? "active" : ""}`} onClick={() => { setTheme(opt.id); previewAppearance({ theme: opt.id }); markChanged(); }}>
                       <span className="segmented-icon">{opt.icon}</span><span>{opt.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="settings-card">
+                <label className="settings-field-label">Theme Style</label>
+                <p className="settings-field-hint">Choose the overall surface style for the entire app — cards, modals and panels.</p>
+                <div className="skin-picker-grid">
+                  {SKINS.map((sk) => (
+                    <button
+                      key={sk.id}
+                      className={`skin-card skin-card--${sk.id} ${skin === sk.id ? "active" : ""}`}
+                      onClick={() => { setSkin(sk.id); previewAppearance({ skin: sk.id }); markChanged(); }}
+                      title={sk.desc}
+                    >
+                      <span className="skin-card-preview" aria-hidden="true">
+                        <span className="skin-chip skin-chip-1" />
+                        <span className="skin-chip skin-chip-2" />
+                      </span>
+                      <span className="skin-card-meta">
+                        <span className="skin-card-name">{sk.label}</span>
+                        <span className="skin-card-desc">{sk.desc}</span>
+                      </span>
+                      {skin === sk.id && (
+                        <span className="skin-card-check">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -303,7 +340,7 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
                 <p className="settings-field-hint">Choose a primary brand color for highlights and accents.</p>
                 <div className="accent-color-row">
                   {ACCENT_COLORS.map((c) => (
-                    <button key={c.value} className={`accent-swatch ${accentColor === c.value ? "active" : ""}`} style={{ "--swatch-color": c.value }} onClick={() => { setAccentColor(c.value); markChanged(); }} title={c.name}>
+                    <button key={c.value} className={`accent-swatch ${accentColor === c.value ? "active" : ""}`} style={{ "--swatch-color": c.value }} onClick={() => { setAccentColor(c.value); previewAppearance({ accentColor: c.value }); markChanged(); }} title={c.name}>
                       {accentColor === c.value && (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>)}
                     </button>
                   ))}

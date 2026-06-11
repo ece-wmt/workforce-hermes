@@ -145,4 +145,13 @@ export default defineSchema({
     email: v.string(),
     lastSeen: v.number(),
   }).index("by_email", ["email"]),
+
+  // Handbook — a single shared, admin-editable page built from layout blocks.
+  // `blocks` is intentionally loose (v.any) so the builder can evolve block
+  // shapes without schema migrations; the client validates/normalizes shape.
+  handbook: defineTable({
+    blocks: v.array(v.any()),
+    updatedAt: v.number(),
+    updatedBy: v.optional(v.string()),
+  }),
 });
