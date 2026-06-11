@@ -96,9 +96,9 @@ const FONT_SCALES = {
 // so adding a new skin here only requires a matching CSS block. "default" is the
 // classic Hermes look and applies no special skin attribute behavior beyond the value.
 export const SKINS = [
+  { id: "liquid", label: "Liquid Glass", desc: "Apple-style translucent glass with a moving sheen and springy motion.", icon: "💧" },
   { id: "default", label: "Classic", desc: "The signature Hermes look — crisp cards and soft shadows.", icon: "✦" },
   { id: "glass", label: "Glassmorphism", desc: "Frosted translucent surfaces, blur and soft glow.", icon: "❖" },
-  { id: "liquid", label: "Liquid Glass", desc: "Apple-style translucent glass with a moving sheen and springy motion.", icon: "💧" },
   { id: "cubic", label: "Cubic", desc: "Solid blocks, bold borders and hard offset shadows.", icon: "◼" },
   { id: "aurora", label: "Aurora", desc: "Soft animated gradients and luminous accents.", icon: "🌈" },
   { id: "minimal", label: "Minimal", desc: "Flat surfaces, hairline borders, distraction-free.", icon: "—" },
@@ -107,7 +107,7 @@ export const SKINS = [
 // ── Defaults ──
 export const DEFAULT_SETTINGS = {
   theme: "light",
-  skin: "default",
+  skin: "liquid",
   accentColor: "#10b981",
   fontSize: "Standard",
   defaultView: "Dashboard",
@@ -127,7 +127,15 @@ export function loadSettings() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
-      return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+      const stored = JSON.parse(raw);
+      // One-time migration: Liquid Glass became the app default. Users who
+      // never explicitly chose a theme (no skinChosen flag, skin missing or
+      // still the old "default") move to the new default. An explicit choice
+      // of any other skin is always respected.
+      if (!stored.skinChosen && (stored.skin === undefined || stored.skin === "default")) {
+        stored.skin = "liquid";
+      }
+      return { ...DEFAULT_SETTINGS, ...stored };
     }
   } catch {
     // Corrupted data — fall through to defaults

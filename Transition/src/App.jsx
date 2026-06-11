@@ -859,39 +859,42 @@ export default function App() {
         </div>
       </header>
 
-      {/* Views */}
-      {currentView === "dashboard" && <Dashboard onShowAllLinks={() => setShowAllProjects(true)} />}
-      {currentView === "kanban" && (
-        <KanbanBoard
-          userRole={userRole}
-          actualRole={actualRole}
-          userName={userName}
-          openTaskModal={openTaskModal}
-          onContextMenu={handleContextMenu}
-          showModal={showModal}
-          staff={staff || []}
-          searchQuery={searchQuery}
-        />
-      )}
-      {currentView === "entry" && (
-        <TaskEntry
-          staff={staff || []}
-          userRole={userRole}
-          userName={userName}
-          onCreated={() => switchView("kanban")}
-          showModal={showModal}
-        />
-      )}
-      {currentView === "notebook" && (
-        <Notebook userRole={userRole} userName={userName} showModal={showModal} />
-      )}
-      {currentView === "admin" && actualRole === "Admin+" && (
-        <AdminPanel staff={staff} showModal={showModal} onViewProfile={(s) => setViewingStaff(s)} />
-      )}
+      {/* Views — keyed stage so switching views (or the intro lifting) replays
+          the entrance choreography */}
+      <main className="view-stage" key={`${currentView}${showIntro ? "-intro" : ""}`}>
+        {currentView === "dashboard" && <Dashboard onShowAllLinks={() => setShowAllProjects(true)} />}
+        {currentView === "kanban" && (
+          <KanbanBoard
+            userRole={userRole}
+            actualRole={actualRole}
+            userName={userName}
+            openTaskModal={openTaskModal}
+            onContextMenu={handleContextMenu}
+            showModal={showModal}
+            staff={staff || []}
+            searchQuery={searchQuery}
+          />
+        )}
+        {currentView === "entry" && (
+          <TaskEntry
+            staff={staff || []}
+            userRole={userRole}
+            userName={userName}
+            onCreated={() => switchView("kanban")}
+            showModal={showModal}
+          />
+        )}
+        {currentView === "notebook" && (
+          <Notebook userRole={userRole} userName={userName} showModal={showModal} />
+        )}
+        {currentView === "admin" && actualRole === "Admin+" && (
+          <AdminPanel staff={staff} showModal={showModal} onViewProfile={(s) => setViewingStaff(s)} />
+        )}
 
-      {currentView === "announcements" && actualRole === "Admin+" && (
-        <AnnouncementComposer userName={userName} showModal={showModal} />
-      )}
+        {currentView === "announcements" && actualRole === "Admin+" && (
+          <AnnouncementComposer userName={userName} showModal={showModal} />
+        )}
+      </main>
 
       {/* Task Modal */}
       {modalTaskId && (

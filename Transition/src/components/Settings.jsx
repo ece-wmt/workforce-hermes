@@ -64,9 +64,33 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
 
   // --- Appearance state ---
   const [theme, setTheme] = useState(saved.theme);
-  const [skin, setSkin] = useState(saved.skin || "default");
+  const [skin, setSkin] = useState(saved.skin || "liquid");
   const [accentColor, setAccentColor] = useState(saved.accentColor);
   const [fontSize, setFontSize] = useState(saved.fontSize);
+
+  // --- Theme default prompt state ---
+  // defaultSkin mirrors what's persisted; sessionOnlySkin remembers a skin the
+  // user chose to keep "just for this session" so we don't re-ask for it.
+  const [defaultSkin, setDefaultSkin] = useState(saved.skin || "liquid");
+  const [sessionOnlySkin, setSessionOnlySkin] = useState(null);
+  const [justSetDefault, setJustSetDefault] = useState(false);
+
+  function selectSkin(id) {
+    setSkin(id);
+    previewAppearance({ skin: id });
+    markChanged();
+    setSessionOnlySkin(null);
+    setJustSetDefault(false);
+  }
+
+  function makeSkinDefault() {
+    const merged = { ...loadSettings(), skin, skinChosen: true };
+    saveSettings(merged);
+    savedRef.current = { ...savedRef.current, skin, skinChosen: true };
+    setDefaultSkin(skin);
+    setSessionOnlySkin(null);
+    setJustSetDefault(true);
+  }
 
   // Live-preview the skin/theme as the user clicks. Merge current in-progress
   // selections (not just stored values) so changing one doesn't reset another.
@@ -196,8 +220,9 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
   }
 
   function buildSettingsObject() {
-    // Only visual/UI preferences go to localStorage — profile data is per-user in the database
-    return { theme, skin, accentColor, fontSize, defaultView, openOnStartup, startMinimized, notificationsEnabled, notifyErrors, notifyUpdates };
+    // Only visual/UI preferences go to localStorage — profile data is per-user in the database.
+    // skinChosen marks an explicit theme choice so the liquid-glass default migration won't override it.
+    return { theme, skin, skinChosen: true, accentColor, fontSize, defaultView, openOnStartup, startMinimized, notificationsEnabled, notifyErrors, notifyUpdates };
   }
 
   async function handleSave() {
@@ -208,6 +233,8 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
     applySettings(settings);
     savedRef.current = { ...settings };
     setHasChanges(false);
+    setDefaultSkin(settings.skin); // saving makes the current theme the default
+    setSessionOnlySkin(null);
 
     // Sync to backend if we have an email
     if (email) {
@@ -314,7 +341,7 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
                     <button
                       key={sk.id}
                       className={`skin-card skin-card--${sk.id} ${skin === sk.id ? "active" : ""}`}
-                      onClick={() => { setSkin(sk.id); previewAppearance({ skin: sk.id }); markChanged(); }}
+                      onClick={() => selectSkin(sk.id)}
                       title={sk.desc}
                     >
                       <span className="skin-card-preview" aria-hidden="true">
@@ -333,6 +360,26 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
                     </button>
                   ))}
                 </div>
+
+                {/* Ask whether the newly chosen theme should become the default */}
+                {skin !== defaultSkin && sessionOnlySkin !== skin && (
+                  <div className="skin-default-prompt" key={skin}>
+                    <span className="skin-default-prompt-text">
+                      <span aria-hidden="true">{SKINS.find((s) => s.id === skin)?.icon}</span>
+                      Make <strong>{SKINS.find((s) => s.id === skin)?.label}</strong> your default theme?
+                    </span>
+                    <span className="skin-default-prompt-actions">
+                      <button className="skin-prompt-btn ghost" onClick={() => setSessionOnlySkin(skin)}>Just this session</button>
+                      <button className="skin-prompt-btn solid" onClick={makeSkinDefault}>Set as default</button>
+                    </span>
+                  </div>
+                )}
+                {justSetDefault && skin === defaultSkin && (
+                  <span className="skin-default-saved">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                    {SKINS.find((s) => s.id === skin)?.label} is now your default theme
+                  </span>
+                )}
               </div>
 
               <div className="settings-card">

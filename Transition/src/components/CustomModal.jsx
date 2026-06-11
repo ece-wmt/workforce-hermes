@@ -1,8 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
  * A reusable, premium-styled modal for alerts and confirmations.
- * 
+ *
  * Props:
  * - isOpen: boolean
  * - title: string
@@ -12,20 +12,35 @@ import { useEffect } from "react";
  * - onCancel: function (called for Cancel/Close)
  */
 export default function CustomModal({ isOpen, title, message, type = "alert", onConfirm, onCancel }) {
+  // Exit choreography: play a short leave animation before the parent unmounts us.
+  const [closing, setClosing] = useState(false);
+  const closeTimer = useRef(null);
+
+  useEffect(() => {
+    if (isOpen) setClosing(false);
+    return () => clearTimeout(closeTimer.current);
+  }, [isOpen]);
+
+  const dismissWith = (handler) => {
+    if (closing) return;
+    setClosing(true);
+    closeTimer.current = setTimeout(handler, 180);
+  };
+
   useEffect(() => {
     if (!isOpen) return;
 
     const handleKeyDown = (e) => {
       if (e.key === "Enter") {
-        onConfirm();
+        dismissWith(onConfirm);
       } else if (e.key === "Escape") {
-        onCancel();
+        dismissWith(onCancel);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onConfirm, onCancel]);
+  }, [isOpen, onConfirm, onCancel, closing]);
 
   if (!isOpen) return null;
 
@@ -66,23 +81,23 @@ export default function CustomModal({ isOpen, title, message, type = "alert", on
   };
 
   return (
-    <div className="custom-modal-overlay" onClick={onCancel}>
+    <div className={`custom-modal-overlay ${closing ? "closing" : ""}`} onClick={() => dismissWith(onCancel)}>
       <div className="custom-modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="custom-modal-icon">
           {getIcon()}
         </div>
         <h2 className="custom-modal-title">{title}</h2>
         <p className="custom-modal-message">{message}</p>
-        
+
         <div className="custom-modal-actions">
           {type === "confirm" && (
-            <button className="btn-modal-cancel" onClick={onCancel}>
+            <button className="btn-modal-cancel" onClick={() => dismissWith(onCancel)}>
               Cancel
             </button>
           )}
-          <button 
-            className={`btn-modal-confirm ${type === 'confirm' ? 'btn-danger' : 'btn-primary'}`} 
-            onClick={onConfirm}
+          <button
+            className={`btn-modal-confirm ${type === 'confirm' ? 'btn-danger' : 'btn-primary'}`}
+            onClick={() => dismissWith(onConfirm)}
             autoFocus
           >
             {type === "confirm" ? "Confirm" : "OK"}
