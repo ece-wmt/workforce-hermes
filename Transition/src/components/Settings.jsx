@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { loadSettings, saveSettings, applySettings, DEFAULT_SETTINGS, SKINS } from "../utils/settingsManager";
+import { FALLBACK_MILESTONES } from "../utils/defaults";
 
 const ACCENT_COLORS = [
   { name: "Emerald", value: "#10b981" },
@@ -37,6 +38,8 @@ function SectionIcon({ icon, size = 18 }) {
       return (<svg viewBox="0 0 24 24" {...s}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>);
     case "archive":
       return (<svg viewBox="0 0 24 24" {...s}><polyline points="21 8 21 21 3 21 3 8" /><rect x="1" y="3" width="22" height="5" /><line x1="10" y1="12" x2="14" y2="12" /></svg>);
+    case "target":
+      return (<svg viewBox="0 0 24 24" {...s}><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></svg>);
     default: return null;
   }
 }
@@ -49,6 +52,7 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
     return isAdminPlus
       ? [
           ...BASE_SECTIONS.filter(s => s.id !== "archive"),
+          { id: "workspace", label: "Workspace Defaults", icon: "target" },
           { id: "staff", label: "Staff Management", icon: "shield" },
           { id: "archive", label: "Archived Projects", icon: "archive" },
         ]
@@ -159,6 +163,75 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
       showModal({ title: "Error", message: err.message || "Failed to update security question.", type: "alert" });
     }
   };
+
+  // --- Workspace Defaults state (Admin+ — shared via Convex appConfig) ---
+  const appConfig = useQuery(api.appConfig.getAppConfig);
+  const saveAppConfigMut = useMutation(api.appConfig.saveAppConfig);
+  const [templateRows, setTemplateRows] = useState(() => FALLBACK_MILESTONES.map((m) => ({ ...m })));
+  const templateDirty = useRef(false);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [prodDeadlineInput, setProdDeadlineInput] = useState("");
+
+  // Hydrate the editor from the shared config once it loads (unless mid-edit)
+  useEffect(() => {
+    if (appConfig === undefined) return;
+    if (!templateDirty.current) {
+      const src = appConfig?.defaultMilestones?.length ? appConfig.defaultMilestones : FALLBACK_MILESTONES;
+      setTemplateRows(src.map((m) => ({ ...m })));
+    }
+    if (appConfig?.productionDeadline) {
+      // Format in LOCAL time — toISOString would shift the date for US timezones
+      const d = new Date(appConfig.productionDeadline);
+      setProdDeadlineInput(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
+    }
+  }, [appConfig]);
+
+  const templateTotalDays = templateRows.reduce((sum, m) => sum + (Number(m.days) || 0), 0);
+
+  function updateTemplateRow(idx, field, value) {
+    templateDirty.current = true;
+    setTemplateRows((prev) => {
+      const next = [...prev];
+      next[idx] = { ...next[idx], [field]: field === "days" ? (parseInt(value) || 0) : value };
+      return next;
+    });
+  }
+
+  async function handleSaveTemplate(rows) {
+    const cleaned = rows
+      .map((m) => ({ name: (m.name || "").trim(), days: Number(m.days) || 0 }))
+      .filter((m) => m.name);
+    if (cleaned.length === 0) {
+      showModal({ title: "Error", message: "Add at least one named milestone before saving.", type: "alert" });
+      return;
+    }
+    setSavingTemplate(true);
+    try {
+      await saveAppConfigMut({ defaultMilestones: cleaned, updatedBy: userName });
+      templateDirty.current = false;
+      setTemplateRows(cleaned.map((m) => ({ ...m })));
+      showModal({ title: "Template Saved", message: "New projects will now start with this milestone template.", type: "success" });
+    } catch (err) {
+      showModal({ title: "Error", message: err.message || "Failed to save the milestone template.", type: "alert" });
+    } finally {
+      setSavingTemplate(false);
+    }
+  }
+
+  async function handleSaveProdDeadline() {
+    if (!prodDeadlineInput) {
+      showModal({ title: "Error", message: "Pick a date first.", type: "alert" });
+      return;
+    }
+    try {
+      // End of the selected day, local time
+      const ts = new Date(`${prodDeadlineInput}T23:59:59`).getTime();
+      await saveAppConfigMut({ productionDeadline: ts, updatedBy: userName });
+      showModal({ title: "Deadline Set", message: "The full-production deadline is now visible on the Dashboard.", type: "success" });
+    } catch (err) {
+      showModal({ title: "Error", message: err.message || "Failed to save the deadline.", type: "alert" });
+    }
+  }
 
   // Staff management state
   const [newStaffName, setNewStaffName] = useState("");
@@ -558,6 +631,116 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
                 </div>
               </div>
             </section>
+
+            {/* ─── WORKSPACE DEFAULTS (Admin+ only) ─── */}
+            {isAdminPlus && (
+              <section id="settings-section-workspace" className="settings-section">
+                <div className="settings-section-header"><SectionIcon icon="target" size={20} /><h3>Workspace Defaults</h3></div>
+                <p className="settings-section-desc">Org-wide standards shared by the whole team — the milestone template for new projects and the production deadline.</p>
+
+                {/* Default milestone template */}
+                <div className="settings-card">
+                  <label className="settings-field-label">Default Milestone Template</label>
+                  <p className="settings-field-hint">
+                    These rows pre-fill the milestones (and their day counts) whenever anyone creates a new project. Saving applies for everyone.
+                  </p>
+                  <div className="template-rows">
+                    {templateRows.map((m, idx) => (
+                      <div key={idx} className="template-row">
+                        <span className="template-row-num">M{idx + 1}</span>
+                        <input
+                          type="text"
+                          className="settings-input"
+                          value={m.name}
+                          placeholder="Milestone name"
+                          onChange={(e) => updateTemplateRow(idx, "name", e.target.value)}
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          className="settings-input template-days-input"
+                          value={m.days}
+                          onChange={(e) => updateTemplateRow(idx, "days", e.target.value)}
+                        />
+                        <span className="template-days-suffix">days</span>
+                        <button
+                          className="template-row-remove"
+                          title="Remove milestone"
+                          onClick={() => { templateDirty.current = true; setTemplateRows((prev) => prev.filter((_, i) => i !== idx)); }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="template-toolbar">
+                    <button
+                      className="settings-btn-outline"
+                      onClick={() => { templateDirty.current = true; setTemplateRows((prev) => [...prev, { name: "", days: 0 }]); }}
+                    >
+                      + Add Milestone
+                    </button>
+                    <span className="template-total">
+                      Total: <strong>{templateTotalDays} days</strong> (~{(templateTotalDays / 30).toFixed(1)} months)
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
+                    <button className="settings-btn-primary" disabled={savingTemplate} onClick={() => handleSaveTemplate(templateRows)}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                      {savingTemplate ? "Saving…" : "Save Template for Everyone"}
+                    </button>
+                    <button
+                      className="settings-btn-ghost"
+                      onClick={() => {
+                        showModal({
+                          title: "Restore Original Template",
+                          message: `Reset the template to the original ${FALLBACK_MILESTONES.reduce((s, m) => s + m.days, 0)}-day standard? This saves immediately for everyone.`,
+                          type: "confirm",
+                          onConfirm: () => handleSaveTemplate(FALLBACK_MILESTONES),
+                        });
+                      }}
+                    >
+                      Restore Original
+                    </button>
+                  </div>
+                </div>
+
+                {/* Full production deadline */}
+                <div className="settings-card">
+                  <label className="settings-field-label">Full Production Deadline</label>
+                  <p className="settings-field-hint">
+                    The target date for Workforce Hermes to be deployed in full production. Shown to everyone on the Overview dashboard.
+                  </p>
+                  <div className="email-update-row">
+                    <input
+                      type="date"
+                      className="settings-input"
+                      value={prodDeadlineInput}
+                      onChange={(e) => setProdDeadlineInput(e.target.value)}
+                    />
+                    <button className="settings-btn-primary" onClick={handleSaveProdDeadline}>Set Deadline</button>
+                    {appConfig?.productionDeadline && (
+                      <button
+                        className="settings-btn-outline"
+                        onClick={() => {
+                          showModal({
+                            title: "Clear Deadline",
+                            message: "Remove the production deadline from the Dashboard?",
+                            type: "confirm",
+                            onConfirm: async () => {
+                              await saveAppConfigMut({ productionDeadline: null, updatedBy: userName });
+                              setProdDeadlineInput("");
+                            },
+                          });
+                        }}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </section>
+            )}
 
             {/* ─── STAFF MANAGEMENT (Admin+ only) ─── */}
             {isAdminPlus && (

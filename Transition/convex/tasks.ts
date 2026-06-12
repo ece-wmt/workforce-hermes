@@ -33,6 +33,22 @@ export const getTasksLight = query({
   },
 });
 
+// Admin-only (enforced client-side, matching the app's trust model): pin or
+// clear an explicit completion deadline. Pass null to restore the computed
+// milestone-based date. Deliberately does NOT touch lastUpdated — that value
+// anchors computed milestone deadlines and must not shift on a deadline edit.
+export const setTaskDeadline = mutation({
+  args: {
+    taskId: v.id("tasks"),
+    deadline: v.union(v.number(), v.null()),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.taskId, {
+      deadlineOverride: args.deadline === null ? undefined : args.deadline,
+    });
+  },
+});
+
 // --- Obfuscation Helpers ---
 // These are used to hide plain text from casual observation in the Convex DB browser.
 // They are reversible so that the user can still reveal them in the modal.

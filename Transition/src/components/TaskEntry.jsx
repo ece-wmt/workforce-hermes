@@ -1,21 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-
-const DEFAULT_MILESTONES = [
-  { name: "Project Planning & Design", days: 22 },
-  { name: "Project Setup & Database", days: 6 },
-  { name: "Core Feature Development (Phase 1)", days: 25 },
-  { name: "Core Feature Development (Phase 2)", days: 20 },
-  { name: "API Integration", days: 8 },
-  { name: "Internal Testing & Bug Fixes", days: 15 },
-  { name: "User Testing & Refinement", days: 20 },
-  { name: "Final Polish & Optimization", days: 15 },
-  { name: "Deployment & Soft Launch", days: 17 },
-  { name: "Post-Launch Support", days: 22 },
-];
+import { FALLBACK_MILESTONES } from "../utils/defaults";
 
 export default function TaskEntry({ staff, userRole, userName, onCreated, showModal }) {
+  // Workspace milestone template (Admin+ editable in Settings → Workspace Defaults)
+  const appConfig = useQuery(api.appConfig.getAppConfig);
   const addTask = useMutation(api.tasks.addTask).withOptimisticUpdate((localStore, args) => {
     const prevTasks = localStore.getQuery(api.tasks.getTasks, {});
     if (prevTasks !== undefined) {
@@ -31,11 +21,24 @@ export default function TaskEntry({ staff, userRole, userName, onCreated, showMo
     }
   });
 
-  const [milestones, setMilestones] = useState(JSON.parse(JSON.stringify(DEFAULT_MILESTONES)));
+  const [milestones, setMilestones] = useState(() => FALLBACK_MILESTONES.map((m) => ({ ...m })));
   const [selectedAssignees, setSelectedAssignees] = useState(new Set());
   const [showOptions, setShowOptions] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const formRef = useRef(null);
+  const milestonesTouched = useRef(false);
+
+  const templateMilestones = appConfig?.defaultMilestones?.length
+    ? appConfig.defaultMilestones
+    : FALLBACK_MILESTONES;
+
+  // Swap in the workspace template once it loads — but never clobber rows the
+  // user has already started editing.
+  useEffect(() => {
+    if (appConfig?.defaultMilestones?.length && !milestonesTouched.current) {
+      setMilestones(appConfig.defaultMilestones.map((m) => ({ ...m })));
+    }
+  }, [appConfig]);
 
   // Auto-check own name for programmers
   useEffect(() => {
@@ -55,6 +58,7 @@ export default function TaskEntry({ staff, userRole, userName, onCreated, showMo
   }
 
   function updateMilestone(index, field, value) {
+    milestonesTouched.current = true;
     setMilestones((prev) => {
       const next = [...prev];
       next[index] = { ...next[index], [field]: field === "days" ? parseInt(value) || 0 : value };
@@ -63,16 +67,19 @@ export default function TaskEntry({ staff, userRole, userName, onCreated, showMo
   }
 
   function addMilestoneRow() {
+    milestonesTouched.current = true;
     setMilestones((prev) => [...prev, { name: "", days: 0 }]);
   }
 
   function removeMilestoneRow(index) {
+    milestonesTouched.current = true;
     setMilestones((prev) => prev.filter((_, i) => i !== index));
   }
 
   function resetForm() {
     formRef.current?.reset();
-    setMilestones(JSON.parse(JSON.stringify(DEFAULT_MILESTONES)));
+    milestonesTouched.current = false;
+    setMilestones(templateMilestones.map((m) => ({ ...m })));
     setSelectedAssignees(new Set());
   }
 
@@ -203,6 +210,9 @@ export default function TaskEntry({ staff, userRole, userName, onCreated, showMo
           {/* Right: Guide */}
           <div className="section-card">
             <h2 style={{ fontWeight: 900, marginTop: 0, textTransform: "uppercase", fontSize: "1.2rem", marginBottom: 10 }}>Standard Milestone Guide</h2>
+            <p style={{ fontSize: "0.72rem", color: "var(--color-text-secondary)", margin: "0 0 12px 0" }}>
+              Defaults come from the workspace template — Admin+ can change them in Settings → Workspace Defaults.
+            </p>
             <div style={{ height: 2, background: "linear-gradient(to right, var(--color-accent), transparent)", marginBottom: 25 }}></div>
             <div className="guide-list">
               {milestones.map((m, idx) => (

@@ -68,6 +68,9 @@ export default defineSchema({
       )
     ),
     isPrioritized: v.optional(v.boolean()),
+    // Admin-pinned completion deadline (ms). Overrides the computed
+    // milestone-based completion date everywhere it's displayed.
+    deadlineOverride: v.optional(v.number()),
   }),
 
   staff: defineTable({
@@ -151,6 +154,18 @@ export default defineSchema({
   // shapes without schema migrations; the client validates/normalizes shape.
   handbook: defineTable({
     blocks: v.array(v.any()),
+    updatedAt: v.number(),
+    updatedBy: v.optional(v.string()),
+  }),
+
+  // Workspace-wide configuration — a singleton row (same pattern as handbook).
+  // Holds org-level defaults editable by Admin+: the milestone template used
+  // when creating new projects and the full-production deployment deadline.
+  appConfig: defineTable({
+    productionDeadline: v.optional(v.number()), // ms timestamp
+    defaultMilestones: v.optional(
+      v.array(v.object({ name: v.string(), days: v.number() }))
+    ),
     updatedAt: v.number(),
     updatedBy: v.optional(v.string()),
   }),

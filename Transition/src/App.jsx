@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { applySettings, loadSettings, saveSettings } from "./utils/settingsManager";
+import { getProjectDeadlines, fmtDate } from "./utils/deadlines";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { initNotifications } from "./utils/notifications";
@@ -135,6 +136,7 @@ export default function App() {
   const updateProjectLink = useMutation(api.tasks.updateProjectLink);
   const updateAdminCredentials = useMutation(api.tasks.updateAdminCredentials);
   const updateTaskDetailsMut = useMutation(api.tasks.updateTaskDetails);
+  const setTaskDeadlineMut = useMutation(api.tasks.setTaskDeadline);
   console.log("DEBUG: updateTaskDetailsMut is defined:", !!updateTaskDetailsMut);
 
   const activeProfile = useMemo(() => {
@@ -862,7 +864,14 @@ export default function App() {
       {/* Views — keyed stage so switching views (or the intro lifting) replays
           the entrance choreography */}
       <main className="view-stage" key={`${currentView}${showIntro ? "-intro" : ""}`}>
-        {currentView === "dashboard" && <Dashboard onShowAllLinks={() => setShowAllProjects(true)} />}
+        {currentView === "dashboard" && (
+          <Dashboard
+            onShowAllLinks={() => setShowAllProjects(true)}
+            actualRole={actualRole}
+            userName={userName}
+            openTaskModal={openTaskModal}
+          />
+        )}
         {currentView === "kanban" && (
           <KanbanBoard
             userRole={userRole}
@@ -931,6 +940,46 @@ export default function App() {
             </svg>
             Edit Task
           </div>
+
+          {(actualRole === "Admin" || actualRole === "Admin+") && (
+            <div
+              className="context-menu-item"
+              onClick={() => {
+                const task = contextMenu.task;
+                if (!task || !task._id) return;
+                const dl = getProjectDeadlines(task);
+                const current = task.deadlineOverride || (dl && !dl.complete ? dl.completionDue : null);
+                let initialDate = "";
+                if (current) {
+                  const d = new Date(current);
+                  initialDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+                }
+                showInputModal({
+                  title: "Edit Completion Deadline",
+                  message: task.deadlineOverride
+                    ? `This project has an admin-set deadline (${fmtDate(task.deadlineOverride)}). Pick a new date, or clear the field to restore the computed milestone timeline.`
+                    : "Pin a completion deadline for this project. It overrides the computed milestone timeline everywhere. Clear the field to go back to the computed date.",
+                  fields: [{ name: "deadline", label: "Completion Deadline", type: "date", initialValue: initialDate }],
+                  onConfirm: (data) => {
+                    const value = (data.deadline || "").trim();
+                    setTaskDeadlineMut({
+                      taskId: task._id,
+                      deadline: value ? new Date(`${value}T23:59:59`).getTime() : null,
+                    }).catch((err) => console.error("Set deadline error:", err));
+                  },
+                });
+                setContextMenu((prev) => ({ ...prev, visible: false }));
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+              {contextMenu.task.deadlineOverride ? "Edit Deadline 📌" : "Edit Deadline"}
+            </div>
+          )}
 
           {contextMenu.task.assignee.toLowerCase().includes(userName.toLowerCase()) && (
             <>

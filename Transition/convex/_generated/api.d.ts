@@ -9,6 +9,7 @@
  */
 
 import type * as announcements from "../announcements.js";
+import type * as appConfig from "../appConfig.js";
 import type * as handbook from "../handbook.js";
 import type * as notebook from "../notebook.js";
 import type * as notifications from "../notifications.js";
@@ -23,6 +24,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   announcements: typeof announcements;
+  appConfig: typeof appConfig;
   handbook: typeof handbook;
   notebook: typeof notebook;
   notifications: typeof notifications;

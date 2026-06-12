@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { getProjectDeadlines, deadlineTone, DAY_MS } from "../utils/deadlines";
 import { notifyTaskUpdated, notifyMilestoneCompleted, notifyNoteAdded } from "../utils/notifications";
 
 const cleanConvexError = (errorMessage) => {
@@ -307,8 +308,13 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
     const progressPercent = Math.round((doneM / totalM) * 100);
 
     const isOverdue = isTaskOverdue(t);
-    const activeIdx = milestones.findIndex((ms) => !ms.completed);
-    const deadlineTime = activeIdx !== -1 ? getMilestoneDeadline(t, activeIdx) : null;
+
+    // Cards show the project's COMPLETION date; the per-milestone deadline
+    // only appears inside the task modal.
+    const dl = getProjectDeadlines(t);
+    const completionDue = dl && !dl.complete ? dl.completionDue : null;
+    const completionLeft = completionDue ? Math.ceil((completionDue - Date.now()) / DAY_MS) : null;
+    const completionTone = completionLeft !== null ? deadlineTone(completionLeft) : null;
 
     let canEditMilestone = true;
     if (actualRole === "Admin") {
@@ -359,9 +365,13 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
               ) : (
                 <span>#{(t._id || "").slice(-4).toUpperCase()}</span>
               )}
-              {deadlineTime && (
-                <span style={{ background: isOverdue ? "#fee2e2" : "#d1fae5", color: isOverdue ? "#991b1b" : "#065f46", padding: "2px 8px", borderRadius: "12px" }}>
-                  {isOverdue ? "OVERDUE" : "DUE"}: {new Date(deadlineTime).toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase()}
+              {completionDue && (
+                <span
+                  className={`card-completion-chip ${completionTone}`}
+                  title={`Project completion deadline${dl.overridden ? " (set by admin)" : ""} — ${completionLeft < 0 ? `${Math.abs(completionLeft)} days overdue` : `${completionLeft} days left`}`}
+                >
+                  {completionTone === "overdue" ? "LATE" : "DONE BY"}: {new Date(completionDue).toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase()}
+                  {dl.overridden && " 📌"}
                 </span>
               )}
             </div>
