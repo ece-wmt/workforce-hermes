@@ -3,6 +3,7 @@ import { api } from "../../convex/_generated/api";
 import { ASSIGNABLE_ROLES } from "../utils/roles";
 
 export default function AdminPanel({ staff, showModal, onViewProfile }) {
+  const currentEmail = (localStorage.getItem("wf_email") || "").toLowerCase();
   const addStaffMut = useMutation(api.staff.addStaff);
   const updateStaffRole = useMutation(api.staff.updateStaffRole);
   const deleteStaffMut = useMutation(api.staff.deleteStaff);
@@ -79,7 +80,7 @@ export default function AdminPanel({ staff, showModal, onViewProfile }) {
                               style={{ padding: "6px 12px", fontSize: "0.75rem", width: "auto" }}
                               onClick={async () => {
                                 try {
-                                  await updateStaffRole({ staffEmail: s.email, newRole: "Programmer" });
+                                  await updateStaffRole({ staffEmail: s.email, newRole: "Programmer", actorEmail: currentEmail });
                                   showModal({
                                     title: "Success",
                                     message: `Approved ${s.name} as Programmer`,
@@ -164,21 +165,37 @@ export default function AdminPanel({ staff, showModal, onViewProfile }) {
                       </strong>
                     </td>
                     <td>
-                      <select
-                        className="role-switcher"
-                        value={s.role}
-                        onChange={async (e) => {
-                          const newRole = e.target.value;
-                          await updateStaffRole({ staffEmail: s.email, newRole });
-                          showModal({
-                            title: "Role Updated",
-                            message: `${s.name}'s role has been changed to ${newRole}.`,
-                            type: "success"
-                          });
-                        }}
-                      >
-                        {ASSIGNABLE_ROLES.map((r) => (<option key={r} value={r}>{r}</option>))}
-                      </select>
+                      {(() => {
+                        const isSelf = s.email.toLowerCase() === currentEmail;
+                        return (
+                          <select
+                            className="role-switcher"
+                            value={s.role}
+                            disabled={isSelf}
+                            title={isSelf ? "You can't change your own role" : ""}
+                            style={isSelf ? { opacity: 0.55, cursor: "not-allowed" } : undefined}
+                            onChange={async (e) => {
+                              const newRole = e.target.value;
+                              try {
+                                await updateStaffRole({ staffEmail: s.email, newRole, actorEmail: currentEmail });
+                                showModal({
+                                  title: "Role Updated",
+                                  message: `${s.name}'s role has been changed to ${newRole}.`,
+                                  type: "success"
+                                });
+                              } catch (err) {
+                                showModal({
+                                  title: "Action Blocked",
+                                  message: err.message || "Could not change role.",
+                                  type: "alert"
+                                });
+                              }
+                            }}
+                          >
+                            {ASSIGNABLE_ROLES.map((r) => (<option key={r} value={r}>{r}</option>))}
+                          </select>
+                        );
+                      })()}
                     </td>
                     <td style={{ color: "#64748b" }}>{s.email}</td>
                     <td>

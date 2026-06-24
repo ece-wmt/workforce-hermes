@@ -777,7 +777,7 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
                               className="staff-action-btn approve"
                               onClick={async () => {
                                 try {
-                                  await updateStaffRole({ staffEmail: s.email, newRole: "Programmer" });
+                                  await updateStaffRole({ staffEmail: s.email, newRole: "Programmer", actorEmail: userEmail });
                                   showModal({ title: "Approved", message: `${s.name} has been approved as Programmer.`, type: "success" });
                                 } catch (err) {
                                   showModal({ title: "Error", message: err.message, type: "alert" });
@@ -839,17 +839,29 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
                           </div>
                         </div>
                         <div className="staff-mgmt-role">
-                          <select
-                            className="staff-role-select"
-                            value={s.role}
-                            onChange={async (e) => {
-                              const newRole = e.target.value;
-                              await updateStaffRole({ staffEmail: s.email, newRole });
-                              showModal({ title: "Role Updated", message: `${s.name}'s role has been changed to ${newRole}.`, type: "success" });
-                            }}
-                          >
-                            {ASSIGNABLE_ROLES.map((r) => (<option key={r} value={r}>{r}</option>))}
-                          </select>
+                          {(() => {
+                            const isSelf = s.email.toLowerCase() === (userEmail || "").toLowerCase();
+                            return (
+                              <select
+                                className="staff-role-select"
+                                value={s.role}
+                                disabled={isSelf}
+                                title={isSelf ? "You can't change your own role" : ""}
+                                style={isSelf ? { opacity: 0.55, cursor: "not-allowed" } : undefined}
+                                onChange={async (e) => {
+                                  const newRole = e.target.value;
+                                  try {
+                                    await updateStaffRole({ staffEmail: s.email, newRole, actorEmail: userEmail });
+                                    showModal({ title: "Role Updated", message: `${s.name}'s role has been changed to ${newRole}.`, type: "success" });
+                                  } catch (err) {
+                                    showModal({ title: "Action Blocked", message: err.message || "Could not change role.", type: "alert" });
+                                  }
+                                }}
+                              >
+                                {ASSIGNABLE_ROLES.map((r) => (<option key={r} value={r}>{r}</option>))}
+                              </select>
+                            );
+                          })()}
                         </div>
                         <div className="staff-mgmt-actions">
                           <button

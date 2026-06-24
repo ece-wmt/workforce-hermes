@@ -256,9 +256,18 @@ export const updateStaffRole = mutation({
   args: {
     staffEmail: v.string(),
     newRole: v.string(),
+    actorEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const lowerEmail = args.staffEmail.toLowerCase();
+    const actor = (args.actorEmail || "").toLowerCase();
+
+    // Security: a user can never change their own role (no self-promotion /
+    // self-demotion). Enforced here so it holds regardless of the UI.
+    if (actor && actor === lowerEmail) {
+      throw new Error("You cannot change your own role.");
+    }
+
     const existing = await ctx.db
       .query("staff")
       .withIndex("by_email", (q) => q.eq("email", lowerEmail))
@@ -284,7 +293,7 @@ export const updateStaffRole = mutation({
     // Audit log
     await ctx.db.insert("securityLogs", {
       action: "ROLE_CHANGED",
-      userEmail: "admin", // Only admins can change roles in this app
+      userEmail: actor || "admin",
       targetEmail: lowerEmail,
       details: `Role updated to: ${args.newRole}`,
       timestamp: Date.now(),
