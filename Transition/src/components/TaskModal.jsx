@@ -74,6 +74,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   const [selectedMilestones, setSelectedMilestones] = useState(new Set());
   const [passwordRevealed, setPasswordRevealed] = useState(false);
   const [apiCopied, setApiCopied] = useState(false);
+  const [descExpanded, setDescExpanded] = useState(false);
 
   // Mentions logic
   const [mentionConfig, setMentionConfig] = useState(null); // { query: string, index: number, target: 'note' | 'reply' }
@@ -989,9 +990,29 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
                     </div>
                   </>
                 ) : (
-                  <div style={{ fontSize: "0.85rem", color: "var(--color-text-primary)", lineHeight: 1.5 }}>
-                    {task.description || "No description provided."}
-                  </div>
+                  <>
+                    <div style={{
+                      fontSize: "0.85rem",
+                      color: "var(--color-text-primary)",
+                      lineHeight: 1.5,
+                      ...((task.description || "").length > 280 && !descExpanded ? {
+                        display: "-webkit-box",
+                        WebkitLineClamp: 3,
+                        WebkitBoxOrient: "vertical",
+                        overflow: "hidden",
+                      } : {}),
+                    }}>
+                      {task.description || "No description provided."}
+                    </div>
+                    {(task.description || "").length > 280 && (
+                      <button
+                        onClick={() => setDescExpanded(!descExpanded)}
+                        style={{ marginTop: 4, padding: 0, background: "none", border: "none", cursor: "pointer", fontSize: "0.7rem", fontWeight: 800, color: "var(--color-accent)", letterSpacing: "0.5px" }}
+                      >
+                        {descExpanded ? "▲ See less" : "▼ See more"}
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
 
