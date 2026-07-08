@@ -64,13 +64,15 @@ export default function Handbook({ onClose, canEdit, userName, showModal }) {
     markDirty(blocks.filter((b) => b.id !== id));
   }
   // Which visual region a block lives in: full-width banner strip, the main
-  // (left) column, or the right sidebar column.
+  // (left) column, or one of the two sidebar columns.
   function colKey(b) {
-    if (b.col === "side") return "side";
+    if (b.col === "side" || b.col === "side2") return b.col;
     return b.type === "banner" ? "banner" : "main";
   }
+  // Cycle a block through the columns: main → right → third → main.
+  const NEXT_COL = { undefined: "side", side: "side2", side2: undefined };
   function toggleCol(id) {
-    markDirty(blocks.map((b) => (b.id === id ? { ...b, col: b.col === "side" ? undefined : "side" } : b)));
+    markDirty(blocks.map((b) => (b.id === id ? { ...b, col: NEXT_COL[b.col] } : b)));
   }
   function moveBlock(index, dir) {
     // Swap with the nearest block in the same visual column so moves stay intuitive.
@@ -97,22 +99,23 @@ export default function Handbook({ onClose, canEdit, userName, showModal }) {
     setDragOver(null);
     dragIndex.current = null;
     if (from === null || from === targetIndex) return;
-    const targetCol = blocks[targetIndex]?.col === "side" ? "side" : undefined;
+    const tc = blocks[targetIndex]?.col;
+    const targetCol = tc === "side" || tc === "side2" ? tc : undefined;
     const next = [...blocks];
     const [moved] = next.splice(from, 1);
     // Dropping onto a block also adopts its column, so dragging between the
-    // left and right parts just works.
+    // parts just works.
     next.splice(targetIndex, 0, { ...moved, col: targetCol });
     markDirty(next);
   }
-  function handleDropToSide() {
+  function handleDropToSide(col) {
     const from = dragIndex.current;
     setDragOver(null);
     dragIndex.current = null;
     if (from === null) return;
     const next = [...blocks];
     const [moved] = next.splice(from, 1);
-    next.push({ ...moved, col: "side" });
+    next.push({ ...moved, col });
     markDirty(next);
   }
 
@@ -277,7 +280,7 @@ export default function Handbook({ onClose, canEdit, userName, showModal }) {
                       editing={editing}
                       index={idxInCol}
                       total={colTotal}
-                      inSidebar={block.col === "side"}
+                      inSidebar={block.col === "side" || block.col === "side2"}
                       isDragOver={dragOver === index}
                       onUpdate={(patch) => updateBlock(block.id, patch)}
                       onSetWidth={(w) => setWidth(block.id, w)}
@@ -295,10 +298,26 @@ export default function Handbook({ onClose, canEdit, userName, showModal }) {
                 const banners = blocks.filter((b) => colKey(b) === "banner");
                 const mains = blocks.filter((b) => colKey(b) === "main");
                 const sides = blocks.filter((b) => colKey(b) === "side");
+                const sides2 = blocks.filter((b) => colKey(b) === "side2");
+                const renderSideCol = (colBlocks, col, label) => (
+                  <aside className="hb-col-side">
+                    {colBlocks.map((b, i) => renderBlock(b, i, colBlocks.length))}
+                    {editing && (
+                      <div
+                        className="hb-side-hint"
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => { e.preventDefault(); handleDropToSide(col); }}
+                      >
+                        {label}<br />
+                        Drag a block here, or click the ⇆ button on any block to cycle it across columns.
+                      </div>
+                    )}
+                  </aside>
+                );
                 return (
                   <>
                     {banners.length > 0 && (
-                      <div className="hb-grid" style={{ marginBottom: 18 }}>
+                      <div className="hb-grid hb-banner-strip">
                         {banners.map((b, i) => renderBlock(b, i, banners.length))}
                       </div>
                     )}
@@ -306,21 +325,8 @@ export default function Handbook({ onClose, canEdit, userName, showModal }) {
                       <div className="hb-grid hb-col-main">
                         {mains.map((b, i) => renderBlock(b, i, mains.length))}
                       </div>
-                      {(sides.length > 0 || editing) && (
-                        <aside className="hb-col-side">
-                          {sides.map((b, i) => renderBlock(b, i, sides.length))}
-                          {editing && (
-                            <div
-                              className="hb-side-hint"
-                              onDragOver={(e) => e.preventDefault()}
-                              onDrop={(e) => { e.preventDefault(); handleDropToSide(); }}
-                            >
-                              Right column<br />
-                              Drag a block here, or click the ⇆ button on any block to move it across.
-                            </div>
-                          )}
-                        </aside>
-                      )}
+                      {(sides.length > 0 || editing) && renderSideCol(sides, "side", "Right column")}
+                      {(sides2.length > 0 || editing) && renderSideCol(sides2, "side2", "Third column (hidden when empty)")}
                     </div>
                   </>
                 );

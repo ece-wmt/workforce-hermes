@@ -77,7 +77,7 @@ export default function HandbookBlock({
             </div>
           )}
           {onToggleCol && (
-            <button className="hb-tool-btn" title={inSidebar ? "Move to left column" : "Move to right column"} onClick={onToggleCol}>
+            <button className="hb-tool-btn" title="Move to next column (main → right → third)" onClick={onToggleCol}>
               <Icon name="columns" size={13} />
             </button>
           )}
