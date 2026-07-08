@@ -5593,6 +5593,33 @@ body.role-programmer .kanban-col.col-scrap {
 .hb-grid > .hb-block.w-9 { grid-column: span 9; }  /* ¾ */
 .hb-grid > .hb-block.w-6 { grid-column: span 12; } /* full */
 /* ── Access / Credentials block + masked secrets ── */
+.hb-access-col-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  background: var(--color-bg-subtle);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+.hb-access-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.hb-access-card {
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: var(--color-bg-subtle);
+  box-shadow: var(--shadow-sm);
+}
 .hb-access-title {
   display: flex;
   align-items: center;

@@ -93,10 +93,15 @@ const DEFAULTS = {
   access: {
     w: 1,
     props: {
-      title: "Tool Access",
-      items: [
-        { label: "User ID", value: "" },
-        { label: "Password", value: "" },
+      heading: "Universal Access Information",
+      cards: [
+        {
+          title: "Tool Access",
+          items: [
+            { label: "User ID", value: "" },
+            { label: "Password", value: "" },
+          ],
+        },
       ],
     },
   },
@@ -206,15 +211,16 @@ export const TEMPLATES = [
   {
     id: "tpl-access",
     name: "Process + Quick Access (3:1)",
-    desc: "A ¾-width process column beside a ¼-width credentials sidebar.",
+    desc: "A ¾-width process column beside a ¼-width credentials sidebar with stacked access cards.",
     blocks: [
-      { type: "text", w: 9, props: { body: "Document the process here. This column takes ¾ of the row; the access card on the right holds the quick important details." } },
+      { type: "text", w: 9, props: { body: "Document the process here. This column takes ¾ of the row; the access column on the right holds the quick important details." } },
       {
         type: "access", w: 1, props: {
-          title: "Tool Access",
-          items: [
-            { label: "User ID", value: "" },
-            { label: "Password", value: "" },
+          heading: "Universal Access Information",
+          cards: [
+            { title: "Supabase Access", items: [{ label: "User ID", value: "" }, { label: "Password", value: "" }] },
+            { title: "Tool 2", items: [{ label: "User ID", value: "" }, { label: "Password", value: "" }] },
+            { title: "Tool 3", items: [{ label: "User ID", value: "" }, { label: "Password", value: "" }] },
           ],
         },
       },

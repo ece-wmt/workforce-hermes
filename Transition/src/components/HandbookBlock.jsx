@@ -266,30 +266,7 @@ function BlockContent({ type, props, editing, onUpdate }) {
       );
 
     case "access":
-      return <ListEditor
-        editing={editing}
-        items={props.items || []}
-        fields={[{ key: "label", placeholder: "Label (e.g. User ID)" }, { key: "value", placeholder: "Secret value" }]}
-        onChange={(items) => onUpdate({ items })}
-        header={editing ? (
-          <>
-            <div className="hb-mini-label">Card title</div>
-            <input className="hb-edit-input" style={{ marginBottom: 10 }} value={props.title || ""} placeholder="e.g. Supabase Access" onChange={(e) => onUpdate({ title: e.target.value })} />
-          </>
-        ) : null}
-        render={(items) => (
-          <div>
-            <div className="hb-access-title"><Icon name="lock" size={13} />{props.title || "Access"}</div>
-            {items.map((it, i) => (
-              <div key={i} className="hb-access-row">
-                <span className="hb-access-label">{it.label}</span>
-                <SecretValue value={it.value} />
-              </div>
-            ))}
-          </div>
-        )}
-        newItem={{ label: "Label", value: "" }}
-      />;
+      return <AccessBlock props={props} editing={editing} onUpdate={onUpdate} />;
 
     case "divider":
       return <hr className="hb-divider-line" />;
@@ -323,6 +300,80 @@ export function SecretValue({ value }) {
   );
 }
 
+/* Access column: an optional heading with any number of credential cards
+   stacked inside one block — designed to sit as a ¼-width sidebar. */
+function AccessBlock({ props, editing, onUpdate }) {
+  // Normalize the earlier single-card shape ({title, items}) into cards[].
+  const cards = props.cards || (props.items ? [{ title: props.title || "Access", items: props.items }] : []);
+
+  if (!editing) {
+    return (
+      <div>
+        {props.heading ? <div className="hb-access-col-heading"><Icon name="lock" size={13} />{props.heading}</div> : null}
+        <div className="hb-access-cards">
+          {cards.map((card, ci) => (
+            <div key={ci} className="hb-access-card">
+              <div className="hb-access-title"><Icon name="lock" size={12} />{card.title}</div>
+              {(card.items || []).map((it, i) => (
+                <div key={i} className="hb-access-row">
+                  <span className="hb-access-label">{it.label}</span>
+                  <SecretValue value={it.value} />
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  function patchCards(next) { onUpdate({ cards: next }); }
+  function patchCard(ci, patch) { patchCards(cards.map((c, i) => (i === ci ? { ...c, ...patch } : c))); }
+  function moveCard(ci, dir) {
+    const t = ci + dir;
+    if (t < 0 || t >= cards.length) return;
+    const next = cards.map((c) => c);
+    [next[ci], next[t]] = [next[t], next[ci]];
+    patchCards(next);
+  }
+  function patchItem(ci, ii, key, val) {
+    patchCard(ci, { items: cards[ci].items.map((it, i) => (i === ii ? { ...it, [key]: val } : it)) });
+  }
+
+  return (
+    <div>
+      <div className="hb-mini-label">Column heading</div>
+      <input className="hb-edit-input" style={{ marginBottom: 10 }} value={props.heading || ""} placeholder="e.g. Universal Access Information" onChange={(e) => onUpdate({ heading: e.target.value })} />
+      <div className="hb-mini-label">Access cards</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {cards.map((card, ci) => (
+          <div key={ci} style={{ border: "1px dashed var(--glass-border)", borderRadius: 10, padding: 10 }}>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 4, marginBottom: 6 }}>
+              <button className="hb-tool-btn" title="Up" disabled={ci === 0} onClick={() => moveCard(ci, -1)}><Icon name="up" size={12} /></button>
+              <button className="hb-tool-btn" title="Down" disabled={ci === cards.length - 1} onClick={() => moveCard(ci, 1)}><Icon name="down" size={12} /></button>
+              <button className="hb-tool-btn danger" title="Remove card" onClick={() => patchCards(cards.filter((_, i) => i !== ci))}><Icon name="trash" size={12} /></button>
+            </div>
+            <input className="hb-edit-input" style={{ marginBottom: 6, fontWeight: 800 }} value={card.title || ""} placeholder="Card title (e.g. Supabase Access)" onChange={(e) => patchCard(ci, { title: e.target.value })} />
+            {(card.items || []).map((it, ii) => (
+              <div key={ii} style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                <input className="hb-edit-input" style={{ flex: 1 }} value={it.label || ""} placeholder="Label" onChange={(e) => patchItem(ci, ii, "label", e.target.value)} />
+                <input className="hb-edit-input" style={{ flex: 2 }} value={it.value || ""} placeholder="Secret value" onChange={(e) => patchItem(ci, ii, "value", e.target.value)} />
+                <button className="hb-tool-btn danger" title="Remove row" onClick={() => patchCard(ci, { items: card.items.filter((_, i) => i !== ii) })}><Icon name="trash" size={12} /></button>
+              </div>
+            ))}
+            <button className="hb-btn hb-btn-ghost" style={{ justifyContent: "center", width: "100%" }} onClick={() => patchCard(ci, { items: [...(card.items || []), { label: "Label", value: "" }] })}>
+              <Icon name="plus" size={13} /> Add row
+            </button>
+          </div>
+        ))}
+        <button className="hb-btn hb-btn-ghost" style={{ justifyContent: "center" }} onClick={() => patchCards([...cards, { title: "New Tool", items: [{ label: "User ID", value: "" }, { label: "Password", value: "" }] }])}>
+          <Icon name="plus" size={14} /> Add access card
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* Text block body with ||secret|| segments rendered as masked SecretValues. */
 function TextWithSecrets({ body, style }) {
   const parts = String(body || "").split(/\|\|([^|]+)\|\|/g);
@@ -335,7 +386,7 @@ function TextWithSecrets({ body, style }) {
 }
 
 /* Generic add/remove/edit list of objects with text fields. */
-function ListEditor({ editing, items, fields, onChange, render, newItem, header = null }) {
+function ListEditor({ editing, items, fields, onChange, render, newItem }) {
   if (!editing) return render(items);
 
   function patch(i, key, val) {
@@ -354,7 +405,6 @@ function ListEditor({ editing, items, fields, onChange, render, newItem, header 
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      {header}
       {items.map((it, i) => (
         <div key={i} style={{ border: "1px dashed var(--glass-border)", borderRadius: 10, padding: 10, position: "relative" }}>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 4, marginBottom: 6 }}>
