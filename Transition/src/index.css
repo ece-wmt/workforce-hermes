@@ -5450,7 +5450,7 @@ body.role-programmer .kanban-col.col-scrap {
   position: relative;
   background: var(--color-card-bg);
   width: 100%;
-  max-width: 1160px;
+  max-width: min(1520px, calc(100vw - 32px));
   height: calc(100vh - 48px);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-xl);
@@ -5576,6 +5576,44 @@ body.role-programmer .kanban-col.col-scrap {
   grid-template-columns: repeat(12, 1fr);
   gap: 18px;
   align-content: start;
+}
+
+/* ── Two-part layout: main (left) column + right sidebar column ── */
+.hb-columns {
+  display: flex;
+  gap: 18px;
+  align-items: stretch;
+}
+.hb-col-main {
+  flex: 3;
+  min-width: 0;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-bg-subtle) 55%, transparent);
+  padding: 16px;
+}
+.hb-col-side {
+  flex: 1;
+  min-width: 250px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-content: start;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-bg-subtle) 55%, transparent);
+  padding: 16px;
+}
+.hb-col-side > .hb-block { width: 100%; }
+.hb-side-hint {
+  border: 2px dashed var(--glass-border);
+  border-radius: 10px;
+  padding: 22px 14px;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
 }
 .hb-block {
   position: relative;
@@ -5813,7 +5851,7 @@ body.role-programmer .kanban-col.col-scrap {
 .hb-chart-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 
 .hb-empty-state {
-  grid-column: span 6;
+  grid-column: 1 / -1;
   text-align: center;
   padding: 70px 20px;
   color: var(--color-text-secondary);
@@ -5832,6 +5870,8 @@ body.role-programmer .kanban-col.col-scrap {
   .hb-grid { grid-template-columns: repeat(2, 1fr); }
   .hb-grid > .hb-block.w-1, .hb-grid > .hb-block.w-2, .hb-grid > .hb-block.w-3,
   .hb-grid > .hb-block.w-4, .hb-grid > .hb-block.w-9, .hb-grid > .hb-block.w-6 { grid-column: span 2; }
+  .hb-columns { flex-direction: column; }
+  .hb-col-side { min-width: 0; }
 }
 
 /* ============================================================

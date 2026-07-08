@@ -46,8 +46,8 @@ function ColorRow({ value, onChange }) {
 }
 
 export default function HandbookBlock({
-  block, editing, index, total, isDragOver,
-  onUpdate, onSetWidth, onRemove, onDuplicate, onMove,
+  block, editing, index, total, isDragOver, inSidebar,
+  onUpdate, onSetWidth, onRemove, onDuplicate, onMove, onToggleCol,
   onDragStart, onDragEnterBlock, onDropBlock, onDragEnd,
 }) {
   const { type, props } = block;
@@ -69,11 +69,18 @@ export default function HandbookBlock({
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
           ><Icon name="grip" size={14} /></button>
-          <div className="hb-width-seg" title="Block width">
-            {WIDTH_OPTS.map((o) => (
-              <button key={o.w} className={block.w === o.w ? "active" : ""} onClick={() => onSetWidth(o.w)}>{o.label}</button>
-            ))}
-          </div>
+          {!inSidebar && (
+            <div className="hb-width-seg" title="Block width">
+              {WIDTH_OPTS.map((o) => (
+                <button key={o.w} className={block.w === o.w ? "active" : ""} onClick={() => onSetWidth(o.w)}>{o.label}</button>
+              ))}
+            </div>
+          )}
+          {onToggleCol && (
+            <button className="hb-tool-btn" title={inSidebar ? "Move to left column" : "Move to right column"} onClick={onToggleCol}>
+              <Icon name="columns" size={13} />
+            </button>
+          )}
           <button className="hb-tool-btn" title="Move up" disabled={index === 0} onClick={() => onMove(-1)}><Icon name="up" size={14} /></button>
           <button className="hb-tool-btn" title="Move down" disabled={index === total - 1} onClick={() => onMove(1)}><Icon name="down" size={14} /></button>
           <button className="hb-tool-btn" title="Duplicate" onClick={onDuplicate}><Icon name="copy" size={13} /></button>

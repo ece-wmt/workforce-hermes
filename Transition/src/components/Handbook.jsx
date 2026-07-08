@@ -63,8 +63,20 @@ export default function Handbook({ onClose, canEdit, userName, showModal }) {
   function removeBlock(id) {
     markDirty(blocks.filter((b) => b.id !== id));
   }
+  // Which visual region a block lives in: full-width banner strip, the main
+  // (left) column, or the right sidebar column.
+  function colKey(b) {
+    if (b.col === "side") return "side";
+    return b.type === "banner" ? "banner" : "main";
+  }
+  function toggleCol(id) {
+    markDirty(blocks.map((b) => (b.id === id ? { ...b, col: b.col === "side" ? undefined : "side" } : b)));
+  }
   function moveBlock(index, dir) {
-    const target = index + dir;
+    // Swap with the nearest block in the same visual column so moves stay intuitive.
+    const key = colKey(blocks[index]);
+    let target = index + dir;
+    while (target >= 0 && target < blocks.length && colKey(blocks[target]) !== key) target += dir;
     if (target < 0 || target >= blocks.length) return;
     const next = [...blocks];
     [next[index], next[target]] = [next[target], next[index]];
@@ -85,9 +97,22 @@ export default function Handbook({ onClose, canEdit, userName, showModal }) {
     setDragOver(null);
     dragIndex.current = null;
     if (from === null || from === targetIndex) return;
+    const targetCol = blocks[targetIndex]?.col === "side" ? "side" : undefined;
     const next = [...blocks];
     const [moved] = next.splice(from, 1);
-    next.splice(targetIndex, 0, moved);
+    // Dropping onto a block also adopts its column, so dragging between the
+    // left and right parts just works.
+    next.splice(targetIndex, 0, { ...moved, col: targetCol });
+    markDirty(next);
+  }
+  function handleDropToSide() {
+    const from = dragIndex.current;
+    setDragOver(null);
+    dragIndex.current = null;
+    if (from === null) return;
+    const next = [...blocks];
+    const [moved] = next.splice(from, 1);
+    next.push({ ...moved, col: "side" });
     markDirty(next);
   }
 
@@ -242,27 +267,64 @@ export default function Handbook({ onClose, canEdit, userName, showModal }) {
                 </div>
               </div>
             ) : (
-              <div className="hb-grid">
-                {blocks.map((block, index) => (
-                  <HandbookBlock
-                    key={block.id}
-                    block={block}
-                    editing={editing}
-                    index={index}
-                    total={blocks.length}
-                    isDragOver={dragOver === index}
-                    onUpdate={(patch) => updateBlock(block.id, patch)}
-                    onSetWidth={(w) => setWidth(block.id, w)}
-                    onRemove={() => removeBlock(block.id)}
-                    onDuplicate={() => duplicateBlock(block.id)}
-                    onMove={(dir) => moveBlock(index, dir)}
-                    onDragStart={() => { dragIndex.current = index; }}
-                    onDragEnterBlock={() => setDragOver(index)}
-                    onDropBlock={() => handleDrop(index)}
-                    onDragEnd={() => { dragIndex.current = null; setDragOver(null); }}
-                  />
-                ))}
-              </div>
+              (() => {
+                const renderBlock = (block, idxInCol, colTotal) => {
+                  const index = blocks.findIndex((b) => b.id === block.id);
+                  return (
+                    <HandbookBlock
+                      key={block.id}
+                      block={block}
+                      editing={editing}
+                      index={idxInCol}
+                      total={colTotal}
+                      inSidebar={block.col === "side"}
+                      isDragOver={dragOver === index}
+                      onUpdate={(patch) => updateBlock(block.id, patch)}
+                      onSetWidth={(w) => setWidth(block.id, w)}
+                      onRemove={() => removeBlock(block.id)}
+                      onDuplicate={() => duplicateBlock(block.id)}
+                      onMove={(dir) => moveBlock(index, dir)}
+                      onToggleCol={() => toggleCol(block.id)}
+                      onDragStart={() => { dragIndex.current = index; }}
+                      onDragEnterBlock={() => setDragOver(index)}
+                      onDropBlock={() => handleDrop(index)}
+                      onDragEnd={() => { dragIndex.current = null; setDragOver(null); }}
+                    />
+                  );
+                };
+                const banners = blocks.filter((b) => colKey(b) === "banner");
+                const mains = blocks.filter((b) => colKey(b) === "main");
+                const sides = blocks.filter((b) => colKey(b) === "side");
+                return (
+                  <>
+                    {banners.length > 0 && (
+                      <div className="hb-grid" style={{ marginBottom: 18 }}>
+                        {banners.map((b, i) => renderBlock(b, i, banners.length))}
+                      </div>
+                    )}
+                    <div className="hb-columns">
+                      <div className="hb-grid hb-col-main">
+                        {mains.map((b, i) => renderBlock(b, i, mains.length))}
+                      </div>
+                      {(sides.length > 0 || editing) && (
+                        <aside className="hb-col-side">
+                          {sides.map((b, i) => renderBlock(b, i, sides.length))}
+                          {editing && (
+                            <div
+                              className="hb-side-hint"
+                              onDragOver={(e) => e.preventDefault()}
+                              onDrop={(e) => { e.preventDefault(); handleDropToSide(); }}
+                            >
+                              Right column<br />
+                              Drag a block here, or click the ⇆ button on any block to move it across.
+                            </div>
+                          )}
+                        </aside>
+                      )}
+                    </div>
+                  </>
+                );
+              })()
             )}
             {!editing && lastUpdated && !isEmpty && (
               <div style={{ textAlign: "center", marginTop: 30, fontSize: "0.7rem", color: "var(--color-text-secondary)", opacity: 0.7 }}>
