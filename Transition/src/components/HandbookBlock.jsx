@@ -1,10 +1,13 @@
+import { useState } from "react";
 import { Icon } from "./handbookIcons";
 import HandbookChart from "./HandbookChart";
 
 const WIDTH_OPTS = [
+  { w: 1, label: "¼" },
   { w: 2, label: "⅓" },
   { w: 3, label: "½" },
   { w: 4, label: "⅔" },
+  { w: 9, label: "¾" },
   { w: 6, label: "Full" },
 ];
 
@@ -118,10 +121,11 @@ function BlockContent({ type, props, editing, onUpdate }) {
       return editing ? (
         <>
           <textarea className="hb-edit-area" rows={5} value={props.body} placeholder="Write your content…" onChange={(e) => onUpdate({ body: e.target.value })} />
+          <div className="hb-mini-label" style={{ marginTop: 6 }}>Tip: wrap sensitive text in double pipes — ||likeThis|| — to mask it with hover-to-reveal and copy.</div>
           <ColorRow value={props.color} onChange={(c) => onUpdate({ color: c })} />
         </>
       ) : (
-        <div className="hb-text" style={props.color ? { color: props.color } : undefined}>{props.body}</div>
+        <TextWithSecrets body={props.body} style={props.color ? { color: props.color } : undefined} />
       );
 
     case "callout":
@@ -261,6 +265,32 @@ function BlockContent({ type, props, editing, onUpdate }) {
         <div className="hb-image-empty"><Icon name="image" size={28} />No image set</div>
       );
 
+    case "access":
+      return <ListEditor
+        editing={editing}
+        items={props.items || []}
+        fields={[{ key: "label", placeholder: "Label (e.g. User ID)" }, { key: "value", placeholder: "Secret value" }]}
+        onChange={(items) => onUpdate({ items })}
+        header={editing ? (
+          <>
+            <div className="hb-mini-label">Card title</div>
+            <input className="hb-edit-input" style={{ marginBottom: 10 }} value={props.title || ""} placeholder="e.g. Supabase Access" onChange={(e) => onUpdate({ title: e.target.value })} />
+          </>
+        ) : null}
+        render={(items) => (
+          <div>
+            <div className="hb-access-title"><Icon name="lock" size={13} />{props.title || "Access"}</div>
+            {items.map((it, i) => (
+              <div key={i} className="hb-access-row">
+                <span className="hb-access-label">{it.label}</span>
+                <SecretValue value={it.value} />
+              </div>
+            ))}
+          </div>
+        )}
+        newItem={{ label: "Label", value: "" }}
+      />;
+
     case "divider":
       return <hr className="hb-divider-line" />;
 
@@ -269,8 +299,43 @@ function BlockContent({ type, props, editing, onUpdate }) {
   }
 }
 
+/* A value masked as dots; hover reveals it and shows a copy button. */
+export function SecretValue({ value }) {
+  const [revealed, setRevealed] = useState(false);
+  const [copied, setCopied] = useState(false);
+  if (!value) return <span className="hb-secret-empty">—</span>;
+  return (
+    <span className="hb-secret" onMouseEnter={() => setRevealed(true)} onMouseLeave={() => setRevealed(false)}>
+      <span className="hb-secret-value">{revealed ? value : "•".repeat(Math.min(Math.max(value.length, 8), 14))}</span>
+      <button
+        type="button"
+        className={`hb-secret-copy ${copied ? "copied" : ""}`}
+        title="Copy"
+        onClick={() => {
+          navigator.clipboard.writeText(value);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1200);
+        }}
+      >
+        <Icon name={copied ? "check" : "copy"} size={11} />
+      </button>
+    </span>
+  );
+}
+
+/* Text block body with ||secret|| segments rendered as masked SecretValues. */
+function TextWithSecrets({ body, style }) {
+  const parts = String(body || "").split(/\|\|([^|]+)\|\|/g);
+  if (parts.length === 1) return <div className="hb-text" style={style}>{body}</div>;
+  return (
+    <div className="hb-text" style={style}>
+      {parts.map((part, i) => (i % 2 === 1 ? <SecretValue key={i} value={part} /> : part))}
+    </div>
+  );
+}
+
 /* Generic add/remove/edit list of objects with text fields. */
-function ListEditor({ editing, items, fields, onChange, render, newItem }) {
+function ListEditor({ editing, items, fields, onChange, render, newItem, header = null }) {
   if (!editing) return render(items);
 
   function patch(i, key, val) {
@@ -289,6 +354,7 @@ function ListEditor({ editing, items, fields, onChange, render, newItem }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {header}
       {items.map((it, i) => (
         <div key={i} style={{ border: "1px dashed var(--glass-border)", borderRadius: 10, padding: 10, position: "relative" }}>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 4, marginBottom: 6 }}>

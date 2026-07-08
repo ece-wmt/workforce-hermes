@@ -5570,8 +5570,10 @@ body.role-programmer .kanban-col.col-scrap {
   repeating-linear-gradient(0deg, transparent, transparent 38px, color-mix(in srgb, var(--color-text-primary) 4%, transparent) 38px, color-mix(in srgb, var(--color-text-primary) 4%, transparent) 39px);
 }
 .hb-grid {
+  /* 12 tracks so quarter (w-1) and three-quarter (w-9) widths exist alongside
+     the legacy 6-unit spans (w-2/3/4/6), enabling 3:1 sidebar layouts. */
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(12, 1fr);
   gap: 18px;
   align-content: start;
 }
@@ -5584,10 +5586,77 @@ body.role-programmer .kanban-col.col-scrap {
   box-shadow: var(--shadow-sm);
   min-width: 0;
 }
-.hb-grid > .hb-block.w-2 { grid-column: span 2; }
-.hb-grid > .hb-block.w-3 { grid-column: span 3; }
-.hb-grid > .hb-block.w-4 { grid-column: span 4; }
-.hb-grid > .hb-block.w-6 { grid-column: span 6; }
+.hb-grid > .hb-block.w-1 { grid-column: span 3; }  /* ¼ */
+.hb-grid > .hb-block.w-2 { grid-column: span 4; }  /* ⅓ */
+.hb-grid > .hb-block.w-3 { grid-column: span 6; }  /* ½ */
+.hb-grid > .hb-block.w-4 { grid-column: span 8; }  /* ⅔ */
+.hb-grid > .hb-block.w-9 { grid-column: span 9; }  /* ¾ */
+.hb-grid > .hb-block.w-6 { grid-column: span 12; } /* full */
+/* ── Access / Credentials block + masked secrets ── */
+.hb-access-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  margin-bottom: 10px;
+}
+.hb-access-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px dashed var(--glass-border);
+  min-width: 0;
+}
+.hb-access-row:last-child { border-bottom: none; }
+.hb-access-label {
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+.hb-secret {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-family: monospace;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  cursor: default;
+}
+.hb-secret-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: 1px;
+}
+.hb-secret-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border: 1px solid var(--glass-border);
+  border-radius: 5px;
+  background: var(--color-bg-subtle);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+.hb-secret:hover .hb-secret-copy { opacity: 1; }
+.hb-secret-copy.copied { color: var(--color-accent); border-color: var(--color-accent); opacity: 1; }
+.hb-secret-empty { color: var(--color-text-secondary); opacity: 0.6; font-size: 0.8rem; }
+
 .handbook-canvas.is-editing .hb-block { border-style: dashed; }
 .handbook-canvas.is-editing .hb-block.drag-over { border-color: var(--color-accent); box-shadow: 0 0 0 2px var(--color-accent); }
 .handbook-canvas.is-editing .hb-block.dragging { opacity: 0.4; }
@@ -5734,8 +5803,8 @@ body.role-programmer .kanban-col.col-scrap {
 @media (max-width: 820px) {
   .handbook-palette { display: none; }
   .hb-grid { grid-template-columns: repeat(2, 1fr); }
-  .hb-grid > .hb-block.w-2, .hb-grid > .hb-block.w-3,
-  .hb-grid > .hb-block.w-4, .hb-grid > .hb-block.w-6 { grid-column: span 2; }
+  .hb-grid > .hb-block.w-1, .hb-grid > .hb-block.w-2, .hb-grid > .hb-block.w-3,
+  .hb-grid > .hb-block.w-4, .hb-grid > .hb-block.w-9, .hb-grid > .hb-block.w-6 { grid-column: span 2; }
 }
 
 /* ============================================================

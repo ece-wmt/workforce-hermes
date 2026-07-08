@@ -90,6 +90,16 @@ const DEFAULTS = {
   },
   divider: { w: 6, props: {} },
   image: { w: 3, props: { url: "", alt: "" } },
+  access: {
+    w: 1,
+    props: {
+      title: "Tool Access",
+      items: [
+        { label: "User ID", value: "" },
+        { label: "Password", value: "" },
+      ],
+    },
+  },
 };
 
 export function makeBlock(type) {
@@ -119,6 +129,7 @@ export const BLOCK_DEFS = [
 
   { type: "kpis", label: "KPI Stats", icon: "kpi", group: "Data" },
   { type: "chart", label: "Chart", icon: "chart", group: "Data" },
+  { type: "access", label: "Access / Credentials", icon: "lock", group: "Data" },
 
   { type: "image", label: "Image", icon: "image", group: "Media" },
   { type: "divider", label: "Divider", icon: "divider", group: "Media" },
@@ -191,6 +202,23 @@ export const TEMPLATES = [
     name: "Stats Row",
     desc: "A row of KPI metric cards.",
     blocks: [{ type: "kpis", w: 6, props: { ...JSON.parse(JSON.stringify(DEFAULTS.kpis.props)) } }],
+  },
+  {
+    id: "tpl-access",
+    name: "Process + Quick Access (3:1)",
+    desc: "A ¾-width process column beside a ¼-width credentials sidebar.",
+    blocks: [
+      { type: "text", w: 9, props: { body: "Document the process here. This column takes ¾ of the row; the access card on the right holds the quick important details." } },
+      {
+        type: "access", w: 1, props: {
+          title: "Tool Access",
+          items: [
+            { label: "User ID", value: "" },
+            { label: "Password", value: "" },
+          ],
+        },
+      },
+    ],
   },
   {
     id: "tpl-chart",
