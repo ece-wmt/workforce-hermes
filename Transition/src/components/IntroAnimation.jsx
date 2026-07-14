@@ -1,27 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 /**
- * Full-screen intro animation that plays on:
+ * Full-screen loading screen that plays the logo animation on:
  * 1. Successful login
  * 2. Opening the app when already authenticated (auto-login)
  *
- * The video fades out starting at 4s and is fully gone by ~5s.
+ * The logo resolves by ~2s, so the overlay snaps away at 2.5s
+ * (no fade) to keep it feeling like a quick loading screen.
  */
 export default function IntroAnimation({ onDone }) {
-  // "visible" controls the overlay opacity for the fade-out
-  const [fading, setFading] = useState(false);
-
   useEffect(() => {
-    // Start fading at 4 seconds
-    const fadeTimer = setTimeout(() => setFading(true), 4000);
-
-    // Fully remove the overlay at 5 seconds
-    const doneTimer = setTimeout(() => onDone(), 5000);
-
-    return () => {
-      clearTimeout(fadeTimer);
-      clearTimeout(doneTimer);
-    };
+    // Snap the loading screen away once the logo has formed.
+    const doneTimer = setTimeout(() => onDone(), 2500);
+    return () => clearTimeout(doneTimer);
   }, [onDone]);
 
   return (
@@ -30,13 +21,10 @@ export default function IntroAnimation({ onDone }) {
         position: "fixed",
         inset: 0,
         zIndex: 9999,
-        background: "#fff", // White background matches the logo animation's backdrop
+        background: "#f3f5f5", // Sampled from the logo animation's backdrop so the video blends seamlessly
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        opacity: fading ? 0 : 1,
-        transition: "opacity 1s ease-in-out",
-        pointerEvents: fading ? "none" : "all",
       }}
     >
       <video
@@ -47,9 +35,9 @@ export default function IntroAnimation({ onDone }) {
         style={{
           // Centered logo animation — sized like a loading indicator
           // rather than a full-screen cover.
-          width: "min(560px, 80vw)",
+          width: "min(1360px, 95vw)",
           height: "auto",
-          maxHeight: "70vh",
+          maxHeight: "90vh",
           objectFit: "contain",
           transform: "translateZ(0)",
           backfaceVisibility: "hidden",
