@@ -7342,3 +7342,29 @@ body[data-workspace="executives"] .nav-btn.highlight {
 body[data-workspace="executives"] .nav-btn.highlight:hover {
   background: #fdeec2;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LOGIN / WORKSPACE-SELECT — dark mode
+   The login screen hardcoded light surfaces (#f8fafc container, white card)
+   and dark inline text, so in dark mode it stayed light while the form inputs
+   turned dark — a mismatched look. Give it dark surfaces matching the app's
+   dark modals, and lift the hardcoded-dark text to light.
+   ═══════════════════════════════════════════════════════════════════════ */
+[data-theme="dark"] .login-container {
+  background: var(--color-bg-primary);
+}
+[data-theme="dark"] .login-box {
+  background: #1e293b;
+  border: 1px solid #334155;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+[data-theme="dark"] .login-box h2 {
+  color: #f1f5f9 !important;
+}
+[data-theme="dark"] .login-box p {
+  color: #94a3b8 !important;
+}
+/* Inactive step dot needs contrast on the dark card */
+[data-theme="dark"] .login-step-dot {
+  background: #475569;
+}
