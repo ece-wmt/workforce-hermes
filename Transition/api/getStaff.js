@@ -3,7 +3,7 @@ import { api } from "../convex/_generated/api.js";
 
 export default async function handler(req, res) {
   // Use the production URL from environment variables
-  const convexUrl = process.env.VITE_CONVEX_URL || "https://aware-leopard-887.convex.cloud";
+  const convexUrl = process.env.VITE_CONVEX_URL || "https://honorable-ostrich-665.convex.cloud";
   const client = new ConvexHttpClient(convexUrl);
 
   try {

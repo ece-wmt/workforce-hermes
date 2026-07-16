@@ -27,6 +27,10 @@ import Handbook from "./components/Handbook";
 
 const ACTIVITY_EVENTS = ["mousemove", "keydown", "click", "scroll", "touchstart"];
 
+// Minimum time the branded loading video stays on screen (so it's actually seen
+// even when data resolves in milliseconds).
+const SPLASH_MIN_MS = 2500;
+
 // Session expires only after this much *continuous inactivity* (no mouse, key,
 // click, scroll or touch). Set to 7 hours.
 const SESSION_EXPIRY_MS = 7 * 60 * 60 * 1000;
@@ -37,6 +41,7 @@ export default function App() {
   // --- Refs ---
   const hasSetInitialView = useRef(false);
   const sessionExpiredRef = useRef(false); // ensures the expiry prompt fires only once
+  const splashTimerRef = useRef(null);      // minimum-display timer for the loading video
 
   // --- Auth state ---
   const [authStage, setAuthStage] = useState(() => {
@@ -73,6 +78,9 @@ export default function App() {
   const [userName, setUserName] = useState("");
   const [isMainAdmin, setIsMainAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  // Keeps the branded loading video on screen for a minimum beat even when data
+  // resolves instantly (init true on auto-login so the video shows on refresh).
+  const [splashActive, setSplashActive] = useState(() => localStorage.getItem("wf_authenticated") === "true");
   const [userAvatar, setUserAvatar] = useState("");
   const [modalTaskId, setModalTaskId] = useState(null);
   const [modalEditMode, setModalEditMode] = useState(false);
@@ -280,6 +288,23 @@ export default function App() {
     applySettings();
   }, []);
 
+  // Show the loading video for at least SPLASH_MIN_MS, then let it clear.
+  function startSplash() {
+    setSplashActive(true);
+    if (splashTimerRef.current) clearTimeout(splashTimerRef.current);
+    splashTimerRef.current = setTimeout(() => setSplashActive(false), SPLASH_MIN_MS);
+  }
+
+  // On mount (auto-login) the splash is already active — start its timer.
+  useEffect(() => {
+    if (splashActive) {
+      if (splashTimerRef.current) clearTimeout(splashTimerRef.current);
+      splashTimerRef.current = setTimeout(() => setSplashActive(false), SPLASH_MIN_MS);
+    }
+    return () => { if (splashTimerRef.current) clearTimeout(splashTimerRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // --- Body scroll lock (Unified) ---
   useEffect(() => {
     const isModalOpen = !!modalTaskId || modalConfig.isOpen || inputModal.isOpen || showHandbook;
@@ -430,6 +455,7 @@ export default function App() {
         }
 
         setLoading(true);
+        startSplash();
         setAuthStage("authenticated");
         // Trigger notification popup for programmers after login
         if (result.role === "Programmer") {
@@ -449,6 +475,7 @@ export default function App() {
     localStorage.setItem("wf_authenticated", "true");
     localStorage.setItem("wf_email", pendingEmail);
     setLoading(true);
+    startSplash();
     setAuthStage("authenticated");
   }
 
@@ -477,6 +504,8 @@ export default function App() {
     setActiveWorkspace(null);
     setUserDepartments([]);
     setIsMainAdmin(false);
+    setSplashActive(false);
+    if (splashTimerRef.current) clearTimeout(splashTimerRef.current);
     hasSetInitialView.current = false;
     setKanbanFilterStaff(null);
   }
@@ -488,6 +517,7 @@ export default function App() {
     setActiveWorkspace(key);
     hasSetInitialView.current = false;
     setLoading(true);
+    startSplash();
     setAuthStage("authenticated");
   }
 
@@ -600,6 +630,7 @@ export default function App() {
           // Mark as prompted so we don't ask again on future logins
           localStorage.setItem(`wf_sq_prompted_${pendingEmail.toLowerCase()}`, "true");
           setLoading(true);
+          startSplash();
           setAuthStage("authenticated");
         }} 
       />
@@ -658,7 +689,7 @@ export default function App() {
     );
   }
 
-  if (loading) {
+  if (loading || splashActive) {
     return (
       <div className="brand-loading">
         <video

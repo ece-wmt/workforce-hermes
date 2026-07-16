@@ -7,7 +7,7 @@ import { api } from "../convex/_generated/api.js";
  * (email, workspace) pair caches independently.
  */
 export default async function handler(req, res) {
-  const convexUrl = process.env.VITE_CONVEX_URL || "https://aware-leopard-887.convex.cloud";
+  const convexUrl = process.env.VITE_CONVEX_URL || "https://honorable-ostrich-665.convex.cloud";
   const client = new ConvexHttpClient(convexUrl);
 
   const email = req.query.email || "";
