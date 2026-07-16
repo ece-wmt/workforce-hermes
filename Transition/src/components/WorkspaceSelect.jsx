@@ -149,9 +149,23 @@ export function WorkspaceCards({
  * access 2+ workspaces (a single-workspace user is auto-entered).
  */
 export default function WorkspaceSelect({ workspaces = [], userName = "", onSelect, onLogout }) {
+  // Same fly-to-center transition as the in-app picker: the chosen card flies to
+  // the viewport center, shows "Loading workspace…", shrinks to zero, then we
+  // hand off to onSelect (which enters the app / plays the intro).
+  const [transitioningTo, setTransitioningTo] = useState(null);
+  const [transitionPhase, setTransitionPhase] = useState(null);
+
+  function handlePick(key) {
+    if (transitioningTo) return;
+    setTransitioningTo(key);
+    setTransitionPhase("loading");
+    setTimeout(() => setTransitionPhase("out"), 1300);
+    setTimeout(() => onSelect && onSelect(key), 1850);
+  }
+
   return (
     <div className="login-container">
-      <div className="header-box" style={{ marginBottom: 30 }}>
+      <div className="header-box" style={{ marginBottom: 30, opacity: transitioningTo ? 0 : 1, transition: "opacity 0.4s ease" }}>
         <img src="https://i.imgur.com/BRd5lrB.png" alt="ECE Logo" className="header-logo" />
         <div className="header-text-content">
           <h1>WORKFORCE HERMES</h1>
@@ -162,15 +176,24 @@ export default function WorkspaceSelect({ workspaces = [], userName = "", onSele
 
       {/* No wrapper card — the title and cards float directly on the background. */}
       <div style={{ maxWidth: 720, width: "100%", textAlign: "center" }}>
-        <h2 style={{ color: "var(--color-text-primary)", marginBottom: 6 }}>Choose a workspace</h2>
-        <p style={{ color: "var(--color-text-secondary)", lineHeight: 1.6, marginBottom: 28 }}>
-          {userName ? `Welcome back, ${userName}. ` : ""}
-          Select where you'd like to go — you can switch anytime from the header.
-        </p>
+        {!transitioningTo && (
+          <>
+            <h2 style={{ color: "var(--color-text-primary)", marginBottom: 6 }}>Choose a workspace</h2>
+            <p style={{ color: "var(--color-text-secondary)", lineHeight: 1.6, marginBottom: 28 }}>
+              {userName ? `Welcome back, ${userName}. ` : ""}
+              Select where you'd like to go — you can switch anytime from the header.
+            </p>
+          </>
+        )}
 
-        <WorkspaceCards workspaces={workspaces} onSelect={onSelect} />
+        <WorkspaceCards
+          workspaces={workspaces}
+          onSelect={handlePick}
+          transitioningTo={transitioningTo}
+          transitionPhase={transitionPhase}
+        />
 
-        {onLogout && (
+        {onLogout && !transitioningTo && (
           <button
             className="btn-secondary"
             style={{ marginTop: 28, padding: "10px 24px", background: "var(--color-logout)" }}

@@ -669,9 +669,17 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="loading-overlay">
-        <div className="loader"></div>
-        <div className="loading-text">LOADING...</div>
+      <div className="brand-loading">
+        <div className="header-box brand-loading-header">
+          <img src="https://i.imgur.com/BRd5lrB.png" alt="ECE Logo" className="header-logo" />
+          <div className="header-text-content">
+            <h1>WORKFORCE HERMES</h1>
+            <p>Workforce Programming Project Database</p>
+          </div>
+          <img src="https://i.imgur.com/ycmU6oP.png" alt="WFM Logo" className="header-logo" />
+        </div>
+        <div className="brand-loading-bar"><span /></div>
+        <div className="brand-loading-text">Loading…</div>
       </div>
     );
   }
