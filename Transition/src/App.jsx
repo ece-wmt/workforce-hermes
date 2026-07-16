@@ -18,7 +18,6 @@ import Login from "./components/Login";
 import SetPassword from "./components/SetPassword";
 import CustomModal from "./components/CustomModal";
 import InputModal from "./components/InputModal";
-import IntroAnimation from "./components/IntroAnimation";
 import AnnouncementPopup from "./components/AnnouncementPopup";
 import AnnouncementComposer from "./components/AnnouncementComposer";
 import TaskNotificationPopup from "./components/TaskNotificationPopup";
@@ -78,10 +77,6 @@ export default function App() {
   const [modalTaskId, setModalTaskId] = useState(null);
   const [modalEditMode, setModalEditMode] = useState(false);
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, task: null });
-  const [showIntro, setShowIntro] = useState(() => {
-    // Show intro on auto-login (user didn't log out)
-    return localStorage.getItem("wf_authenticated") === "true";
-  });
   const [showSettings, setShowSettings] = useState(false);
   const [showHandbook, setShowHandbook] = useState(false);
   const [viewingStaff, setViewingStaff] = useState(null);
@@ -381,9 +376,9 @@ export default function App() {
 
   // --- Deferred session expiry check: only runs once the app is fully visible ---
   useEffect(() => {
-    if (authStage !== "authenticated" || loading || showIntro) return;
+    if (authStage !== "authenticated" || loading) return;
     if (isSessionExpired()) triggerSessionExpired("deferred check (app now visible)");
-  }, [authStage, loading, showIntro]);
+  }, [authStage, loading]);
 
   // -------------------------------------------------------
   // Login handler — this is called when the user submits
@@ -435,7 +430,6 @@ export default function App() {
         }
 
         setLoading(true);
-        setShowIntro(true);
         setAuthStage("authenticated");
         // Trigger notification popup for programmers after login
         if (result.role === "Programmer") {
@@ -455,7 +449,6 @@ export default function App() {
     localStorage.setItem("wf_authenticated", "true");
     localStorage.setItem("wf_email", pendingEmail);
     setLoading(true);
-    setShowIntro(true);
     setAuthStage("authenticated");
   }
 
@@ -495,7 +488,6 @@ export default function App() {
     setActiveWorkspace(key);
     hasSetInitialView.current = false;
     setLoading(true);
-    setShowIntro(true);
     setAuthStage("authenticated");
   }
 
@@ -608,7 +600,6 @@ export default function App() {
           // Mark as prompted so we don't ask again on future logins
           localStorage.setItem(`wf_sq_prompted_${pendingEmail.toLowerCase()}`, "true");
           setLoading(true);
-          setShowIntro(true);
           setAuthStage("authenticated");
         }} 
       />
@@ -670,15 +661,14 @@ export default function App() {
   if (loading) {
     return (
       <div className="brand-loading">
-        <div className="header-box brand-loading-header">
-          <img src="https://i.imgur.com/BRd5lrB.png" alt="ECE Logo" className="header-logo" />
-          <div className="header-text-content">
-            <h1>WORKFORCE HERMES</h1>
-            <p>Workforce Programming Project Database</p>
-          </div>
-          <img src="https://i.imgur.com/ycmU6oP.png" alt="WFM Logo" className="header-logo" />
-        </div>
-        <div className="brand-loading-bar"><span /></div>
+        <video
+          className="brand-loading-video"
+          src="/logo%20animation.mp4"
+          autoPlay
+          muted
+          loop
+          playsInline
+        />
         <div className="brand-loading-text">Loading…</div>
       </div>
     );
@@ -998,9 +988,8 @@ export default function App() {
         </div>
       </header>
 
-      {/* Views — keyed stage so switching views (or the intro lifting) replays
-          the entrance choreography */}
-      <main className="view-stage" key={`${currentView}${showIntro ? "-intro" : ""}`}>
+      {/* Views — keyed stage so switching views replays the entrance choreography */}
+      <main className="view-stage" key={currentView}>
         {currentView === "dashboard" && (
           <Dashboard
             onShowAllLinks={() => setShowAllProjects(true)}
@@ -1666,11 +1655,6 @@ export default function App() {
           </div>
         </div>
       )}
-
-      {/* Intro Animation Overlay */}
-      {showIntro && <IntroAnimation onDone={() => {
-        setShowIntro(false);
-      }} />}
     </WorkspaceContext.Provider>
   );
 }
