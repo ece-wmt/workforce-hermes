@@ -477,6 +477,204 @@ header {
   border-color: #cbd5e1;
 }
 
+/* ─── Task-card hover wings (default board card) ─────────────────────────────
+   Rest = the original card design. On hover the card pops (scales up) and three
+   panels slide OUT FROM UNDER it — no fade, pure slide: milestone dots to the
+   LEFT, the latest note to the RIGHT, days-remaining + current milestone +
+   controls drop DOWN below. The opaque .task-card sits on top (z-index 1) and
+   fully hides the wings (z-index 0) at rest. */
+.tf-shell {
+  position: relative;
+  margin-bottom: 10px;
+  z-index: 0;
+  transition: transform 0.32s var(--ease-spring, cubic-bezier(0.34, 1.4, 0.64, 1));
+}
+.tf-shell:hover {
+  transform: scale(1.08);
+  z-index: 60;
+  will-change: transform;
+}
+.tf-shell > .task-card {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 0;
+}
+/* the shell owns the hover pop, so cancel the card's own lift */
+.tf-shell > .task-card:hover { transform: none; }
+
+/* Click-to-open: the card consolidates inward, then expands and fades as the
+   TaskModal scales in from centre to take over. */
+@keyframes tfOpenConsolidate {
+  0%   { transform: scale(1.08); opacity: 1; }
+  33%  { transform: scale(0.85); opacity: 1; }   /* consolidate (~120ms) */
+  100% { transform: scale(1.45); opacity: 0; }   /* expand + fade as modal takes over */
+}
+.tf-shell.tf-opening {
+  animation: tfOpenConsolidate 0.36s var(--ease-out-quart) forwards;
+  z-index: 70;
+  pointer-events: none;
+}
+/* wings retract toward centre while the card consolidates */
+.tf-shell.tf-opening .tf-wing { transform: none; box-shadow: none; }
+
+/* TaskModal expands from centre to complete the hand-off from the card */
+@keyframes taskModalOpen {
+  from { opacity: 0; transform: scale(0.85); filter: blur(6px); }
+  to   { opacity: 1; transform: scale(1); filter: blur(0); }
+}
+.modal-content.task-modal-content {
+  transform-origin: center center;
+  animation: taskModalOpen 0.15s var(--ease-out-expo) backwards;
+}
+
+/* only the hovered column stops clipping and floats above its neighbours */
+.kanban-col { position: relative; }
+.kanban-col:has(.tf-shell:hover) { overflow: visible; z-index: 50; }
+
+.tf-wing {
+  position: absolute;
+  z-index: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  background: var(--color-card-bg);
+  border: 1px solid #e2e8f0;
+  box-shadow: none;
+  transition: transform 0.38s var(--ease-out-back, cubic-bezier(0.34, 1.35, 0.6, 1));
+}
+/* shadow is set (not transitioned) on hover — it appears instantly, masked by
+   the slide, so we avoid an expensive per-frame box-shadow repaint */
+.tf-shell:hover .tf-wing { box-shadow: 0 14px 26px -14px rgba(0, 0, 0, 0.3); will-change: transform; }
+
+.tf-wing-left {
+  top: 0; bottom: 0; left: 0;
+  width: 88px;
+  border-radius: 12px 0 0 12px;
+  transform: translateX(0);
+}
+.tf-shell:hover .tf-wing-left { transform: translateX(calc(-100% + 10px)); }
+
+.tf-wing-right {
+  top: 0; bottom: 0; right: 0;
+  width: 158px;
+  border-radius: 0 12px 12px 0;
+  transform: translateX(0);
+}
+.tf-shell:hover .tf-wing-right { transform: translateX(calc(100% - 10px)); }
+
+.tf-wing-bottom {
+  left: 0; right: 0; bottom: 0;
+  gap: 8px;
+  border-radius: 0 0 12px 12px;
+  transform: translateY(0);
+}
+.tf-shell:hover .tf-wing-bottom { transform: translateY(calc(100% - 10px)); }
+
+.tf-wing-cap {
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.tf-wing-dots { display: flex; flex-wrap: wrap; gap: 5px; }
+.tf-wing-dots .milestone-dot { width: 16px; height: 16px; font-size: 0.5rem; }
+.milestone-dot.current {
+  background: var(--color-accent);
+  color: #fff;
+  border-color: var(--color-accent-hover);
+  transform: scale(1.35);
+  box-shadow: 0 0 0 3px var(--color-accent-lighter), 0 0 10px var(--color-accent);
+}
+
+.tf-note-text {
+  margin: 0;
+  font-size: 0.66rem;
+  line-height: 1.35;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.tf-note-writer { font-size: 0.58rem; font-weight: 800; color: #94a3b8; }
+.tf-note-empty { margin: 0; font-size: 0.62rem; font-style: italic; color: #94a3b8; }
+
+.tf-bottom-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tf-days {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 8px; border-radius: 8px;
+  font-size: 0.6rem; font-weight: 800; white-space: nowrap;
+  background: var(--color-bg-subtle); color: var(--color-text-secondary);
+}
+.tf-days.soon { background: #fef9c3; color: #854d0e; }
+.tf-days.urgent { background: #ffedd5; color: #c2410c; }
+.tf-days.overdue { background: #fee2e2; color: #b91c1c; }
+.tf-bottom-current {
+  font-size: 0.62rem; font-weight: 800; color: var(--color-text-primary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+}
+.tf-wing-bottom .card-actions { margin: 0; padding-top: 8px; grid-template-columns: repeat(4, 1fr); }
+
+[data-theme="dark"] .tf-wing { border-color: #334155; }
+
+/* Hover swap: the detailed body scales down + collapses while the focused
+   current-milestone pill scales up in its place. Pure scale + height, no fade. */
+.tf-swap { display: grid; }
+.tf-swap-detail,
+.tf-swap-focus {
+  display: grid;
+  transition: grid-template-rows 0.34s var(--ease-out-quart);
+}
+.tf-swap-detail { grid-template-rows: 1fr; }
+.tf-swap-focus { grid-template-rows: 0fr; }
+.tf-shell:hover .tf-swap-detail { grid-template-rows: 0fr; }
+.tf-shell:hover .tf-swap-focus { grid-template-rows: 1fr; }
+.tf-swap-inner { overflow: hidden; min-height: 0; transition: transform 0.34s var(--ease-out-quart); }
+.tf-shell:hover .tf-swap-inner { will-change: transform; }
+.tf-swap-detail .tf-swap-inner { transform-origin: top center; }
+.tf-shell:hover .tf-swap-detail .tf-swap-inner { transform: scale(0.7); }
+.tf-swap-focus .tf-swap-inner { transform: scale(0.82); transform-origin: center; }
+.tf-shell:hover .tf-swap-focus .tf-swap-inner { transform: scale(1); }
+
+/* Focused current-milestone pill (shown on hover) */
+.tf-focus-milestone {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin-top: 6px; padding: 12px 14px;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+}
+.tf-focus-milestone.overdue { border-color: #fecaca; background: rgba(239, 68, 68, 0.06); }
+.tf-focus-info { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.tf-focus-name { font-size: 0.82rem; font-weight: 900; color: var(--color-text-primary); line-height: 1.2; }
+.tf-focus-milestone.overdue .tf-focus-name { color: #ef4444; }
+.tf-focus-days { font-weight: 600; color: #94a3b8; font-size: 0.72rem; }
+.tf-focus-badge {
+  align-self: flex-start; color: #fff; background: #ef4444;
+  font-size: 0.55rem; font-weight: 900; letter-spacing: 0.5px;
+  padding: 3px 8px; border-radius: 8px;
+}
+.tf-focus-complete {
+  flex-shrink: 0; border: none; cursor: pointer;
+  background: var(--color-accent); color: #fff;
+  font-size: 0.72rem; font-weight: 800;
+  padding: 8px 16px; border-radius: 10px;
+  transition: background 0.2s, transform 0.15s;
+}
+.tf-focus-complete:hover { background: var(--color-accent-hover); }
+.tf-focus-complete:active { transform: scale(0.95); }
+.tf-focus-done {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  margin-top: 6px; padding: 16px; border-radius: 14px;
+  background: var(--color-bg-subtle);
+  font-size: 0.78rem; font-weight: 800; color: var(--color-accent);
+}
+
 /* Dashboard Stats */
 .stats-grid {
   display: grid;
@@ -7421,9 +7619,9 @@ body[data-workspace="executives"] .nav-btn.highlight:hover {
   background: #f3f5f5;
 }
 .brand-loading-video {
-  width: min(680px, 85vw);
+  width: min(2040px, 96vw);
   height: auto;
-  max-height: 70vh;
+  max-height: 92vh;
   object-fit: contain;
 }
 .brand-loading-text {

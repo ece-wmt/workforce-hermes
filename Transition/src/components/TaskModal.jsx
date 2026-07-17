@@ -615,7 +615,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
 
   return (
     <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content task-modal-content" onClick={(e) => e.stopPropagation()}>
         <button className="modal-close" onClick={onClose}>×</button>
 
         <div className="modal-grid-3">

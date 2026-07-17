@@ -80,6 +80,7 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
   const [draggedMilestoneIdx, setDraggedMilestoneIdx] = useState(null);
   const [lastKnownTasks, setLastKnownTasks] = useState([]);
   const [fullViewColumn, setFullViewColumn] = useState(null);
+  const [openingId, setOpeningId] = useState(null); // card mid open-animation → TaskModal
   const [storageRefresh, setStorageRefresh] = useState(0); // Trigger re-render when tasks are viewed
   
   // Listen for custom event when tasks are marked as viewed (in same tab)
@@ -130,25 +131,6 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
       
     const hasBadges = newNotes > 0 || newFeatures > 0 || newBugs > 0 || newMilestones > 0;
     const total = newNotes + newFeatures + newBugs + newMilestones;
-    
-    if (hasBadges || total > 0) {
-      console.log(`📌 Badge calc for ${task.title} (${task._id}):`, { 
-        hasBadges, 
-        total,
-        lastViewedTime: globalViewedTime,
-        lastViewString: globalViewedTime > 0 ? new Date(globalViewedTime).toLocaleString() : "Never Viewed",
-        notesCount: (task.notes || []).length,
-        notesDetail: (task.notes || []).map(n => ({ 
-          text: n.text?.slice(0,15), 
-          hasTimestamp: !!n.timestamp,
-          timestamp: n.timestamp,
-          isNew: (n.timestamp || 0) > lastViewedNotes
-        })),
-        newNotes, 
-        newFeatures, 
-        newBugs,
-      });
-    }
     
     return { newNotes, newFeatures, newBugs, hasBadges, total };
   };
@@ -351,8 +333,99 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
 
     const isProgrammerView = userRole === "Programmer";
     const cardClass = isFullView ? "rounded-task-card" : (isProgrammerView ? "programmer-card" : "task-card");
+    const isDefaultCard = !isFullView && !isProgrammerView;
+    const badges = getTaskBadges(t); // compute once, reused in the header below
 
-    return (
+    // ── Hover-wing data (default board card only) ──
+    const wFirstIncomplete = milestones.findIndex((ms) => !ms.completed);
+    const wCurrentM = wFirstIncomplete !== -1 ? milestones[wFirstIncomplete] : null;
+    // Dot grid is a simplified model: first `doneM` read complete, so the dot
+    // at index `doneM` is the current one in progress.
+    const wCurrentDotIdx = doneM < totalM ? doneM : -1;
+    const wDaysLabel =
+      completionLeft === null ? "No deadline set"
+      : completionLeft < 0 ? `${Math.abs(completionLeft)} days overdue`
+      : completionLeft === 0 ? "Due today"
+      : `${completionLeft} day${completionLeft === 1 ? "" : "s"} remaining`;
+    const wNoteText = (t.lastNoteText || "").trim();
+    const wNoteWriter = (t.lastNoteWriter || "").trim();
+    const W_MOVES = ["todo", "pending", "development", "testing", "done", "implemented", "scrapped"];
+    const wMoveLabel = (s) =>
+      s === "development" ? "Dev" : s === "testing" ? "Test" : s === "implemented" ? "Impl" : s === "scrapped" ? "Scrap" : s.charAt(0).toUpperCase() + s.slice(1);
+
+    // Is the current (active) milestone overdue? Mirrors the programmer view:
+    // elapsed time since the previous milestone finished exceeds its day budget.
+    let wCurrentOverdue = false;
+    if (wCurrentM && (wCurrentM.days || 0) > 0) {
+      const prevM = wFirstIncomplete > 0 ? milestones[wFirstIncomplete - 1] : null;
+      const lastTime = wFirstIncomplete > 0
+        ? (prevM?.completedAtTime || prevM?.createdAtTime || t.lastUpdated)
+        : (wCurrentM.createdAtTime || t.lastUpdated);
+      if (lastTime && (Date.now() - lastTime) / DAY_MS > wCurrentM.days) wCurrentOverdue = true;
+    }
+
+    // Rest body = the original detailed design.
+    const oldDesignBody = (
+      <>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+          <span style={{ fontSize: "0.7rem", fontWeight: 900, color: "var(--color-text-secondary)", letterSpacing: "0.5px" }}>
+            Progress
+          </span>
+          <span style={{ fontSize: "0.7rem", fontWeight: 900, color: "var(--color-accent)" }}>
+            {progressPercent}%
+          </span>
+        </div>
+        <div className="progress-container" style={{ height: 6, borderRadius: 10 }}>
+          <div className="progress-fill" style={{ width: `${progressPercent}%`, borderRadius: 10 }}></div>
+        </div>
+        <div className="milestones-grid" style={{ marginTop: 10 }}>
+          {Array.from({ length: totalM }, (_, i) => (
+            <div key={i} className={`milestone-dot ${i < doneM ? "active" : ""}`}>
+              {i + 1}
+            </div>
+          ))}
+        </div>
+        {wCurrentM && (
+          <div style={{ fontSize: "0.68rem", color: "var(--color-text-secondary)", margin: "8px 0 2px 0", fontWeight: 700 }}>
+            Current: <span style={{ color: "var(--color-text-primary)", fontWeight: 800 }}>{wCurrentM.name}</span>
+          </div>
+        )}
+        <div className="card-actions">
+          {W_MOVES.map((s) => (
+            <div key={s} className="action-btn" onClick={(e) => { e.stopPropagation(); handleMoveTask(t._id, s); }}>
+              {wMoveLabel(s)}
+            </div>
+          ))}
+        </div>
+      </>
+    );
+
+    // Hover body = focused current-milestone pill (the "first image").
+    const focusPill = wCurrentM ? (
+      <div className={`tf-focus-milestone ${wCurrentOverdue ? "overdue" : ""}`}>
+        <div className="tf-focus-info">
+          <span className="tf-focus-name">
+            {wCurrentM.name} <span className="tf-focus-days">({wCurrentM.days} days)</span>
+          </span>
+          {wCurrentOverdue && <span className="tf-focus-badge">OVERDUE</span>}
+        </div>
+        {canEditMilestone && (
+          <button
+            className="tf-focus-complete"
+            onClick={(e) => { e.stopPropagation(); toggleMilestone(t._id, wFirstIncomplete, t); }}
+          >
+            Complete
+          </button>
+        )}
+      </div>
+    ) : (
+      <div className="tf-focus-done">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+        All milestones complete
+      </div>
+    );
+
+    const cardEl = (
       <div
         key={t._id}
         className={cardClass}
@@ -364,7 +437,19 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
           e.currentTarget.classList.add("dragging");
         }}
         onDragEnd={(e) => !isFullView && e.currentTarget.classList.remove("dragging")}
-        onClick={() => { setFullViewColumn(null); openTaskModal(t._id); }}
+        onClick={() => {
+          setFullViewColumn(null);
+          if (isDefaultCard) {
+            // Open the modal immediately (no wait), and play the card
+            // consolidate→expand at the SAME time so its scale-in and the
+            // card's expansion are one continuous motion — no perceived delay.
+            setOpeningId(t._id);
+            openTaskModal(t._id);
+            window.setTimeout(() => setOpeningId(null), 450);
+          } else {
+            openTaskModal(t._id);
+          }
+        }}
         onContextMenu={(e) => onContextMenu(e, t)}
         style={{
           boxShadow: isOverdue ? "0 0 15px rgba(239, 68, 68, 0.35)" : undefined,
@@ -418,7 +503,7 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
                 PRIORITY
               </span>
             )}
-            {(userRole === "Programmer" || actualRole === "Programmer") && getTaskBadges(t).hasBadges && (
+            {(userRole === "Programmer" || actualRole === "Programmer") && badges.hasBadges && (
               <div style={{
                 background: "#ef4444",
                 color: "white",
@@ -430,7 +515,7 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
                 textAlign: "center",
                 whiteSpace: "nowrap",
               }}>
-                {getTaskBadges(t).total}
+                {badges.total}
               </div>
             )}
           </div>
@@ -558,47 +643,63 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
               </div>
             </div>
           </>
+        ) : isDefaultCard ? (
+          <div className="tf-swap">
+            <div className="tf-swap-detail"><div className="tf-swap-inner">{oldDesignBody}</div></div>
+            <div className="tf-swap-focus"><div className="tf-swap-inner">{focusPill}</div></div>
+          </div>
         ) : (
-          <>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-              <span style={{ fontSize: "0.7rem", fontWeight: 900, color: "var(--color-text-secondary)", letterSpacing: "0.5px" }}>
-                Progress
-              </span>
-              <span style={{ fontSize: "0.7rem", fontWeight: 900, color: "var(--color-accent)" }}>
-                {progressPercent}%
-              </span>
-            </div>
-            <div className="progress-container" style={{ height: 6, borderRadius: 10 }}>
-              <div className="progress-fill" style={{ width: `${progressPercent}%`, borderRadius: 10 }}></div>
-            </div>
-            <div className="milestones-grid" style={{ marginTop: 10 }}>
-              {Array.from({ length: totalM }, (_, i) => (
-                <div key={i} className={`milestone-dot ${i < doneM ? "active" : ""}`}>
-                  {i + 1}
-                </div>
-              ))}
-            </div>
-            {(() => {
-              const firstIncompleteIdx = milestones.findIndex((ms) => !ms.completed);
-              if (firstIncompleteIdx !== -1 && milestones[firstIncompleteIdx]) {
-                const currentM = milestones[firstIncompleteIdx];
-                return (
-                  <div style={{ fontSize: "0.68rem", color: "var(--color-text-secondary)", margin: "8px 0 2px 0", fontWeight: 700 }}>
-                    Current: <span style={{ color: "var(--color-text-primary)", fontWeight: 800 }}>{currentM.name}</span>
-                  </div>
-                );
-              }
-              return null;
-            })()}
-            <div className="card-actions">
-              {["todo", "pending", "development", "testing", "done", "implemented", "scrapped"].map((s) => (
-                <div key={s} className="action-btn" onClick={(e) => { e.stopPropagation(); handleMoveTask(t._id, s); }}>
-                  {s === "development" ? "Dev" : s === "testing" ? "Test" : s === "implemented" ? "Impl" : s === "scrapped" ? "Scrap" : s.charAt(0).toUpperCase() + s.slice(1)}
-                </div>
-              ))}
-            </div>
-          </>
+          oldDesignBody
         )}
+      </div>
+    );
+
+    if (!isDefaultCard) return cardEl;
+
+    // Default board card: the original design stays on top as an opaque front,
+    // with three wings tucked directly BEHIND it. On hover the card pops and the
+    // wings slide out from under it — dots left, latest note right, days +
+    // current milestone + controls drop down below. No fade: pure slide.
+    return (
+      <div className={`tf-shell ${openingId === t._id ? "tf-opening" : ""}`} key={t._id}>
+        <div className="tf-wing tf-wing-left" aria-hidden="true">
+          <span className="tf-wing-cap">Milestones</span>
+          <div className="tf-wing-dots">
+            {Array.from({ length: totalM }, (_, i) => (
+              <div key={i} className={`milestone-dot ${i < doneM ? "active" : ""} ${i === wCurrentDotIdx ? "current" : ""}`}>
+                {i + 1}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="tf-wing tf-wing-right">
+          <span className="tf-wing-cap">Latest note</span>
+          {wNoteText ? (
+            <>
+              <p className="tf-note-text">{wNoteText}</p>
+              {wNoteWriter && <span className="tf-note-writer">— {wNoteWriter}</span>}
+            </>
+          ) : (
+            <p className="tf-note-empty">No notes yet</p>
+          )}
+        </div>
+        <div className="tf-wing tf-wing-bottom">
+          <div className="tf-bottom-row">
+            <span className={`tf-days ${completionTone || ""}`}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+              {wDaysLabel}
+            </span>
+            <span className="tf-bottom-current">{wCurrentM ? wCurrentM.name : "All milestones done"}</span>
+          </div>
+          <div className="card-actions" onClick={(e) => e.stopPropagation()}>
+            {W_MOVES.map((s) => (
+              <div key={s} className="action-btn" onClick={(e) => { e.stopPropagation(); handleMoveTask(t._id, s); }}>
+                {wMoveLabel(s)}
+              </div>
+            ))}
+          </div>
+        </div>
+        {cardEl}
       </div>
     );
   }

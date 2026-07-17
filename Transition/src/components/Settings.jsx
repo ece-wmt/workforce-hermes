@@ -245,6 +245,7 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
   const [newStaffName, setNewStaffName] = useState("");
   const [newStaffEmail, setNewStaffEmail] = useState("");
   const [newStaffRole, setNewStaffRole] = useState("Programmer");
+  const [newStaffDepartments, setNewStaffDepartments] = useState(["Workforce"]);
 
   const activeStaff = (allStaff || []).filter(s => s.role !== "Pending");
   const pendingRequests = (allStaff || []).filter(s => s.role === "Pending");
@@ -257,40 +258,12 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
   const avatarInputRef = useRef(null);
   const markChanged = () => setHasChanges(true);
 
-  // Scroll to section
-  function scrollToSection(sectionId) {
+  // Show only the selected section (tabbed — no continuous scroll through all
+  // sections). Reset the panel scroll so each tab opens at its heading.
+  function goToSection(sectionId) {
     setActiveSection(sectionId);
-    const el = document.getElementById(`settings-section-${sectionId}`);
-    if (el && contentRef.current) {
-      contentRef.current.scrollTo({ top: el.offsetTop - contentRef.current.offsetTop - 20, behavior: "smooth" });
-    }
+    if (contentRef.current) contentRef.current.scrollTop = 0;
   }
-
-  // Scroll spy
-  useEffect(() => {
-    const container = contentRef.current;
-    if (!container) return;
-    const handler = () => {
-      const sects = SECTIONS.map((s) => ({ id: s.id, el: document.getElementById(`settings-section-${s.id}`) }));
-      
-      // Check if we are scrolled to the bottom of the container
-      const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 10;
-      if (isAtBottom && sects.length > 0) {
-        const lastValid = sects.slice().reverse().find(s => s.el);
-        if (lastValid) {
-          setActiveSection(lastValid.id);
-          return;
-        }
-      }
-
-      const scrollTop = container.scrollTop + 100;
-      for (let i = sects.length - 1; i >= 0; i--) {
-        if (sects[i].el && sects[i].el.offsetTop - container.offsetTop <= scrollTop) { setActiveSection(sects[i].id); break; }
-      }
-    };
-    container.addEventListener("scroll", handler);
-    return () => container.removeEventListener("scroll", handler);
-  }, [SECTIONS]);
 
   function handleAvatarUpload(e) {
     const file = e.target.files[0];
@@ -389,7 +362,7 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
           {/* Sidebar */}
           <nav className="settings-sidebar">
             {SECTIONS.map((sec) => (
-              <button key={sec.id} className={`settings-nav-item ${activeSection === sec.id ? "active" : ""}`} onClick={() => scrollToSection(sec.id)}>
+              <button key={sec.id} className={`settings-nav-item ${activeSection === sec.id ? "active" : ""}`} onClick={() => goToSection(sec.id)}>
                 <SectionIcon icon={sec.icon} size={18} /><span>{sec.label}</span>
               </button>
             ))}
@@ -399,7 +372,7 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
           {/* Content */}
           <div className="settings-content" ref={contentRef}>
             {/* ─── APPEARANCE ─── */}
-            <section id="settings-section-appearance" className="settings-section">
+            <section id="settings-section-appearance" className="settings-section" style={{ display: activeSection === "appearance" ? undefined : "none" }}>
               <div className="settings-section-header"><SectionIcon icon="palette" size={20} /><h3>Appearance & UI</h3></div>
               <p className="settings-section-desc">Customize the look and feel of your workspace.</p>
 
@@ -487,7 +460,7 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
             </section>
 
             {/* ─── GENERAL PREFERENCES ─── */}
-            <section id="settings-section-general" className="settings-section">
+            <section id="settings-section-general" className="settings-section" style={{ display: activeSection === "general" ? undefined : "none" }}>
               <div className="settings-section-header"><SectionIcon icon="sliders" size={20} /><h3>General Preferences</h3></div>
               <p className="settings-section-desc">Configure default behaviors and startup options.</p>
 
@@ -515,7 +488,7 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
             </section>
 
             {/* ─── ACCOUNT & PROFILE ─── */}
-            <section id="settings-section-account" className="settings-section">
+            <section id="settings-section-account" className="settings-section" style={{ display: activeSection === "account" ? undefined : "none" }}>
               <div className="settings-section-header"><SectionIcon icon="user" size={20} /><h3>Account & Profile</h3></div>
               <p className="settings-section-desc">Manage your personal information, email, and security.</p>
 
@@ -615,7 +588,7 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
             </section>
 
             {/* ─── NOTIFICATIONS ─── */}
-            <section id="settings-section-notifications" className="settings-section">
+            <section id="settings-section-notifications" className="settings-section" style={{ display: activeSection === "notifications" ? undefined : "none" }}>
               <div className="settings-section-header"><SectionIcon icon="bell" size={20} /><h3>Notifications</h3></div>
               <p className="settings-section-desc">Control how and when you receive alerts.</p>
 
@@ -645,7 +618,7 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
 
             {/* ─── WORKSPACE DEFAULTS (Admin+ only) ─── */}
             {isAdminPlus && (
-              <section id="settings-section-workspace" className="settings-section">
+              <section id="settings-section-workspace" className="settings-section" style={{ display: activeSection === "workspace" ? undefined : "none" }}>
                 <div className="settings-section-header"><SectionIcon icon="target" size={20} /><h3>Workspace Defaults</h3></div>
                 <p className="settings-section-desc">Org-wide standards shared by the whole team — the milestone template for new projects and the production deadline.</p>
 
@@ -755,7 +728,7 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
 
             {/* ─── STAFF MANAGEMENT (Admin+ only) ─── */}
             {isAdminPlus && (
-              <section id="settings-section-staff" className="settings-section">
+              <section id="settings-section-staff" className="settings-section" style={{ display: activeSection === "staff" ? undefined : "none" }}>
                 <div className="settings-section-header"><SectionIcon icon="shield" size={20} /><h3>Staff Management</h3></div>
                 <p className="settings-section-desc">Manage team members, approve access requests, and reset credentials.</p>
 
@@ -962,6 +935,28 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
                         {ASSIGNABLE_ROLES.map((r) => (<option key={r} value={r}>{r}</option>))}
                       </select>
                     </div>
+                    <div className="settings-field">
+                      <label className="settings-input-label">Department(s) — which workspaces they can access</label>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 14, paddingTop: 4 }}>
+                        {DEPARTMENTS.map((dept) => {
+                          const checked = newStaffDepartments.includes(dept);
+                          return (
+                            <label key={dept} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8rem", fontWeight: 700, cursor: "pointer" }}>
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(e) =>
+                                  setNewStaffDepartments((prev) =>
+                                    e.target.checked ? [...prev, dept] : prev.filter((d) => d !== dept)
+                                  )
+                                }
+                              />
+                              {dept}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
                     <button
                       className="settings-btn-primary"
                       style={{ marginTop: "8px" }}
@@ -970,12 +965,17 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
                           showModal({ title: "Error", message: "Please fill in both name and email.", type: "alert" });
                           return;
                         }
+                        if (newStaffDepartments.length === 0) {
+                          showModal({ title: "Error", message: "Select at least one department, otherwise the user can't access any workspace.", type: "alert" });
+                          return;
+                        }
                         try {
-                          await addStaffMut({ name: newStaffName.trim(), email: newStaffEmail.trim(), role: newStaffRole });
+                          await addStaffMut({ name: newStaffName.trim(), email: newStaffEmail.trim(), role: newStaffRole, departments: newStaffDepartments });
                           showModal({ title: "Staff Added", message: `${newStaffName} has been registered successfully.`, type: "success" });
                           setNewStaffName("");
                           setNewStaffEmail("");
                           setNewStaffRole("Programmer");
+                          setNewStaffDepartments(["Workforce"]);
                         } catch (err) {
                           showModal({ title: "Error", message: err.message, type: "alert" });
                         }
@@ -1051,7 +1051,7 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
             )}
 
             {/* ─── ARCHIVED PROJECTS ─── */}
-            <section id="settings-section-archive" className="settings-section">
+            <section id="settings-section-archive" className="settings-section" style={{ display: activeSection === "archive" ? undefined : "none" }}>
               <div className="settings-section-header"><SectionIcon icon="archive" size={20} /><h3>Archived Projects</h3></div>
               <p className="settings-section-desc">Scrapped projects are stored here. Restore them or delete permanently.</p>
 
@@ -1132,8 +1132,6 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
                 )}
               </div>
             </section>
-
-            <div style={{ height: 100 }} />
           </div>
         </div>
 

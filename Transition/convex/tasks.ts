@@ -45,6 +45,13 @@ export const getTasksLight = query({
       const notesList = notes || [];
       const featuresList = features || [];
 
+      // Newest note (by timestamp) — a short preview travels with the light
+      // payload so the Kanban card can show the latest note without pulling
+      // every note. Kept small (one, truncated) to preserve the bandwidth win.
+      const lastNote = notesList
+        .slice()
+        .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))[0];
+
       return {
         ...light,
         notesCount: notesList.length,
@@ -53,6 +60,8 @@ export const getTasksLight = query({
         // Most recent timestamps for badge calculations without full data
         lastNoteTimestamp: notesList.reduce((max, n) => Math.max(max, n.timestamp || 0), 0),
         lastFeatureTimestamp: featuresList.reduce((max, f) => Math.max(max, f.createdAtTime || 0), 0),
+        lastNoteText: lastNote ? (lastNote.text || "").slice(0, 200) : "",
+        lastNoteWriter: lastNote ? (lastNote.writer || "") : "",
       };
     });
   },
