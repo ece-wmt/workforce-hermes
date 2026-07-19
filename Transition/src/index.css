@@ -541,11 +541,20 @@ header {
   background: var(--color-card-bg);
   border: 1px solid #e2e8f0;
   box-shadow: none;
-  transition: transform 0.38s var(--ease-out-back, cubic-bezier(0.34, 1.35, 0.6, 1));
+  /* Hidden at rest via visibility (NOT by hiding behind the card) so translucent
+     glass/liquid skins don't let the wings bleed through the see-through card.
+     visibility is binary — no fade — and is delayed out so the slide-back plays. */
+  visibility: hidden;
+  transition: transform 0.38s var(--ease-out-back, cubic-bezier(0.34, 1.35, 0.6, 1)), visibility 0s linear 0.38s;
 }
 /* shadow is set (not transitioned) on hover — it appears instantly, masked by
    the slide, so we avoid an expensive per-frame box-shadow repaint */
-.tf-shell:hover .tf-wing { box-shadow: 0 14px 26px -14px rgba(0, 0, 0, 0.3); will-change: transform; }
+.tf-shell:hover .tf-wing {
+  visibility: visible;
+  box-shadow: 0 14px 26px -14px rgba(0, 0, 0, 0.3);
+  will-change: transform;
+  transition: transform 0.38s var(--ease-out-back, cubic-bezier(0.34, 1.35, 0.6, 1)), visibility 0s;
+}
 
 .tf-wing-left {
   top: 0; bottom: 0; left: 0;
