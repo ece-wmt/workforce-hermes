@@ -14,6 +14,7 @@ import TaskEntry from "./components/TaskEntry";
 import Notebook from "./components/Notebook";
 import AdminPanel from "./components/AdminPanel";
 import TaskModal from "./components/TaskModal";
+import NotesModal from "./components/NotesModal";
 import Login from "./components/Login";
 import SetPassword from "./components/SetPassword";
 import CustomModal from "./components/CustomModal";
@@ -84,6 +85,8 @@ export default function App() {
   const [userAvatar, setUserAvatar] = useState("");
   const [modalTaskId, setModalTaskId] = useState(null);
   const [modalEditMode, setModalEditMode] = useState(false);
+  const [modalOpenNotes, setModalOpenNotes] = useState(false);
+  const [notesModalTaskId, setNotesModalTaskId] = useState(null);
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, task: null });
   const [showSettings, setShowSettings] = useState(false);
   const [showHandbook, setShowHandbook] = useState(false);
@@ -555,14 +558,21 @@ export default function App() {
     setCurrentView(viewId);
   }
 
-  function openTaskModal(taskId, editMode = false) {
+  function openTaskModal(taskId, editMode = false, openNotes = false) {
     setModalTaskId(taskId);
     setModalEditMode(editMode);
+    setModalOpenNotes(openNotes);
   }
 
   function closeTaskModal() {
     setModalTaskId(null);
     setModalEditMode(false);
+    setModalOpenNotes(false);
+  }
+
+  // Opens ONLY the notes modal (no full task modal behind it)
+  function openNotesModal(taskId) {
+    setNotesModalTaskId(taskId);
   }
 
   function handleContextMenu(e, task) {
@@ -1035,6 +1045,7 @@ export default function App() {
             actualRole={actualRole}
             userName={userName}
             openTaskModal={openTaskModal}
+            openNotesModal={openNotesModal}
             onContextMenu={handleContextMenu}
             showModal={showModal}
             staff={staff || []}
@@ -1070,6 +1081,7 @@ export default function App() {
         <TaskModal
           taskId={modalTaskId}
           isEditMode={modalEditMode}
+          initialNotesOpen={modalOpenNotes}
           userRole={userRole}
           actualRole={actualRole}
           userName={userName}
@@ -1078,6 +1090,16 @@ export default function App() {
           showModal={showModal}
           showInputModal={showInputModal}
           onViewProfile={(s) => setViewingStaff(s)}
+        />
+      )}
+
+      {/* Notes-only modal (opened from a card's note wing) */}
+      {notesModalTaskId && (
+        <NotesModal
+          taskId={notesModalTaskId}
+          userName={userName}
+          onClose={() => setNotesModalTaskId(null)}
+          showModal={showModal}
         />
       )}
 

@@ -45,12 +45,13 @@ export const getTasksLight = query({
       const notesList = notes || [];
       const featuresList = features || [];
 
-      // Newest note (by timestamp) — a short preview travels with the light
-      // payload so the Kanban card can show the latest note without pulling
-      // every note. Kept small (one, truncated) to preserve the bandwidth win.
-      const lastNote = notesList
-        .slice()
-        .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))[0];
+      // Newest note — a short preview travels with the light payload so the
+      // Kanban card can show the latest note without pulling every note. Prefer
+      // the highest timestamp; for older notes without one, the last-added wins
+      // (>= keeps later array entries). Kept small (one, truncated).
+      const lastNote = notesList.length
+        ? notesList.reduce((latest, n) => ((n.timestamp || 0) >= (latest.timestamp || 0) ? n : latest))
+        : null;
 
       return {
         ...light,

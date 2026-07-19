@@ -236,11 +236,17 @@ header {
 }
 
 /* Kanban Layout */
+/* Clip horizontal overflow so a hovered edge card's wing can never create a
+   page-wide horizontal scrollbar (vertical scrolling stays normal). */
+#kanban-view { overflow-x: clip; }
+
 .kanban-container {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 12px;
-  padding: 0 20px 20px 20px;
+  /* Generous left/right room so a hovered edge column's side wings fit on-screen
+     — this also makes the columns themselves thinner. */
+  padding: 0 120px 20px 120px;
   align-items: start;
   max-width: 100%;
 }
@@ -492,7 +498,6 @@ header {
 .tf-shell:hover {
   transform: scale(1.08);
   z-index: 60;
-  will-change: transform;
 }
 .tf-shell > .task-card {
   position: relative;
@@ -536,8 +541,8 @@ header {
   z-index: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 10px;
+  gap: 3px;
+  padding: 7px 8px;
   background: var(--color-card-bg);
   border: 1px solid #e2e8f0;
   box-shadow: none;
@@ -552,13 +557,12 @@ header {
 .tf-shell:hover .tf-wing {
   visibility: visible;
   box-shadow: 0 14px 26px -14px rgba(0, 0, 0, 0.3);
-  will-change: transform;
   transition: transform 0.38s var(--ease-out-back, cubic-bezier(0.34, 1.35, 0.6, 1)), visibility 0s;
 }
 
 .tf-wing-left {
   top: 0; bottom: 0; left: 0;
-  width: 88px;
+  width: 74px;
   border-radius: 12px 0 0 12px;
   transform: translateX(0);
 }
@@ -566,7 +570,7 @@ header {
 
 .tf-wing-right {
   top: 0; bottom: 0; right: 0;
-  width: 158px;
+  width: 122px;
   border-radius: 0 12px 12px 0;
   transform: translateX(0);
 }
@@ -580,16 +584,32 @@ header {
 }
 .tf-shell:hover .tf-wing-bottom { transform: translateY(calc(100% - 10px)); }
 
+.tf-wing-top {
+  left: 0; right: 0; top: 0;
+  flex-direction: row; align-items: center; justify-content: space-between;
+  gap: 8px;
+  border-radius: 12px 12px 0 0;
+  transform: translateY(0);
+}
+.tf-shell:hover .tf-wing-top { transform: translateY(calc(-100% + 10px)); }
+
+/* Hovering an individual wing pops it out a little further + scales up a touch */
+.tf-shell:hover .tf-wing:hover { box-shadow: 0 20px 42px -12px rgba(0, 0, 0, 0.42); z-index: 3; }
+.tf-shell:hover .tf-wing-left:hover { transform: translateX(calc(-100% + 2px)) scale(1.05); }
+.tf-shell:hover .tf-wing-right:hover { transform: translateX(calc(100% - 2px)) scale(1.05); }
+.tf-shell:hover .tf-wing-top:hover { transform: translateY(calc(-100% + 2px)) scale(1.05); }
+.tf-shell:hover .tf-wing-bottom:hover { transform: translateY(calc(100% - 2px)) scale(1.05); }
+
 .tf-wing-cap {
-  font-size: 0.5rem;
+  font-size: 0.46rem;
   font-weight: 800;
-  letter-spacing: 0.7px;
+  letter-spacing: 0.6px;
   text-transform: uppercase;
   color: #94a3b8;
 }
 
-.tf-wing-dots { display: flex; flex-wrap: wrap; gap: 5px; }
-.tf-wing-dots .milestone-dot { width: 16px; height: 16px; font-size: 0.5rem; }
+.tf-wing-dots { display: flex; flex-wrap: wrap; gap: 3px; }
+.tf-wing-dots .milestone-dot { width: 14px; height: 14px; font-size: 0.44rem; }
 .milestone-dot.current {
   background: var(--color-accent);
   color: #fff;
@@ -600,34 +620,49 @@ header {
 
 .tf-note-text {
   margin: 0;
-  font-size: 0.66rem;
-  line-height: 1.35;
+  font-size: 0.62rem;
+  line-height: 1.3;
   font-weight: 600;
   color: var(--color-text-primary);
   display: -webkit-box;
-  -webkit-line-clamp: 6;
-  line-clamp: 6;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.tf-note-writer { font-size: 0.58rem; font-weight: 800; color: #94a3b8; }
-.tf-note-empty { margin: 0; font-size: 0.62rem; font-style: italic; color: #94a3b8; }
+.tf-note-writer { font-size: 0.54rem; font-weight: 800; color: #94a3b8; }
+.tf-note-empty { margin: 0; font-size: 0.58rem; font-style: italic; color: #94a3b8; }
 
 .tf-bottom-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .tf-days {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 4px 8px; border-radius: 8px;
-  font-size: 0.6rem; font-weight: 800; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 7px; border-radius: 7px;
+  font-size: 0.56rem; font-weight: 800; white-space: nowrap;
   background: var(--color-bg-subtle); color: var(--color-text-secondary);
 }
 .tf-days.soon { background: #fef9c3; color: #854d0e; }
 .tf-days.urgent { background: #ffedd5; color: #c2410c; }
 .tf-days.overdue { background: #fee2e2; color: #b91c1c; }
 .tf-bottom-current {
-  font-size: 0.62rem; font-weight: 800; color: var(--color-text-primary);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+  font-size: 0.62rem; font-weight: 800; color: var(--color-text-primary); line-height: 1.2;
+  display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-.tf-wing-bottom .card-actions { margin: 0; padding-top: 8px; grid-template-columns: repeat(4, 1fr); }
+.tf-bottom-block { display: flex; flex-direction: column; gap: 2px; }
+.tf-wing-bottom .card-actions { margin: 0; padding-top: 6px; gap: 4px; grid-template-columns: repeat(4, 1fr); }
+.tf-wing-bottom .action-btn { padding: 4px 2px; font-size: 0.5rem; border-radius: 5px; }
+
+/* Note wing: hovering it blurs the note + reveals an Add-note prompt; a click
+   opens the expanded notes modal. */
+.tf-wing-right { cursor: pointer; }
+.tf-note-body { flex: 1; min-height: 0; transition: filter 0.2s ease, opacity 0.2s ease; }
+.tf-wing-right:hover .tf-note-body { filter: blur(3px); opacity: 0.4; }
+.tf-note-add {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  font-size: 0.72rem; font-weight: 900; color: var(--color-accent);
+  opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
+}
+.tf-wing-right:hover .tf-note-add { opacity: 1; }
 
 [data-theme="dark"] .tf-wing { border-color: #334155; }
 
@@ -644,9 +679,10 @@ header {
 .tf-shell:hover .tf-swap-detail { grid-template-rows: 0fr; }
 .tf-shell:hover .tf-swap-focus { grid-template-rows: 1fr; }
 .tf-swap-inner { overflow: hidden; min-height: 0; transition: transform 0.34s var(--ease-out-quart); }
-.tf-shell:hover .tf-swap-inner { will-change: transform; }
-.tf-swap-detail .tf-swap-inner { transform-origin: top center; }
-.tf-shell:hover .tf-swap-detail .tf-swap-inner { transform: scale(0.7); }
+/* Detail: NO clip at rest, so the milestone-dot glow isn't sliced into a hard
+   line. Clip only while collapsing on hover. */
+.tf-swap-detail .tf-swap-inner { overflow: visible; transform-origin: top center; }
+.tf-shell:hover .tf-swap-detail .tf-swap-inner { overflow: hidden; transform: scale(0.7); }
 .tf-swap-focus .tf-swap-inner { transform: scale(0.82); transform-origin: center; }
 .tf-shell:hover .tf-swap-focus .tf-swap-inner { transform: scale(1); }
 

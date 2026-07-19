@@ -31,7 +31,7 @@ function deobfuscate(str) {
 }
 
 
-export default function TaskModal({ taskId, isEditMode, userRole, actualRole, userName, staff, onClose, showModal, showInputModal, onViewProfile }) {
+export default function TaskModal({ taskId, isEditMode, initialNotesOpen, userRole, actualRole, userName, staff, onClose, showModal, showInputModal, onViewProfile }) {
   const task = useQuery(api.tasks.getTaskById, { taskId });
   const updateTaskMilestones = useMutation(api.tasks.updateTaskMilestones);
   const addNoteToTask = useMutation(api.tasks.addNoteToTask);
@@ -59,7 +59,7 @@ export default function TaskModal({ taskId, isEditMode, userRole, actualRole, us
   const [editedMilestones, setEditedMilestones] = useState([]);
   const [featureView, setFeatureView] = useState("feature"); // 'feature' or 'bug'
   const [noteInputText, setNoteInputText] = useState("");
-  const [notesFullscreen, setNotesFullscreen] = useState(false);
+  const [notesFullscreen, setNotesFullscreen] = useState(!!initialNotesOpen);
   const [noteContextMenu, setNoteContextMenu] = useState(null); // { index, noteRect }
   const noteRefs = useRef({});
   const milestoneListRef = useRef(null);

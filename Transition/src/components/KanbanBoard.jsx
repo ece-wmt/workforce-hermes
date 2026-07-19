@@ -52,7 +52,7 @@ const getMilestoneDeadline = (t, idx) => {
 };
 
 
-export default function KanbanBoard({ userRole, actualRole, userName, openTaskModal, onContextMenu, showModal, staff, searchQuery, filterStaff, onOpenProfile, onClearFilter }) {
+export default function KanbanBoard({ userRole, actualRole, userName, openTaskModal, openNotesModal, onContextMenu, showModal, staff, searchQuery, filterStaff, onOpenProfile, onClearFilter }) {
   const workspace = useWorkspace();
   const tasks = useQuery(api.tasks.getTasksLight, { workspace });
   const toggleTaskPriority = useMutation(api.tasks.toggleTaskPriority);
@@ -349,6 +349,7 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
       : `${completionLeft} day${completionLeft === 1 ? "" : "s"} remaining`;
     const wNoteText = (t.lastNoteText || "").trim();
     const wNoteWriter = (t.lastNoteWriter || "").trim();
+    const wNotesCount = t.notesCount || 0;
     const W_MOVES = ["todo", "pending", "development", "testing", "done", "implemented", "scrapped"];
     const wMoveLabel = (s) =>
       s === "development" ? "Dev" : s === "testing" ? "Test" : s === "implemented" ? "Impl" : s === "scrapped" ? "Scrap" : s.charAt(0).toUpperCase() + s.slice(1);
@@ -662,6 +663,13 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
     // current milestone + controls drop down below. No fade: pure slide.
     return (
       <div className={`tf-shell ${openingId === t._id ? "tf-opening" : ""}`} key={t._id}>
+        <div className="tf-wing tf-wing-top">
+          <span className="tf-wing-cap">Time left</span>
+          <span className={`tf-days ${completionTone || ""}`}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+            {wDaysLabel}
+          </span>
+        </div>
         <div className="tf-wing tf-wing-left" aria-hidden="true">
           <span className="tf-wing-cap">Milestones</span>
           <div className="tf-wing-dots">
@@ -672,23 +680,32 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
             ))}
           </div>
         </div>
-        <div className="tf-wing tf-wing-right">
+        <div
+          className="tf-wing tf-wing-right"
+          title="Open notes"
+          onClick={(e) => { e.stopPropagation(); openNotesModal(t._id); }}
+        >
           <span className="tf-wing-cap">Latest note</span>
-          {wNoteText ? (
-            <>
-              <p className="tf-note-text">{wNoteText}</p>
-              {wNoteWriter && <span className="tf-note-writer">— {wNoteWriter}</span>}
-            </>
-          ) : (
-            <p className="tf-note-empty">No notes yet</p>
-          )}
+          <div className="tf-note-body">
+            {wNoteText ? (
+              <>
+                <p className="tf-note-text">{wNoteText}</p>
+                {wNoteWriter && <span className="tf-note-writer">— {wNoteWriter}</span>}
+              </>
+            ) : wNotesCount > 0 ? (
+              <p className="tf-note-text">{wNotesCount} note{wNotesCount === 1 ? "" : "s"} — click to view</p>
+            ) : (
+              <p className="tf-note-empty">No notes yet</p>
+            )}
+          </div>
+          <div className="tf-note-add">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+            Add note
+          </div>
         </div>
         <div className="tf-wing tf-wing-bottom">
-          <div className="tf-bottom-row">
-            <span className={`tf-days ${completionTone || ""}`}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
-              {wDaysLabel}
-            </span>
+          <div className="tf-bottom-block">
+            <span className="tf-wing-cap">Current milestone</span>
             <span className="tf-bottom-current">{wCurrentM ? wCurrentM.name : "All milestones done"}</span>
           </div>
           <div className="card-actions" onClick={(e) => e.stopPropagation()}>
@@ -746,7 +763,7 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
           <span>No projects assigned to {filterStaff.name}.</span>
         </div>
       )}
-      <div className="kanban-totals-bar" style={{ gap: "15px", padding: "15px 20px", marginBottom: "15px" }}>
+      <div className="kanban-totals-bar" style={{ gap: "15px", padding: "15px 120px", marginBottom: "15px" }}>
         {columns.map((c) => (
           <div className="total-card" key={c} onClick={() => setFullViewColumn(c)} style={{ padding: "15px", borderRadius: "var(--radius-md)", border: "1px solid #f1f5f9", boxShadow: "var(--shadow-sm)" }}>
             <div className="total-value" style={{ fontSize: "1.4rem", color: `var(--${columnClasses[c].replace("col-", "col-")})` }}>
