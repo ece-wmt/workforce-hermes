@@ -193,6 +193,17 @@ export default defineSchema({
     defaultMilestones: v.optional(
       v.array(v.object({ name: v.string(), days: v.number() }))
     ),
+    // Per-workspace Kanban columns (ordered). Falls back to defaults when unset.
+    columns: v.optional(
+      v.array(
+        v.object({
+          id: v.string(),
+          label: v.string(),
+          color: v.string(),
+          limit: v.optional(v.number()), // WIP cap; undefined = no limit
+        })
+      )
+    ),
     updatedAt: v.number(),
     updatedBy: v.optional(v.string()),
   }).index("by_workspace", ["workspace"]),

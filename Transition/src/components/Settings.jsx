@@ -6,6 +6,8 @@ import { FALLBACK_MILESTONES } from "../utils/defaults";
 import { isAdminPlusOrAbove, ASSIGNABLE_ROLES } from "../utils/roles";
 import { useWorkspace } from "../utils/workspaceContext";
 import { DEPARTMENTS } from "../utils/departments";
+import { DEFAULT_COLUMNS, COLUMN_COLOR_PRESETS, resolveColumns, taskInColumn, makeColumnId } from "../utils/columns";
+import { GEMINI_MODEL, getGeminiApiKey, setGeminiApiKey, isCaddyEnabled, setCaddyEnabled } from "../utils/aiConfig";
 
 const ACCENT_COLORS = [
   { name: "Emerald", value: "#10b981" },
@@ -107,6 +109,11 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
     applySettings({ ...loadSettings(), theme, skin, accentColor, fontSize, ...next });
   }
 
+  // --- AI Assistant (Gemini) key state ---
+  const [geminiKeyInput, setGeminiKeyInput] = useState(getGeminiApiKey());
+  const [geminiKeySaved, setGeminiKeySaved] = useState(false);
+  const [caddyEnabled, setCaddyEnabledState] = useState(isCaddyEnabled());
+
   // --- General Preferences state ---
   const [defaultView, setDefaultView] = useState(saved.defaultView);
   const [openOnStartup, setOpenOnStartup] = useState(saved.openOnStartup);
@@ -180,6 +187,19 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [prodDeadlineInput, setProdDeadlineInput] = useState("");
 
+  // --- Board Columns editor state (per-workspace) ---
+  const [columnRows, setColumnRows] = useState(() => DEFAULT_COLUMNS.map((c) => ({ ...c })));
+  const columnsDirty = useRef(false);
+  const [savingColumns, setSavingColumns] = useState(false);
+  // Task count per column id (for blocking removal of non-empty columns)
+  const columnTaskCounts = useMemo(() => {
+    const counts = {};
+    (allTasks || []).forEach((t) => {
+      columnRows.forEach((c) => { if (taskInColumn(t.status, c.id)) counts[c.id] = (counts[c.id] || 0) + 1; });
+    });
+    return counts;
+  }, [allTasks, columnRows]);
+
   // Hydrate the editor from the shared config once it loads (unless mid-edit)
   useEffect(() => {
     if (appConfig === undefined) return;
@@ -187,12 +207,23 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
       const src = appConfig?.defaultMilestones?.length ? appConfig.defaultMilestones : FALLBACK_MILESTONES;
       setTemplateRows(src.map((m) => ({ ...m })));
     }
+    if (!columnsDirty.current) {
+      setColumnRows(resolveColumns(appConfig?.columns).map((c) => ({ ...c })));
+    }
     if (appConfig?.productionDeadline) {
       // Format in LOCAL time — toISOString would shift the date for US timezones
       const d = new Date(appConfig.productionDeadline);
       setProdDeadlineInput(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
     }
   }, [appConfig]);
+
+  // Kanban columns (and the milestone template) are configured PER WORKSPACE.
+  // If the active workspace changes while Settings is open, drop any unsaved
+  // edits so the editors re-hydrate from the new workspace's own config.
+  useEffect(() => {
+    columnsDirty.current = false;
+    templateDirty.current = false;
+  }, [workspace]);
 
   const templateTotalDays = templateRows.reduce((sum, m) => sum + (Number(m.days) || 0), 0);
 
@@ -238,6 +269,82 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
       showModal({ title: "Deadline Set", message: "The full-production deadline is now visible on the Dashboard.", type: "success" });
     } catch (err) {
       showModal({ title: "Error", message: err.message || "Failed to save the deadline.", type: "alert" });
+    }
+  }
+
+  // --- Board Columns handlers ---
+  function updateColumnRow(idx, field, value) {
+    columnsDirty.current = true;
+    setColumnRows((prev) => {
+      const next = [...prev];
+      let v = value;
+      if (field === "limit") v = value === "" ? undefined : Math.max(0, parseInt(value) || 0) || undefined;
+      next[idx] = { ...next[idx], [field]: v };
+      return next;
+    });
+  }
+
+  function addColumnRow() {
+    columnsDirty.current = true;
+    setColumnRows((prev) => {
+      const id = makeColumnId("column", prev.map((c) => c.id));
+      const color = COLUMN_COLOR_PRESETS[prev.length % COLUMN_COLOR_PRESETS.length];
+      return [...prev, { id, label: "New Column", color }];
+    });
+  }
+
+  function moveColumnRow(idx, dir) {
+    columnsDirty.current = true;
+    setColumnRows((prev) => {
+      const next = [...prev];
+      const j = idx + dir;
+      if (j < 0 || j >= next.length) return prev;
+      [next[idx], next[j]] = [next[j], next[idx]];
+      return next;
+    });
+  }
+
+  function removeColumnRow(idx) {
+    const col = columnRows[idx];
+    const count = columnTaskCounts[col.id] || 0;
+    if (count > 0) {
+      showModal({
+        title: "Column Not Empty",
+        message: `"${col.label}" still has ${count} task${count === 1 ? "" : "s"}. Move ${count === 1 ? "it" : "them"} to another column first, then remove this one.`,
+        type: "alert",
+      });
+      return;
+    }
+    if (columnRows.length <= 1) {
+      showModal({ title: "Error", message: "A board needs at least one column.", type: "alert" });
+      return;
+    }
+    columnsDirty.current = true;
+    setColumnRows((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  async function handleSaveColumns() {
+    const cleaned = columnRows
+      .map((c) => ({
+        id: c.id,
+        label: (c.label || "").trim() || "Untitled",
+        color: c.color || "#10b981",
+        ...(typeof c.limit === "number" && c.limit > 0 ? { limit: c.limit } : {}),
+      }))
+      .filter((c) => c.id);
+    if (cleaned.length === 0) {
+      showModal({ title: "Error", message: "Add at least one column before saving.", type: "alert" });
+      return;
+    }
+    setSavingColumns(true);
+    try {
+      await saveAppConfigMut({ workspace, columns: cleaned, updatedBy: userName });
+      columnsDirty.current = false;
+      showModal({ title: "Board Saved", message: "This workspace's Kanban columns have been updated.", type: "success" });
+    } catch (err) {
+      showModal({ title: "Error", message: err.message || "Failed to save the board columns.", type: "alert" });
+    } finally {
+      setSavingColumns(false);
     }
   }
 
@@ -485,6 +592,57 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
                   </div>
                 </div>
               </div>
+
+              <div className="settings-card">
+                <label className="settings-field-label">AI Assistant (Gemini)</label>
+                <p className="settings-field-hint">
+                  Paste your Google Gemini API key to enable <strong>Caddy</strong> (the Caduceus
+                  assistant). The key is stored in this browser only. Model: <strong>{GEMINI_MODEL}</strong>.
+                </p>
+                <div className="settings-toggle-row" style={{ marginBottom: 14 }}>
+                  <div className="toggle-info">
+                    <span className="toggle-label">Enable Caddy assistant</span>
+                    <span className="toggle-desc">Show the floating ✦ launcher, its pop-up tips, and the chat panel.</span>
+                  </div>
+                  <label className="toggle-switch">
+                    <input
+                      type="checkbox"
+                      checked={caddyEnabled}
+                      onChange={(e) => { setCaddyEnabled(e.target.checked); setCaddyEnabledState(e.target.checked); }}
+                    />
+                    <span className="toggle-slider" />
+                  </label>
+                </div>
+                <div className="email-update-row">
+                  <input
+                    type="password"
+                    className="settings-input"
+                    placeholder="Paste Gemini API key…"
+                    value={geminiKeyInput}
+                    onChange={(e) => { setGeminiKeyInput(e.target.value); setGeminiKeySaved(false); }}
+                  />
+                  <button
+                    className="settings-btn-primary"
+                    onClick={() => { setGeminiApiKey(geminiKeyInput); setGeminiKeySaved(true); }}
+                  >
+                    Save Key
+                  </button>
+                  {getGeminiApiKey() && (
+                    <button
+                      className="settings-btn-outline"
+                      onClick={() => { setGeminiApiKey(""); setGeminiKeyInput(""); setGeminiKeySaved(false); }}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                {geminiKeySaved && (
+                  <span className="skin-default-saved" style={{ marginTop: 10 }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                    Gemini key saved — open Caddy from the ✦ button.
+                  </span>
+                )}
+              </div>
             </section>
 
             {/* ─── ACCOUNT & PROFILE ─── */}
@@ -721,6 +879,56 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
                         Clear
                       </button>
                     )}
+                  </div>
+                </div>
+
+                {/* Kanban board columns */}
+                <div className="settings-card">
+                  <label className="settings-field-label">Board Columns</label>
+                  <p className="settings-field-hint">
+                    Customize this workspace's Kanban columns — rename, recolor, reorder, set an
+                    optional max (WIP) limit, add new columns, or remove empty ones. A column that
+                    still has tasks can't be removed until it's emptied.
+                  </p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {columnRows.map((c, idx) => {
+                      const count = columnTaskCounts[c.id] || 0;
+                      return (
+                        <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--color-bg-subtle)", border: "1px solid var(--glass-border)", borderRadius: 10, padding: "8px 10px" }}>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                            <button title="Move up" disabled={idx === 0} onClick={() => moveColumnRow(idx, -1)} style={{ border: "none", background: "none", cursor: idx === 0 ? "default" : "pointer", opacity: idx === 0 ? 0.3 : 0.7, fontSize: "0.6rem", lineHeight: 1, padding: 0 }}>▲</button>
+                            <button title="Move down" disabled={idx === columnRows.length - 1} onClick={() => moveColumnRow(idx, 1)} style={{ border: "none", background: "none", cursor: idx === columnRows.length - 1 ? "default" : "pointer", opacity: idx === columnRows.length - 1 ? 0.3 : 0.7, fontSize: "0.6rem", lineHeight: 1, padding: 0 }}>▼</button>
+                          </div>
+                          <input type="color" value={c.color} onChange={(e) => updateColumnRow(idx, "color", e.target.value)} title="Column color" style={{ width: 32, height: 32, border: "none", background: "none", cursor: "pointer", padding: 0, flexShrink: 0 }} />
+                          <input type="text" className="settings-input" value={c.label} placeholder="Column name" onChange={(e) => updateColumnRow(idx, "label", e.target.value)} style={{ flex: 1, minWidth: 0 }} />
+                          <input type="number" min="0" className="settings-input" value={c.limit ?? ""} placeholder="∞" title="Max tasks (WIP limit) — blank = no limit" onChange={(e) => updateColumnRow(idx, "limit", e.target.value)} style={{ width: 62, flexShrink: 0 }} />
+                          <span title="Tasks currently in this column" style={{ fontSize: "0.62rem", fontWeight: 800, color: count > 0 ? "var(--color-accent)" : "#94a3b8", minWidth: 46, textAlign: "center", flexShrink: 0 }}>{count} task{count === 1 ? "" : "s"}</span>
+                          <button className="template-row-remove" title={count > 0 ? "Empty this column first" : "Remove column"} onClick={() => removeColumnRow(idx)} style={{ opacity: count > 0 ? 0.4 : 1, flexShrink: 0 }}>×</button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="template-toolbar" style={{ marginTop: 12 }}>
+                    <button className="settings-btn-outline" onClick={addColumnRow}>+ Add Column</button>
+                  </div>
+                  <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
+                    <button className="settings-btn-primary" disabled={savingColumns} onClick={handleSaveColumns}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                      {savingColumns ? "Saving…" : "Save Board Columns"}
+                    </button>
+                    <button
+                      className="settings-btn-ghost"
+                      onClick={() => {
+                        showModal({
+                          title: "Restore Default Columns",
+                          message: "Reset this workspace's board to the standard 7 columns (To Do → Scrapped Yard)? Existing tasks keep their statuses.",
+                          type: "confirm",
+                          onConfirm: () => { columnsDirty.current = true; setColumnRows(DEFAULT_COLUMNS.map((c) => ({ ...c }))); },
+                        });
+                      }}
+                    >
+                      Restore Default Columns
+                    </button>
                   </div>
                 </div>
               </section>

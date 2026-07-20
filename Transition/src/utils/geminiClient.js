@@ -1,0 +1,127 @@
+import { GEMINI_ENDPOINT, getGeminiApiKey, getGeminiModels, ENABLE_WEB_SEARCH } from "./aiConfig";
+
+// Safety cap on how many tool-call rounds a single request may take.
+const MAX_TURNS = 10;
+
+/**
+ * Run one assistant turn with Gemini function-calling.
+ *
+ * @param {object}   opts
+ * @param {Array}    opts.history   prior conversation as Gemini `contents` (role/parts)
+ * @param {string}   opts.userText  the new user message
+ * @param {Array}    opts.tools     [{ name, description, parameters }] function declarations
+ * @param {string}   opts.systemInstruction
+ * @param {(name:string,args:object)=>Promise<any>} opts.executeTool  runs a tool, returns JSON-able result
+ * @param {(phase:string, label:string)=>void} opts.onStatus  progress indicator hook
+ * @returns {Promise<{text:string, contents:Array}>} final text + updated contents (for history)
+ */
+export async function runAssistant({ history = [], userText, tools = [], systemInstruction, executeTool, onStatus }) {
+  const key = getGeminiApiKey();
+  if (!key) throw new Error("No Gemini API key set yet. Add it in Settings → AI Assistant.");
+
+  const models = getGeminiModels();
+  let modelIdx = 0; // persists across turns — once we fall back, stay there
+  // Google Search grounding (only when enabled — see aiConfig) alongside our
+  // own function tools.
+  const toolDecls = [
+    ...(ENABLE_WEB_SEARCH ? [{ google_search: {} }] : []),
+    ...(tools.length ? [{ functionDeclarations: tools.map(({ name, description, parameters }) => ({ name, description, parameters })) }] : []),
+  ];
+
+  // One generateContent call, transparently falling back to the backup model on
+  // a retryable failure (missing model / rate limit / server error / network).
+  async function generate(body) {
+    while (true) {
+      const model = models[modelIdx];
+      const url = `${GEMINI_ENDPOINT}/${model}:generateContent?key=${encodeURIComponent(key)}`;
+      let res;
+      try {
+        res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      } catch {
+        if (modelIdx < models.length - 1) { modelIdx++; onStatus?.("thinking", "Switching to backup model…"); continue; }
+        throw new Error("Couldn't reach Gemini (network error). Check your connection.");
+      }
+      if (res.ok) return res.json();
+      const errText = await res.text().catch(() => "");
+      if (modelIdx < models.length - 1 && isRetryable(res.status)) {
+        modelIdx++;
+        onStatus?.("thinking", "Primary model busy — switching to backup…");
+        continue;
+      }
+      throw new Error(parseGeminiError(res.status, errText, model));
+    }
+  }
+
+  const contents = [...history, { role: "user", parts: [{ text: userText }] }];
+  onStatus?.("analyzing", "Analyzing request…");
+
+  for (let turn = 0; turn < MAX_TURNS; turn++) {
+    const body = {
+      contents,
+      ...(systemInstruction ? { systemInstruction: { parts: [{ text: systemInstruction }] } } : {}),
+      ...(toolDecls.length ? { tools: toolDecls } : {}),
+      generationConfig: { temperature: 0.4 },
+    };
+
+    onStatus?.("thinking", "Thinking…");
+    const data = await generate(body);
+    const modelContent = data?.candidates?.[0]?.content || { role: "model", parts: [] };
+    const parts = modelContent.parts || [];
+    const functionCalls = parts.filter((p) => p.functionCall).map((p) => p.functionCall);
+
+    if (functionCalls.length === 0) {
+      const text = parts.filter((p) => p.text).map((p) => p.text).join("").trim();
+      return { text: text || "Done.", contents };
+    }
+
+    // Push the model's EXACT turn back into history (preserving thoughtSignature
+    // and call ids) — Gemini 3.x needs the thought signatures echoed for correct
+    // multi-step tool reasoning. Then run each tool and feed the results back.
+    contents.push(modelContent);
+    const responseParts = [];
+    for (const fc of functionCalls) {
+      onStatus?.("working", toolStatusLabel(fc.name));
+      let result;
+      try {
+        result = await executeTool(fc.name, fc.args || {});
+      } catch (err) {
+        result = { error: err?.message || "Tool failed." };
+      }
+      responseParts.push({ functionResponse: { name: fc.name, ...(fc.id ? { id: fc.id } : {}), response: { result } } });
+    }
+    contents.push({ role: "user", parts: responseParts });
+    onStatus?.("thinking", "Working through it…");
+  }
+
+  return { text: "That took more steps than I could complete — try narrowing the request.", contents };
+}
+
+function toolStatusLabel(name) {
+  const map = {
+    get_project_updates: "Reading project activity…",
+    list_projects: "Looking up projects…",
+    create_project: "Creating the project…",
+    add_note: "Posting the update…",
+    set_project_description: "Writing the description…",
+    add_notebook_idea: "Saving to the notebook…",
+    add_feature: "Adding the feature…",
+    add_bug: "Logging the bug…",
+    update_setting: "Updating settings…",
+  };
+  return map[name] || "Working…";
+}
+
+// Statuses where trying the backup model could help.
+function isRetryable(status) {
+  return status === 404 || status === 429 || status >= 500;
+}
+
+function parseGeminiError(status, text, model) {
+  let msg = "";
+  try { msg = JSON.parse(text)?.error?.message || ""; } catch { /* not json */ }
+  if (status === 400 && /api key|api_key/i.test(msg)) return "Invalid Gemini API key. Check it in Settings → AI Assistant.";
+  if (status === 403) return "Gemini rejected the key (403). Verify the key and that the Generative Language API is enabled for it.";
+  if (status === 429) return "Gemini rate limit reached (primary + backup). Give it a moment and try again.";
+  if (status === 404) return `Model "${model}" wasn't found. Set a valid model id in .env.local (VITE_GEMINI_MODEL / _FALLBACK).`;
+  return msg || `Gemini request failed (${status}).`;
+}

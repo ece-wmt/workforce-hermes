@@ -4,6 +4,7 @@ import { api } from "../../convex/_generated/api";
 import { getProjectDeadlines, deadlineTone, DAY_MS } from "../utils/deadlines";
 import { notifyTaskUpdated, notifyMilestoneCompleted, notifyNoteAdded } from "../utils/notifications";
 import { useWorkspace } from "../utils/workspaceContext";
+import { resolveColumns, taskInColumn } from "../utils/columns";
 
 const cleanConvexError = (errorMessage) => {
   if (!errorMessage) return "An unexpected error occurred.";
@@ -55,6 +56,7 @@ const getMilestoneDeadline = (t, idx) => {
 export default function KanbanBoard({ userRole, actualRole, userName, openTaskModal, openNotesModal, onContextMenu, showModal, staff, searchQuery, filterStaff, onOpenProfile, onClearFilter }) {
   const workspace = useWorkspace();
   const tasks = useQuery(api.tasks.getTasksLight, { workspace });
+  const appConfig = useQuery(api.appConfig.getAppConfig, { workspace });
   const toggleTaskPriority = useMutation(api.tasks.toggleTaskPriority);
   // The args object is part of the query cache key — the optimistic getQuery/
   // setQuery keys MUST match the useQuery key ({ workspace }) or drag-and-drop
@@ -170,24 +172,25 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
   // to the cache while the query is still undefined (mid-load).
   const displayTasks = Array.isArray(tasks) ? tasks : lastKnownTasks;
 
-  const columns = ["todo", "pending", "development", "testing", "done", "implemented", "scrapped"];
-  const columnLabels = {
-    todo: "To Do",
-    pending: "Pending",
-    development: "In Development",
-    testing: "In Testing",
-    done: "Done",
-    implemented: "Implemented",
-    scrapped: "Scrapped Yard",
+  // Per-workspace column config (manager-editable in Settings → Workspace
+  // Defaults). Falls back to the default 7 columns when none is saved.
+  const columnDefs = resolveColumns(appConfig?.columns);
+  const columns = columnDefs.map((c) => c.id);
+  const columnById = Object.fromEntries(columnDefs.map((c) => [c.id, c]));
+  const columnLabel = (id) => columnById[id]?.label || id;
+  // Every task resolves to exactly ONE column: the one matching its status, or
+  // the first column as a fallback so a task whose column was removed (or a new
+  // task whose default status has no column) is never lost.
+  const columnForTask = (status) => {
+    const match = columnDefs.find((c) => taskInColumn(status, c.id));
+    return match ? match.id : columns[0];
   };
-  const columnClasses = {
-    todo: "col-todo",
-    pending: "col-pending",
-    development: "col-dev",
-    testing: "col-test",
-    done: "col-done",
-    implemented: "col-implemented",
-    scrapped: "col-scrap",
+  // Size the grid to the ACTUAL number of columns so a board with few columns
+  // fills the space with properly-sized, centered columns instead of leaving
+  // empty tracks. Each column caps at 340px so 2–3 columns don't stretch huge.
+  const boardGridStyle = {
+    gridTemplateColumns: `repeat(${Math.max(1, columnDefs.length)}, minmax(0, 340px))`,
+    justifyContent: "center",
   };
 
   const sorted = [...(Array.isArray(displayTasks) ? displayTasks : [])].sort((a, b) => b.lastUpdated - a.lastUpdated);
@@ -220,11 +223,7 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
   // Count per column
   const totals = {};
   columns.forEach((c) => {
-    totals[c] = filtered.filter((t) => {
-      const s = (t.status || "").toLowerCase();
-      if (c === "development") return s === "development" || s === "inprogress";
-      return s === c;
-    }).length;
+    totals[c] = filtered.filter((t) => columnForTask(t.status) === c).length;
   });
 
   function handleDrop(e, newStatus) {
@@ -350,9 +349,8 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
     const wNoteText = (t.lastNoteText || "").trim();
     const wNoteWriter = (t.lastNoteWriter || "").trim();
     const wNotesCount = t.notesCount || 0;
-    const W_MOVES = ["todo", "pending", "development", "testing", "done", "implemented", "scrapped"];
-    const wMoveLabel = (s) =>
-      s === "development" ? "Dev" : s === "testing" ? "Test" : s === "implemented" ? "Impl" : s === "scrapped" ? "Scrap" : s.charAt(0).toUpperCase() + s.slice(1);
+    const W_MOVES = columns; // the workspace's configured columns
+    const wMoveLabel = (id) => columnLabel(id);
 
     // Is the current (active) milestone overdue? Mirrors the programmer view:
     // elapsed time since the previous milestone finished exceeds its day budget.
@@ -393,7 +391,7 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
         )}
         <div className="card-actions">
           {W_MOVES.map((s) => (
-            <div key={s} className="action-btn" onClick={(e) => { e.stopPropagation(); handleMoveTask(t._id, s); }}>
+            <div key={s} className="action-btn" title={`Move to ${wMoveLabel(s)}`} onClick={(e) => { e.stopPropagation(); handleMoveTask(t._id, s); }}>
               {wMoveLabel(s)}
             </div>
           ))}
@@ -710,7 +708,7 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
           </div>
           <div className="card-actions" onClick={(e) => e.stopPropagation()}>
             {W_MOVES.map((s) => (
-              <div key={s} className="action-btn" onClick={(e) => { e.stopPropagation(); handleMoveTask(t._id, s); }}>
+              <div key={s} className="action-btn" title={`Move to ${wMoveLabel(s)}`} onClick={(e) => { e.stopPropagation(); handleMoveTask(t._id, s); }}>
                 {wMoveLabel(s)}
               </div>
             ))}
@@ -763,22 +761,30 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
           <span>No projects assigned to {filterStaff.name}.</span>
         </div>
       )}
-      <div className="kanban-totals-bar" style={{ gap: "15px", padding: "15px 120px", marginBottom: "15px" }}>
-        {columns.map((c) => (
-          <div className="total-card" key={c} onClick={() => setFullViewColumn(c)} style={{ padding: "15px", borderRadius: "var(--radius-md)", border: "1px solid #f1f5f9", boxShadow: "var(--shadow-sm)" }}>
-            <div className="total-value" style={{ fontSize: "1.4rem", color: `var(--${columnClasses[c].replace("col-", "col-")})` }}>
-              {totals[c]}
+      <div className="kanban-totals-bar" style={{ gap: "15px", padding: "15px 120px", marginBottom: "15px", ...boardGridStyle }}>
+        {columnDefs.map((cd) => {
+          const over = cd.limit && totals[cd.id] > cd.limit;
+          return (
+            <div className="total-card" key={cd.id} onClick={() => setFullViewColumn(cd.id)} style={{ padding: "15px", borderRadius: "var(--radius-md)", border: over ? "1px solid #fecaca" : "1px solid #f1f5f9", boxShadow: "var(--shadow-sm)" }}>
+              <div className="total-value" style={{ fontSize: "1.4rem", color: cd.color }}>
+                {totals[cd.id]}
+                {cd.limit ? <span style={{ fontSize: "0.8rem", color: over ? "#ef4444" : "#94a3b8", fontWeight: 700 }}> / {cd.limit}</span> : null}
+              </div>
+              <div className="total-label" style={{ fontSize: "0.6rem", letterSpacing: "1.2px" }}>{cd.label}</div>
             </div>
-            <div className="total-label" style={{ fontSize: "0.6rem", letterSpacing: "1.2px" }}>{columnLabels[c]}</div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      <div className="kanban-container">
-        {columns.map((col) => (
+      <div className="kanban-container" style={boardGridStyle}>
+        {columnDefs.map((cd) => {
+          const col = cd.id;
+          const over = cd.limit && totals[col] > cd.limit;
+          return (
           <div
             key={col}
-            className={`kanban-col ${columnClasses[col]}`}
+            className="kanban-col"
+            style={{ borderTopColor: cd.color, background: `linear-gradient(to bottom, ${cd.color}14, var(--color-card-bg))` }}
             onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("drag-over"); }}
             onDragLeave={(e) => {
               const rect = e.currentTarget.getBoundingClientRect();
@@ -788,19 +794,23 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
             }}
             onDrop={(e) => { e.currentTarget.classList.remove("drag-over"); handleDrop(e, col); }}
           >
-            <div className="col-header" style={{ padding: "10px", letterSpacing: "0.8px", fontSize: "0.75rem" }}>{columnLabels[col]}</div>
+            <div className="col-header" style={{ padding: "10px", letterSpacing: "0.8px", fontSize: "0.75rem", background: cd.color }}>
+              {cd.label}{cd.limit ? <span style={{ opacity: 0.85, marginLeft: 4 }}>({totals[col]}/{cd.limit})</span> : null}
+            </div>
             <div className="col-content">
+              {over && (
+                <div style={{ margin: "8px 8px 0", fontSize: "0.58rem", fontWeight: 800, color: "#ef4444", textAlign: "center", background: "#fee2e2", borderRadius: 6, padding: "3px 6px" }}>
+                  Over limit ({totals[col]}/{cd.limit})
+                </div>
+              )}
               {filtered
-                .filter((t) => {
-                  const s = (t.status || "").toLowerCase();
-                  if (col === "development") return s === "development" || s === "inprogress";
-                  return s === col;
-                })
+                .filter((t) => columnForTask(t.status) === col)
                 .slice(0, 5) // Show only latest 5
                 .map((t) => renderTaskCard(t, false, !isSearchMatch(t)))}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Full View Modal */}
@@ -819,15 +829,11 @@ export default function KanbanBoard({ userRole, actualRole, userName, openTaskMo
               alignItems: "center",
               justifyContent: "space-between"
             }}>
-              <span>All Tasks: {columnLabels[fullViewColumn]} ({totals[fullViewColumn]})</span>
+              <span>All Tasks: {columnLabel(fullViewColumn)} ({totals[fullViewColumn]})</span>
             </h2>
             <div className="full-kanban-grid">
               {filtered
-                .filter((t) => {
-                  const s = (t.status || "").toLowerCase();
-                  if (fullViewColumn === "development") return s === "development" || s === "inprogress";
-                  return s === fullViewColumn;
-                })
+                .filter((t) => columnForTask(t.status) === fullViewColumn)
                 .map((t) => renderTaskCard(t, true, !isSearchMatch(t)))}
             </div>
           </div>

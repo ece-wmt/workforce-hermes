@@ -15,6 +15,8 @@ import Notebook from "./components/Notebook";
 import AdminPanel from "./components/AdminPanel";
 import TaskModal from "./components/TaskModal";
 import NotesModal from "./components/NotesModal";
+import AIAssistant from "./components/AIAssistant";
+import { isCaddyEnabled } from "./utils/aiConfig";
 import Login from "./components/Login";
 import SetPassword from "./components/SetPassword";
 import CustomModal from "./components/CustomModal";
@@ -87,6 +89,37 @@ export default function App() {
   const [modalEditMode, setModalEditMode] = useState(false);
   const [modalOpenNotes, setModalOpenNotes] = useState(false);
   const [notesModalTaskId, setNotesModalTaskId] = useState(null);
+  const [showAI, setShowAI] = useState(false);
+  const [caddyOn, setCaddyOn] = useState(isCaddyEnabled());
+  const [caddyHint, setCaddyHint] = useState(null);
+  const caddyHintIdx = useRef(0);
+
+  // React live when Caddy is toggled on/off in Settings.
+  useEffect(() => {
+    const onChange = () => setCaddyOn(isCaddyEnabled());
+    window.addEventListener("caddy-enabled-changed", onChange);
+    return () => window.removeEventListener("caddy-enabled-changed", onChange);
+  }, []);
+
+  // Periodically nudge the user with a Caddy tip when the panel is closed.
+  useEffect(() => {
+    if (showAI || !caddyOn) { setCaddyHint(null); return; }
+    const HINTS = [
+      "Hi, I'm Caddy 👋 Ask me for a project's updates.",
+      "Need a task logged? Just tell me about it.",
+      "I can jot ideas to the notebook or file a bug for you.",
+      "Try: “What's the latest project with updates?”",
+    ];
+    let hideTimer;
+    const show = () => {
+      setCaddyHint(HINTS[caddyHintIdx.current % HINTS.length]);
+      caddyHintIdx.current += 1;
+      hideTimer = window.setTimeout(() => setCaddyHint(null), 9000);
+    };
+    const first = window.setTimeout(show, 7000);
+    const interval = window.setInterval(show, 85000);
+    return () => { window.clearTimeout(first); window.clearTimeout(hideTimer); window.clearInterval(interval); };
+  }, [showAI, caddyOn]);
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, task: null });
   const [showSettings, setShowSettings] = useState(false);
   const [showHandbook, setShowHandbook] = useState(false);
@@ -1100,6 +1133,31 @@ export default function App() {
           userName={userName}
           onClose={() => setNotesModalTaskId(null)}
           showModal={showModal}
+        />
+      )}
+
+      {/* Hermes AI assistant (Caddy) — hidden entirely when disabled in Settings */}
+      {caddyOn && !showAI && (
+        <>
+          {caddyHint && (
+            <div className="ai-hint" onClick={() => { setShowAI(true); setCaddyHint(null); }}>
+              <button className="ai-hint-x" title="Dismiss" onClick={(e) => { e.stopPropagation(); setCaddyHint(null); }}>×</button>
+              <span className="ai-hint-orb" aria-hidden="true" />
+              <span className="ai-hint-text">{caddyHint}</span>
+            </div>
+          )}
+          <button className="ai-launcher" title="Caddy — ask Caduceus" onClick={() => setShowAI(true)}>
+            <span className="ai-launcher-orb" aria-hidden="true" />
+          </button>
+        </>
+      )}
+      {caddyOn && (
+        <AIAssistant
+          open={showAI}
+          onClose={() => setShowAI(false)}
+          userName={userName}
+          userEmail={localStorage.getItem("wf_email") || ""}
+          actualRole={actualRole}
         />
       )}
 

@@ -38,6 +38,16 @@ export const saveAppConfig = mutation({
     defaultMilestones: v.optional(
       v.array(v.object({ name: v.string(), days: v.number() }))
     ),
+    columns: v.optional(
+      v.array(
+        v.object({
+          id: v.string(),
+          label: v.string(),
+          color: v.string(),
+          limit: v.optional(v.number()),
+        })
+      )
+    ),
     updatedBy: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -58,6 +68,9 @@ export const saveAppConfig = mutation({
     }
     if (args.defaultMilestones !== undefined) {
       patch.defaultMilestones = args.defaultMilestones;
+    }
+    if (args.columns !== undefined) {
+      patch.columns = args.columns;
     }
 
     if (existing) {
