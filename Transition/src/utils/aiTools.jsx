@@ -19,6 +19,13 @@ function genId(prefix) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
 }
 
+// Trim long free-text so a multi-project update payload stays reasonable while
+// still giving the assistant the actual substance to explain (not just counts).
+function trunc(s, n = 260) {
+  const str = String(s || "").trim();
+  return str.length > n ? `${str.slice(0, n - 1)}…` : str;
+}
+
 // ── Gemini function-declaration schemas ─────────────────────────────────────
 const TOOLS = [
   {
@@ -40,7 +47,7 @@ const TOOLS = [
   },
   {
     name: "get_recent_updates",
-    description: "Get recent activity across ALL projects in the workspace in ONE call — which projects had notes, new features/bugs, or milestones completed within the last N days, newest first. Use this for questions like 'what has updates?', 'what's the latest?', or 'which projects moved this week?' — do NOT call get_project_updates repeatedly for this.",
+    description: "Get recent activity across ALL projects in the workspace in ONE call — for each project it returns the ACTUAL note texts, the new features (name + description), the new bugs (name + description), and milestones completed within the last N days, newest first. Use this for questions like 'what has updates?', 'what's the latest?', or 'which projects moved this week?' — do NOT call get_project_updates repeatedly for this. Read the returned text and EXPLAIN what changed; never just report counts.",
     parameters: {
       type: "object",
       properties: { days: { type: "integer", description: "How many days back to include. Default 7." } },
@@ -220,11 +227,14 @@ export function useAiActions({ userName, userEmail, actualRole }) {
       case "get_recent_updates": {
         const days = Math.max(1, parseInt(args.days) || 7);
         const cutoff = Date.now() - days * DAY_MS;
+        const PER = 20; // cap items per project per type so the payload stays sane
         const tasks = await convex.query(api.tasks.getTasks, { workspace });
         const rows = (Array.isArray(tasks) ? tasks : []).map((t) => {
           const notes = (t.notes || []).filter((n) => (n.timestamp || 0) >= cutoff);
           const feats = (t.features || []).filter((f) => (f.createdAtTime || 0) >= cutoff);
           const doneM = (t.milestones || []).filter((m) => m.completed && (m.completedAtTime || 0) >= cutoff);
+          const newFeatures = feats.filter((f) => f.type !== "bug");
+          const newBugs = feats.filter((f) => f.type === "bug");
           const lastActivity = Math.max(
             0,
             ...notes.map((n) => n.timestamp || 0),
@@ -234,10 +244,13 @@ export function useAiActions({ userName, userEmail, actualRole }) {
           return {
             project: t.title,
             status: t.status,
-            noteCount: notes.length,
-            latestNote: notes.length ? notes[notes.length - 1].text : null,
-            newFeatures: feats.filter((f) => f.type !== "bug").length,
-            newBugs: feats.filter((f) => f.type === "bug").length,
+            // ACTUAL content (not counts) so the assistant can explain the changes.
+            notes: notes.slice(-8).map((n) => ({ writer: n.writer, text: trunc(n.text) })),
+            newFeatures: newFeatures.slice(0, PER).map((f) => ({ name: f.name, description: trunc(f.description) })),
+            newBugs: newBugs.slice(0, PER).map((f) => ({ name: f.name, description: trunc(f.description) })),
+            // If there were more than the cap, tell the model how many it didn't see.
+            moreFeatures: Math.max(0, newFeatures.length - PER),
+            moreBugs: Math.max(0, newBugs.length - PER),
             milestonesCompleted: doneM.map((m) => m.name),
             lastActivity,
           };
@@ -365,11 +378,12 @@ export function useAiActions({ userName, userEmail, actualRole }) {
     `About your name — a caduceus is the winged staff entwined by two serpents carried by Hermes, the Greek messenger god. It fits "Workforce Hermes": like Hermes's staff, you're the tool the team carries to move work and messages along. If anyone asks who/what you are or what "Caduceus" or "Caddy" means, give this brief explanation in a sentence or two.`,
     `The current user is "${userName}" (role: ${actualRole || "unknown"}). They are working in the "${wsLabel}" workspace. All actions apply to this workspace only.`,
     `You help by answering questions and performing actions through the provided tools:`,
-    `• Reporting project updates (default to the last 7 days unless the user specifies a range).`,
+    `• Reporting project updates (default to the last 7 days unless the user specifies a range) — EXPLAIN what actually changed.`,
     `• Creating projects — assign to the current user by default unless they name someone else.`,
     `• Adding notebook ideas, posting notes on projects, adding features, logging bugs, and moving projects between columns.`,
     `A note (add_note) and a description (set_project_description) are DIFFERENT: a description is the project's summary field; a note is a timeline update. To add or change a project's description use set_project_description — never post it as a note.`,
     `When creating a project: ALWAYS compose a clear 1–3 sentence description of what it involves — never leave it empty or just repeat the title. Infer it from the title and context using your own knowledge${ENABLE_WEB_SEARCH ? ", and if the title references a tool, product, company, or term you're unsure about, use Google Search to research it first" : ""}.`,
+    `HOW TO REPORT UPDATES: read the notes, new features, and bug fixes the tool returns and write a SHORT natural-language SUMMARY of what changed for each active project — capture the overall direction of the work and call out only the 1–3 most significant items in prose. Do NOT list every feature/bug, do NOT output comma-separated lists of item names, and do NOT report raw counts (e.g. never say "23 new features, 15 bugs"). Describe what the work means for the project, not how many things there were. If a project has a lot going on, summarize the theme in a sentence and note there was more beyond the highlights.`,
     `Guidelines: Be efficient with tools — for "what has updates / what's the latest / which projects moved" use get_recent_updates ONCE; only use get_project_updates when the user names a single project. Resolve project names with list_projects if unsure, and if a name is ambiguous ask which one. Keep replies short and conversational, and don't re-introduce yourself unless asked. After doing something, confirm exactly what you did in one sentence. Never invent data — if a tool returns nothing recent, say so plainly. Only call set_production_deadline if the user is a manager and explicitly asks.`,
   ].join("\n");
 

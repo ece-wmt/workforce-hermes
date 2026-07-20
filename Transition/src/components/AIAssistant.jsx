@@ -56,6 +56,50 @@ function timeAgo(ts) {
   return d < 7 ? `${d}d ago` : new Date(ts).toLocaleDateString();
 }
 
+// ── Minimal markdown → React elements ───────────────────────────────────────
+// Supports **bold**, *italic*/_italic_, `code`, and [label](url) inline, plus
+// "* " / "- " bullet lists and "#" headings block-level. Built as real React
+// nodes (never dangerouslySetInnerHTML), so assistant text can't inject HTML.
+const INLINE_RE = /(\*\*([^*]+)\*\*|__([^_]+)__|\*([^*\n]+)\*|_([^_\n]+)_|`([^`]+)`|\[([^\]]+)\]\((https?:\/\/[^\s)]+)\))/;
+
+function renderInline(text, keyBase) {
+  const out = [];
+  let rest = String(text);
+  let k = 0;
+  while (rest) {
+    const m = rest.match(INLINE_RE);
+    if (!m) { out.push(rest); break; }
+    if (m.index > 0) out.push(rest.slice(0, m.index));
+    if (m[2] != null || m[3] != null) out.push(<strong key={`${keyBase}-b${k++}`}>{m[2] ?? m[3]}</strong>);
+    else if (m[4] != null || m[5] != null) out.push(<em key={`${keyBase}-i${k++}`}>{m[4] ?? m[5]}</em>);
+    else if (m[6] != null) out.push(<code key={`${keyBase}-c${k++}`}>{m[6]}</code>);
+    else if (m[7] != null && m[8] != null) out.push(<a key={`${keyBase}-a${k++}`} href={m[8]} target="_blank" rel="noopener noreferrer">{m[7]}</a>);
+    rest = rest.slice(m.index + m[0].length);
+  }
+  return out;
+}
+
+function Markdown({ text }) {
+  const lines = String(text || "").split("\n");
+  const blocks = [];
+  let list = null;
+  const flush = (key) => { if (list?.length) blocks.push(<ul key={`ul-${key}`} className="ai-md-list">{list}</ul>); list = null; };
+  lines.forEach((line, i) => {
+    const bullet = line.match(/^\s*[*-]\s+(.*)$/);
+    if (bullet) { (list ||= []).push(<li key={`li-${i}`}>{renderInline(bullet[1], `li${i}`)}</li>); return; }
+    flush(i);
+    if (line.trim() === "") { blocks.push(<div key={`sp-${i}`} className="ai-md-sp" />); return; }
+    const h = line.match(/^\s*#{1,6}\s+(.*)$/);
+    blocks.push(
+      <div key={`p-${i}`} className="ai-md-line">
+        {h ? <strong>{renderInline(h[1], `h${i}`)}</strong> : renderInline(line, `p${i}`)}
+      </div>
+    );
+  });
+  flush("end");
+  return <>{blocks}</>;
+}
+
 export default function AIAssistant({ open, onClose, userName, userEmail, actualRole }) {
   const { tools, executeTool, systemInstruction } = useAiActions({ userName, userEmail, actualRole });
   const [messages, setMessages] = useState([]); // { role: "user"|"assistant", text, error? }
@@ -191,7 +235,7 @@ export default function AIAssistant({ open, onClose, userName, userEmail, actual
 
             {messages.map((m, i) => (
               <div key={i} className={`ai-msg ai-msg-${m.role} ${m.error ? "ai-msg-error" : ""}`}>
-                {m.text}
+                {m.role === "user" ? m.text : <Markdown text={m.text} />}
               </div>
             ))}
 

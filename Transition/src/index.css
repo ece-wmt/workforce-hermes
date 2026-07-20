@@ -7790,6 +7790,20 @@ body[data-workspace="executives"] .nav-btn.highlight:hover {
 }
 .ai-msg-error { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
 
+/* Markdown rendering inside Caddy's replies (bold / italic / code / lists). */
+.ai-msg .ai-md-line:not(:last-child) { margin-bottom: 2px; }
+.ai-msg .ai-md-sp { height: 0.5em; }
+.ai-msg .ai-md-list { margin: 4px 0; padding-left: 1.15em; list-style: disc; }
+.ai-msg .ai-md-list li { margin: 2px 0; }
+.ai-msg strong { font-weight: 700; }
+.ai-msg em { font-style: italic; }
+.ai-msg code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.82em; padding: 1px 5px; border-radius: 5px;
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+}
+.ai-msg-assistant a { color: var(--color-accent); text-decoration: underline; font-weight: 600; }
+
 .ai-status {
   align-self: flex-start; display: flex; align-items: center; gap: 9px; padding: 8px 13px; border-radius: 14px;
   background: color-mix(in srgb, var(--color-accent) 12%, var(--color-card-bg));
