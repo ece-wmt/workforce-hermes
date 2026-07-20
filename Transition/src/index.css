@@ -196,7 +196,7 @@ header {
 /* Kanban Totals Bar */
 .kanban-totals-bar {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 10px;
   padding: 10px 20px;
   max-width: 100%;
@@ -242,7 +242,10 @@ header {
 
 .kanban-container {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  /* minmax(0, 1fr) keeps all 7 columns equal width — without the 0-min, a
+     hovered card's content (focus pill + Complete button) blows the track out
+     and the card balloons over its neighbours. */
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 12px;
   /* Generous left/right room so a hovered edge column's side wings fit on-screen
      — this also makes the columns themselves thinner. */
@@ -507,6 +510,15 @@ header {
 /* the shell owns the hover pop, so cancel the card's own lift */
 .tf-shell > .task-card:hover { transform: none; }
 
+/* When popped, the card goes fully opaque so it (and its wings) cleanly cover
+   the cards beneath. Glass/liquid skins otherwise leave the card ~50% see-through,
+   so neighbours bleed through and the wing seams look sharp/dirty. */
+.tf-shell:hover > .task-card {
+  background: var(--color-card-bg) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 /* Click-to-open: the card consolidates inward, then expands and fades as the
    TaskModal scales in from centre to take over. */
 @keyframes tfOpenConsolidate {
@@ -689,11 +701,13 @@ header {
 /* Focused current-milestone pill (shown on hover) */
 .tf-focus-milestone {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  flex-wrap: wrap;
   margin-top: 6px; padding: 12px 14px;
   background: var(--color-bg-subtle);
   border: 1px solid var(--glass-border);
   border-radius: 14px;
 }
+.tf-focus-complete { flex-shrink: 0; }
 .tf-focus-milestone.overdue { border-color: #fecaca; background: rgba(239, 68, 68, 0.06); }
 .tf-focus-info { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .tf-focus-name { font-size: 0.82rem; font-weight: 900; color: var(--color-text-primary); line-height: 1.2; }
