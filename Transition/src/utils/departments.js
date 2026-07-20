@@ -38,16 +38,17 @@ export const WORKSPACE_META = {
 };
 
 /**
- * Access model (per stakeholder decision):
- *   • Executives → all workspaces
- *   • Workforce  → all workspaces
- *   • Operations → the Operations workspace only
- * Each department grants access to the list of workspaces below.
+ * Access model: a user's accessible workspaces are EXACTLY the departments
+ * they're assigned (the ticked checkboxes in User Management → Department
+ * Membership). Each department grants ONLY its own matching workspace — there
+ * is no implicit "reach every workspace" anymore. Tick Operations only →
+ * Operations only; tick Operations + Workforce → both. (Main Admin below is
+ * still all-access.)
  */
 const DEPARTMENT_ACCESS = {
-  Executives: ["executives", "operations", "workforce"],
-  Workforce: ["executives", "operations", "workforce"],
+  Executives: ["executives"],
   Operations: ["operations"],
+  Workforce: ["workforce"],
 };
 
 /** The Main Admin implicitly has all-access regardless of department tags. */

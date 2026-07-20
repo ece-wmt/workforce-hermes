@@ -1170,8 +1170,9 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
                   <div className="settings-card">
                     <label className="settings-field-label">Department Membership</label>
                     <p className="settings-field-hint">
-                      Assign which workspaces each member can access. Executives &amp; Workforce reach all
-                      workspaces; Operations is limited to the Operations workspace.
+                      Tick the workspaces each member can access — access is exactly what's ticked.
+                      Operations only means Operations only; tick Operations &amp; Workforce for both.
+                      (The Main Admin always has all access.)
                     </p>
                     <div className="staff-management-list">
                       {activeStaff.map((s) => {
