@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from "react";
 import { runAssistant } from "../utils/geminiClient";
-import { hasGeminiApiKey } from "../utils/aiConfig";
 import { useAiActions } from "../utils/aiTools";
 import { loadChats, saveChat, deleteChat, newSessionId } from "../utils/caddyChats";
 
@@ -69,7 +68,6 @@ export default function AIAssistant({ open, onClose, userName, userEmail, actual
   const historyRef = useRef([]); // Gemini `contents` across turns
   const coffeeIdx = useRef(0);
   const scrollRef = useRef(null);
-  const keyMissing = !hasGeminiApiKey();
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -131,8 +129,8 @@ export default function AIAssistant({ open, onClose, userName, userEmail, actual
       // Keep the real reason in the console; show the user a gentle stand-in.
       console.warn("[Caddy] error:", err);
       const raw = err?.message || "";
-      const friendly = /api key/i.test(raw)
-        ? "I need my Gemini key first — add it in Settings → AI Assistant, then try again."
+      const friendly = /api key|not configured/i.test(raw)
+        ? "My connection to the AI isn't set up on the server yet — ask an admin to configure the Gemini key."
         : COFFEE_LINES[coffeeIdx.current++ % COFFEE_LINES.length];
       setMessages((m) => [...m, { role: "assistant", text: friendly, error: true }]);
     } finally {
@@ -200,12 +198,6 @@ export default function AIAssistant({ open, onClose, userName, userEmail, actual
                 <span className="ai-status-label">{status.label}</span>
               </div>
             )}
-          </div>
-        )}
-
-        {keyMissing && (
-          <div className="ai-keywarn">
-            No Gemini API key yet — add it in <strong>Settings → AI Assistant</strong> to start chatting.
           </div>
         )}
 

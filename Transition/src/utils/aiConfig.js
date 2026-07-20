@@ -1,17 +1,14 @@
 // ── Gemini AI assistant configuration ───────────────────────────────────────
 //
-// API KEY: paste your Gemini key in ONE of these places (checked in order):
-//   1. Settings → AI Assistant  (stored in localStorage as "wf_gemini_key")
-//   2. .env.local  →  VITE_GEMINI_API_KEY=your_key_here   (then restart dev)
+// The API KEY is NEVER in the browser. The client calls our server proxy
+// (/api/gemini), which reads the SERVER-only env var GEMINI_API_KEY (set it in
+// Vercel, and in .env.local as GEMINI_API_KEY — NOT VITE_ — for `vercel dev`).
 //
-// The key lives client-side (this is an internal tool). If you'd rather keep it
-// off the browser, we can move the Gemini call into a Convex action later.
+// Only non-secret config (model names, feature flags) lives here on the client.
 
-// Model tier — "flash lite". The primary + a backup (used automatically if the
-// primary is missing / rate-limited / erroring). Override either in .env.local
-// via VITE_GEMINI_MODEL and VITE_GEMINI_MODEL_FALLBACK.
-//   • gemini-flash-lite-latest  → currently resolves to gemini-3.1-flash-lite
-//   • gemini-flash-latest       → heavier "flash" fallback
+// Model tier — primary + a backup used automatically if the primary is
+// rate-limited / erroring. Override in env via VITE_GEMINI_MODEL / _FALLBACK
+// (model names aren't secret, so VITE_ is fine for these).
 const DEFAULT_MODEL = "gemini-flash-lite-latest";
 const DEFAULT_FALLBACK = "gemini-flash-latest";
 
@@ -28,34 +25,6 @@ export function getGeminiModels() {
 // causes 429s even when token/RPD usage is tiny. OFF by default; set
 // VITE_GEMINI_WEB_SEARCH=true once you have billing/quota for grounding.
 export const ENABLE_WEB_SEARCH = String(import.meta.env.VITE_GEMINI_WEB_SEARCH || "").toLowerCase() === "true";
-
-// Google Generative Language REST endpoint.
-export const GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
-
-const KEY_STORAGE = "wf_gemini_key";
-
-export function getGeminiApiKey() {
-  try {
-    const fromSettings = (localStorage.getItem(KEY_STORAGE) || "").trim();
-    if (fromSettings) return fromSettings;
-  } catch {
-    /* localStorage unavailable */
-  }
-  return (import.meta.env.VITE_GEMINI_API_KEY || "").trim();
-}
-
-export function setGeminiApiKey(key) {
-  try {
-    if (key && key.trim()) localStorage.setItem(KEY_STORAGE, key.trim());
-    else localStorage.removeItem(KEY_STORAGE);
-  } catch {
-    /* ignore */
-  }
-}
-
-export function hasGeminiApiKey() {
-  return !!getGeminiApiKey();
-}
 
 // ── Enable / disable the whole Caddy assistant ──────────────────────────────
 const ENABLED_STORAGE = "wf_caddy_enabled";

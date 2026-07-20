@@ -1,4 +1,4 @@
-import { GEMINI_ENDPOINT, getGeminiApiKey, getGeminiModels, ENABLE_WEB_SEARCH } from "./aiConfig";
+import { getGeminiModels, ENABLE_WEB_SEARCH } from "./aiConfig";
 
 // Safety cap on how many tool-call rounds a single request may take.
 const MAX_TURNS = 10;
@@ -16,9 +16,6 @@ const MAX_TURNS = 10;
  * @returns {Promise<{text:string, contents:Array}>} final text + updated contents (for history)
  */
 export async function runAssistant({ history = [], userText, tools = [], systemInstruction, executeTool, onStatus }) {
-  const key = getGeminiApiKey();
-  if (!key) throw new Error("No Gemini API key set yet. Add it in Settings → AI Assistant.");
-
   const models = getGeminiModels();
   let modelIdx = 0; // persists across turns — once we fall back, stay there
   // Google Search grounding (only when enabled — see aiConfig) alongside our
@@ -33,13 +30,17 @@ export async function runAssistant({ history = [], userText, tools = [], systemI
   async function generate(body) {
     while (true) {
       const model = models[modelIdx];
-      const url = `${GEMINI_ENDPOINT}/${model}:generateContent?key=${encodeURIComponent(key)}`;
       let res;
       try {
-        res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        // Route through our server proxy so the API key stays server-side.
+        res = await fetch("/api/gemini", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ model, body }),
+        });
       } catch {
         if (modelIdx < models.length - 1) { modelIdx++; onStatus?.("thinking", "Switching to backup model…"); continue; }
-        throw new Error("Couldn't reach Gemini (network error). Check your connection.");
+        throw new Error("Couldn't reach the assistant service (network error). Check your connection.");
       }
       if (res.ok) return res.json();
       const errText = await res.text().catch(() => "");

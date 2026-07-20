@@ -7,7 +7,7 @@ import { isAdminPlusOrAbove, ASSIGNABLE_ROLES } from "../utils/roles";
 import { useWorkspace } from "../utils/workspaceContext";
 import { DEPARTMENTS } from "../utils/departments";
 import { DEFAULT_COLUMNS, COLUMN_COLOR_PRESETS, resolveColumns, taskInColumn, makeColumnId } from "../utils/columns";
-import { GEMINI_MODEL, getGeminiApiKey, setGeminiApiKey, isCaddyEnabled, setCaddyEnabled } from "../utils/aiConfig";
+import { GEMINI_MODEL, isCaddyEnabled, setCaddyEnabled } from "../utils/aiConfig";
 
 const ACCENT_COLORS = [
   { name: "Emerald", value: "#10b981" },
@@ -109,9 +109,7 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
     applySettings({ ...loadSettings(), theme, skin, accentColor, fontSize, ...next });
   }
 
-  // --- AI Assistant (Gemini) key state ---
-  const [geminiKeyInput, setGeminiKeyInput] = useState(getGeminiApiKey());
-  const [geminiKeySaved, setGeminiKeySaved] = useState(false);
+  // --- AI Assistant (Caddy) state ---
   const [caddyEnabled, setCaddyEnabledState] = useState(isCaddyEnabled());
 
   // --- General Preferences state ---
@@ -594,12 +592,12 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
               </div>
 
               <div className="settings-card">
-                <label className="settings-field-label">AI Assistant (Gemini)</label>
+                <label className="settings-field-label">AI Assistant (Caddy)</label>
                 <p className="settings-field-hint">
-                  Paste your Google Gemini API key to enable <strong>Caddy</strong> (the Caduceus
-                  assistant). The key is stored in this browser only. Model: <strong>{GEMINI_MODEL}</strong>.
+                  <strong>Caddy</strong> (the Caduceus assistant). The Gemini API key is configured
+                  securely on the server — it's never exposed in the app. Model: <strong>{GEMINI_MODEL}</strong>.
                 </p>
-                <div className="settings-toggle-row" style={{ marginBottom: 14 }}>
+                <div className="settings-toggle-row">
                   <div className="toggle-info">
                     <span className="toggle-label">Enable Caddy assistant</span>
                     <span className="toggle-desc">Show the floating ✦ launcher, its pop-up tips, and the chat panel.</span>
@@ -613,35 +611,6 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
                     <span className="toggle-slider" />
                   </label>
                 </div>
-                <div className="email-update-row">
-                  <input
-                    type="password"
-                    className="settings-input"
-                    placeholder="Paste Gemini API key…"
-                    value={geminiKeyInput}
-                    onChange={(e) => { setGeminiKeyInput(e.target.value); setGeminiKeySaved(false); }}
-                  />
-                  <button
-                    className="settings-btn-primary"
-                    onClick={() => { setGeminiApiKey(geminiKeyInput); setGeminiKeySaved(true); }}
-                  >
-                    Save Key
-                  </button>
-                  {getGeminiApiKey() && (
-                    <button
-                      className="settings-btn-outline"
-                      onClick={() => { setGeminiApiKey(""); setGeminiKeyInput(""); setGeminiKeySaved(false); }}
-                    >
-                      Clear
-                    </button>
-                  )}
-                </div>
-                {geminiKeySaved && (
-                  <span className="skin-default-saved" style={{ marginTop: 10 }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                    Gemini key saved — open Caddy from the ✦ button.
-                  </span>
-                )}
               </div>
             </section>
 
