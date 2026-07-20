@@ -4,10 +4,12 @@ import { getProjectDeadlines, fmtDate } from "./utils/deadlines";
 import { isAdminLevel, isAdminPlusOrAbove, isManager, defaultViewRole, roleBadgeLabel } from "./utils/roles";
 import { accessibleWorkspaces, DEFAULT_WORKSPACE, DEPARTMENTS, workspaceLabel } from "./utils/departments";
 import { WorkspaceContext } from "./utils/workspaceContext";
+import { workspaceNeedsPassword, markWorkspaceUnlocked, clearWorkspaceUnlocks, hashPassword } from "./utils/workspacePassword";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { initNotifications } from "./utils/notifications";
 import WorkspaceSelect, { WorkspaceCards } from "./components/WorkspaceSelect";
+import WorkspacePasswordGate from "./components/WorkspacePasswordGate";
 import Dashboard from "./components/Dashboard";
 import KanbanBoard from "./components/KanbanBoard";
 import TaskEntry from "./components/TaskEntry";
@@ -68,6 +70,7 @@ export default function App() {
   // under wf_workspace and validated against the user's department access on
   // every auth resolve. userDepartments feeds the post-login workspace picker.
   const [activeWorkspace, setActiveWorkspace] = useState(() => localStorage.getItem("wf_workspace") || null);
+  const [, setWsUnlockBump] = useState(0); // bump to re-render after unlocking a password-gated workspace
   const [userDepartments, setUserDepartments] = useState([]);
   const [showWorkspacePicker, setShowWorkspacePicker] = useState(false);
   // Workspace-switch transition: the target key being switched to, and the
@@ -156,6 +159,8 @@ export default function App() {
   // Header search + modals read the active workspace's tasks.
   const tasks = useQuery(api.tasks.getTasksLight, { workspace: activeWorkspace || DEFAULT_WORKSPACE });
   const convexStaff = useQuery(api.staff.getStaff);
+  // Active workspace's config — read here to gate entry when a password is set.
+  const activeWsConfig = useQuery(api.appConfig.getAppConfig, { workspace: activeWorkspace || DEFAULT_WORKSPACE });
 
   // Fetch staff list via Vercel Proxy (with Edge Caching to save Convex Bandwidth)
   const fetchStaff = async () => {
@@ -531,6 +536,7 @@ export default function App() {
     localStorage.removeItem("wf_email");
     localStorage.removeItem("wf_last_activity");
     localStorage.removeItem("wf_workspace");
+    clearWorkspaceUnlocks();
     sessionExpiredRef.current = false;
     setAuthStage("login");
     setLoading(true);
@@ -747,6 +753,42 @@ export default function App() {
         <div className="brand-loading-text">Loading…</div>
       </div>
     );
+  }
+
+  // --- Workspace entry password gate ---------------------------------------
+  // If the active workspace has a password and the user hasn't unlocked it this
+  // session, hold the app behind a password screen. Main Admin bypasses. Wait
+  // for the config query to resolve first so the app doesn't flash.
+  if (authStage === "authenticated" && activeWorkspace && !isMainAdmin) {
+    if (activeWsConfig === undefined) {
+      return (
+        <div className="brand-loading">
+          <video className="brand-loading-video" src="/logo%20animation.mp4" autoPlay muted loop playsInline />
+          <div className="brand-loading-text">Loading…</div>
+        </div>
+      );
+    }
+    if (workspaceNeedsPassword({ passwordHash: activeWsConfig?.workspacePasswordHash, workspace: activeWorkspace, isMainAdmin })) {
+      return (
+        <WorkspacePasswordGate
+          workspace={activeWorkspace}
+          onSubmit={async (pw) => {
+            const h = await hashPassword(pw);
+            if (h === activeWsConfig.workspacePasswordHash) {
+              markWorkspaceUnlocked(activeWorkspace);
+              setWsUnlockBump((n) => n + 1);
+              return true;
+            }
+            return false;
+          }}
+          onBack={() => {
+            setActiveWorkspace(null);
+            localStorage.removeItem("wf_workspace");
+            setAuthStage("select-workspace");
+          }}
+        />
+      );
+    }
   }
 
   // -------------------------------------------------------

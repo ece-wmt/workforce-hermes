@@ -3,9 +3,10 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { loadSettings, saveSettings, applySettings, DEFAULT_SETTINGS, SKINS } from "../utils/settingsManager";
 import { FALLBACK_MILESTONES } from "../utils/defaults";
-import { isAdminPlusOrAbove, ASSIGNABLE_ROLES } from "../utils/roles";
+import { isAdminPlusOrAbove, isManager, ASSIGNABLE_ROLES } from "../utils/roles";
 import { useWorkspace } from "../utils/workspaceContext";
-import { DEPARTMENTS } from "../utils/departments";
+import { DEPARTMENTS, workspaceLabel, MAIN_ADMIN_EMAIL } from "../utils/departments";
+import { hashPassword } from "../utils/workspacePassword";
 import { DEFAULT_COLUMNS, COLUMN_COLOR_PRESETS, resolveColumns, taskInColumn, makeColumnId } from "../utils/columns";
 import { getGeminiModels, isCaddyEnabled, setCaddyEnabled } from "../utils/aiConfig";
 
@@ -54,6 +55,10 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
   const [hasChanges, setHasChanges] = useState(false);
   // Admin+ and Manager share the elevated settings (workspace defaults, staff management)
   const isAdminPlus = isAdminPlusOrAbove(actualRole);
+  // Department membership is editable by MANAGERS only (and the Main Admin);
+  // Admin/Admin+ can view it but not change it.
+  const isMainAdmin = (userEmail || "").toLowerCase() === MAIN_ADMIN_EMAIL;
+  const canEditDepartments = isManager(actualRole) || isMainAdmin;
   const SECTIONS = useMemo(() => {
     return isAdminPlus
       ? [
@@ -154,6 +159,9 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
   const updateStaffDepartmentMut = useMutation(api.staff.updateStaffDepartment);
   // Staff Management sub-tab: "access" (role) | "department" (workspace access)
   const [staffSubTab, setStaffSubTab] = useState("access");
+  // Workspace entry password (per-workspace appConfig.workspacePasswordHash).
+  const [wsPwInput, setWsPwInput] = useState("");
+  const [savingWsPw, setSavingWsPw] = useState(false);
 
   const allStaff = useQuery(api.staff.getStaff);
   const workspace = useWorkspace();
@@ -900,6 +908,76 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
                     </button>
                   </div>
                 </div>
+
+                {/* Workspace entry password */}
+                <div className="settings-card">
+                  <label className="settings-field-label">Workspace Password</label>
+                  <p className="settings-field-hint">
+                    Require a password to open this workspace. Leave blank for open access —
+                    {appConfig?.workspacePasswordHash
+                      ? " a password is currently set."
+                      : " no password is set, so anyone with access can enter."}
+                    {" "}The Main Admin can always enter, and people already inside keep access until they leave.
+                  </p>
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                    <input
+                      type="password"
+                      className="settings-input"
+                      autoComplete="new-password"
+                      placeholder={appConfig?.workspacePasswordHash ? "Enter a new password to change it" : "Set a password"}
+                      value={wsPwInput}
+                      onChange={(e) => setWsPwInput(e.target.value)}
+                      style={{ flex: 1, minWidth: 220 }}
+                    />
+                    <button
+                      className="settings-btn-primary"
+                      disabled={savingWsPw || !wsPwInput.trim()}
+                      onClick={async () => {
+                        const pw = wsPwInput.trim();
+                        if (!pw) return;
+                        setSavingWsPw(true);
+                        try {
+                          const workspacePasswordHash = await hashPassword(pw);
+                          await saveAppConfigMut({ workspace, workspacePasswordHash, updatedBy: userName });
+                          setWsPwInput("");
+                          showModal({ title: "Password Set", message: `${workspaceLabel(workspace)} now requires this password to enter.`, type: "success" });
+                        } catch (err) {
+                          showModal({ title: "Couldn't Save", message: err.message || "Failed to set the workspace password.", type: "alert" });
+                        } finally {
+                          setSavingWsPw(false);
+                        }
+                      }}
+                    >
+                      {savingWsPw ? "Saving…" : (appConfig?.workspacePasswordHash ? "Change Password" : "Set Password")}
+                    </button>
+                    {appConfig?.workspacePasswordHash && (
+                      <button
+                        className="settings-btn-ghost"
+                        disabled={savingWsPw}
+                        onClick={() => {
+                          showModal({
+                            title: "Remove Workspace Password",
+                            message: `Remove the password on ${workspaceLabel(workspace)}? Anyone with access will be able to enter without a password.`,
+                            type: "confirm",
+                            onConfirm: async () => {
+                              setSavingWsPw(true);
+                              try {
+                                await saveAppConfigMut({ workspace, workspacePasswordHash: null, updatedBy: userName });
+                                showModal({ title: "Password Removed", message: `${workspaceLabel(workspace)} is now open (no password required).`, type: "success" });
+                              } catch (err) {
+                                showModal({ title: "Couldn't Remove", message: err.message || "Failed to remove the password.", type: "alert" });
+                              } finally {
+                                setSavingWsPw(false);
+                              }
+                            },
+                          });
+                        }}
+                      >
+                        Remove Password
+                      </button>
+                    )}
+                  </div>
+                </div>
               </section>
             )}
 
@@ -1173,11 +1251,13 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
                       Tick the workspaces each member can access — access is exactly what's ticked.
                       Operations only means Operations only; tick Operations &amp; Workforce for both.
                       (The Main Admin always has all access.)
+                      {!canEditDepartments && " View only — only Managers can change department membership."}
                     </p>
                     <div className="staff-management-list">
                       {activeStaff.map((s) => {
                         const isSelf = s.email.toLowerCase() === (userEmail || "").toLowerCase();
                         const current = Array.isArray(s.departments) ? s.departments : [];
+                        const locked = isSelf || !canEditDepartments; // managers (or Main Admin) only, never self
                         return (
                           <div key={s.email} className="staff-mgmt-row">
                             <div className="staff-mgmt-avatar" onClick={() => onViewProfile && onViewProfile(s)} style={{ cursor: "pointer" }}>
@@ -1195,13 +1275,13 @@ export default function Settings({ userName, userEmail, onClose, showModal, onLo
                                 return (
                                   <label
                                     key={dept}
-                                    title={isSelf ? "You can't change your own departments" : ""}
-                                    style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "0.75rem", fontWeight: 700, color: "var(--color-text-primary)", opacity: isSelf ? 0.55 : 1, cursor: isSelf ? "not-allowed" : "pointer" }}
+                                    title={isSelf ? "You can't change your own departments" : (!canEditDepartments ? "Only Managers can change department membership" : "")}
+                                    style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "0.75rem", fontWeight: 700, color: "var(--color-text-primary)", opacity: locked ? 0.55 : 1, cursor: locked ? "not-allowed" : "pointer" }}
                                   >
                                     <input
                                       type="checkbox"
                                       checked={checked}
-                                      disabled={isSelf}
+                                      disabled={locked}
                                       onChange={async (e) => {
                                         const next = e.target.checked
                                           ? [...current, dept]

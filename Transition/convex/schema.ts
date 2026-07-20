@@ -207,6 +207,10 @@ export default defineSchema({
         })
       )
     ),
+    // Optional entry password for this workspace, stored as a SHA-256 hash (never
+    // plaintext). Unset/empty = no password (open entry). Set = users must enter
+    // it to open the workspace. Soft gate under the v1 client-trust model.
+    workspacePasswordHash: v.optional(v.string()),
     updatedAt: v.number(),
     updatedBy: v.optional(v.string()),
   }).index("by_workspace", ["workspace"]),

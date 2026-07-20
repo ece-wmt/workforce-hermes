@@ -48,6 +48,8 @@ export const saveAppConfig = mutation({
         })
       )
     ),
+    // "" or null clears the password; a non-empty hash sets it; undefined leaves untouched.
+    workspacePasswordHash: v.optional(v.union(v.string(), v.null())),
     updatedBy: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -71,6 +73,11 @@ export const saveAppConfig = mutation({
     }
     if (args.columns !== undefined) {
       patch.columns = args.columns;
+    }
+    if (args.workspacePasswordHash !== undefined) {
+      // empty string or null removes the field (clears the password)
+      patch.workspacePasswordHash =
+        args.workspacePasswordHash ? args.workspacePasswordHash : undefined;
     }
 
     if (existing) {
